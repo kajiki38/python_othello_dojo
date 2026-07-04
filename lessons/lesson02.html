@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 2: 盤面を作ろう — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson02">
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 02 / 08</div>
+      <h1>盤面を作ろう</h1>
+      <p class="lead">オセロ盤は8×8の64マス。「リストのリスト」という考え方で、コンピュータの中に盤面を作ります。今日からあなたのオセロ開発が本格スタートです。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>2次元リスト(リストのリスト)で盤面を表現できる</li>
+        <li><code>board[y][x]</code> で好きなマスを読み書きできる</li>
+        <li>初期配置つきのオセロ盤を作る関数 <code>make_board</code> を完成させる</li>
+      </ul>
+    </div>
+
+    <div class="static-board"
+         data-rows="........|........|........|...○●...|...●○...|........|........|........"
+         data-caption="今日の完成形 — 中央に4つの石が並んだ、オセロの初期盤面"></div>
+
+    <h2><span class="step">STEP 1</span>「リストのリスト」= 盤面</h2>
+    <p>前回、盤面の「1行」をリストで表しました。では8行分は? 答えはシンプルで、<strong>行のリストをさらにリストに入れる</strong>だけです。まずは小さく3×3で感覚をつかみましょう。</p>
+
+    <div class="pyrunner" data-name="mini_board.py">
+<script type="text/x-python">
+# 3x3 の小さな盤面(リストの中に、行のリストが3つ)
+board = [
+    [".", ".", "."],
+    [".", "●", "."],
+    [".", ".", "○"],
+]
+
+print(board[1])     # 2行目をまるごと取り出す
+print(board[1][1])  # 2行目の2マス目 → ●
+print(board[2][2])  # 3行目の3マス目 → ○
+</script>
+    </div>
+
+    <div class="warn">
+      <p><strong>順番に注意!</strong> <code>board[y][x]</code> は「<strong>y行目</strong>の<strong>x列目</strong>」。つまり<strong>縦(y)が先、横(x)が後</strong>です。オセロ作りで一番間違えやすいポイントなので、「外側のリスト=行の集まり」というイメージをしっかり持ちましょう。</p>
+    </div>
+
+    <div class="note">
+      <p><strong>新機能:</strong> このレッスンから、コードを実行すると出力の下に<strong>本物のオセロ盤ビジュアル</strong>が自動で表示されます(<code>board</code> のような盤面リストを自動検出)。上の3×3のコードを実行して確かめてみてください!</p>
+    </div>
+
+    <h2><span class="step">STEP 2</span>8×8の盤面をループで作る</h2>
+    <p>64マスを手で書くのは大変です。「空きマス8個の行」を8回作って積み重ねる——ループの出番です。</p>
+
+    <div class="pyrunner" data-name="empty_board.py">
+<script type="text/x-python">
+EMPTY = "."   # 「空きマス」を表す記号に名前をつけておく
+
+board = []                    # まず空っぽの盤面
+for y in range(8):            # 8回くり返す
+    row = []                  # 空っぽの行
+    for x in range(8):        # 8回くり返す
+        row.append(EMPTY)     # 行に空きマスを追加
+    board.append(row)         # 盤面に行を追加
+
+# 表示してみる
+for row in board:
+    print(" ".join(row))
+</script>
+    </div>
+
+    <p>ループの中にループがある「二重ループ」です。内側の <code>for x</code> が8回まわるたびに、外側の <code>for y</code> が1歩進む。オセロの全マスを調べるときにも、この形を何度も使います。</p>
+
+    <div class="note">
+      <p><strong>上級ワザ:</strong> 同じことを1行で書く方法もあります → <code>board = [[EMPTY] * 8 for _ in range(8)]</code>。「リスト内包表記」と呼ばれる書き方で、慣れるととても便利。このサイトの後半でも登場します。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>初期配置の4つの石を置く</h2>
+    <p>オセロは中央に黒2個・白2個を置いた状態から始まります。中央とは座標(3,3)(4,3)(3,4)(4,4)。<code>board[y][x] = 石</code> で書き込みます。</p>
+
+    <div class="pyrunner" data-name="initial_stones.py">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+board = [[EMPTY] * 8 for _ in range(8)]   # さっそく1行バージョンで
+
+# 初期配置: 中央に4つ (board[y][x] = 縦y行目・横x列目)
+board[3][3] = WHITE
+board[3][4] = BLACK
+board[4][3] = BLACK
+board[4][4] = WHITE
+
+for row in board:
+    print(" ".join(row))
+</script>
+    </div>
+
+    <p>真ん中に <code>○ ●</code> / <code>● ○</code> の模様ができたら成功です!</p>
+
+    <h2><span class="step">STEP 4</span>関数にまとめる — make_board と print_board</h2>
+    <p>「盤面を作る」「盤面を表示する」は、これから何百回も使う処理。<strong>関数</strong>にまとめて、いつでも一言で呼び出せるようにしましょう。ついでに表示には行番号・列番号もつけて、座標がひと目で分かるようにします。</p>
+
+    <div class="pyrunner" data-name="board_functions.py">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    """初期配置ずみのオセロ盤を作って返す"""
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    """盤面を座標つきでキレイに表示する"""
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+# --- 使ってみる ---
+board = make_board()
+print_board(board)
+</script>
+    </div>
+
+    <p>この2つの関数は、<strong>最終回まで使い続ける「あなたのオセロエンジン」の最初の部品</strong>です。<code>def 関数名():</code> で定義して、<code>return</code> で結果を返す。この形をしっかり覚えてください。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:盤面を改造してみよう</h3>
+      <p>上のコードの「使ってみる」部分に、次の一手を追加して表示を確かめましょう。</p>
+      <ol>
+        <li>座標 <code>x=2, y=3</code> に黒石を置く(ヒント: yが先!)</li>
+        <li>左上の角 <code>x=0, y=0</code> と右下の角 <code>x=7, y=7</code> に白石を置く</li>
+      </ol>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>board = make_board()
+board[3][2] = BLACK   # x=2, y=3 → board[3][2]
+board[0][0] = WHITE   # 左上の角
+board[7][7] = WHITE   # 右下の角
+print_board(board)</pre></div>
+          <p><code>board[3][2]</code> と <code>board[2][3]</code> を混同しなかったでしょうか? <code>[y][x]</code> の順、ここでマスターできれば今後がグッと楽になります。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>盤面は「行リストを8個持つリスト」。<code>board[y][x]</code> で読み書き(<strong>yが先</strong>)</li>
+      <li>二重ループ <code>for y … for x …</code> で全マスを処理できる</li>
+      <li><code>make_board()</code> と <code>print_board()</code> — エンジン最初の2部品が完成!</li>
+    </ul>
+    <p>次のレッスンでは「石を置く」を関数にして、8方向という考え方に踏み込みます。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

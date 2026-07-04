@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 3: 石を置くしくみ — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson03">
+
+<!-- これまでのレッスンで作ったコード(ウィジェットの実行前に自動で読み込まれる) -->
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 03 / 08</div>
+      <h1>石を置くしくみ</h1>
+      <p class="lead">「石を置く」を関数にし、オセロの核心である「8方向」の考え方を手に入れます。ここを越えると、一気にゲームらしくなってきます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>引数つきの関数を書けるようになる</li>
+        <li>相手の色を返す <code>opponent</code> 関数を作る</li>
+        <li>「8方向」をデータ(リスト)として表し、盤上を1方向に歩けるようになる</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <p>このレッスンから、前回までに作った <code>make_board</code> などは<strong>自動で読み込み済み</strong>です(エディタ上部の 📦 マークが目印)。エディタには新しいコードだけを書けばOK。</p>
+    </div>
+
+    <h2><span class="step">STEP 1</span>引数つき関数 — 石を置く</h2>
+    <p>前回の <code>make_board()</code> は引数なしの関数でした。今回は「<strong>どこに・どの色を</strong>」という情報を受け取る関数を作ります。まずはルール無視で、ただ置くだけのシンプル版です。</p>
+
+    <div class="pyrunner" data-name="place_simple.py" data-preamble="pre">
+<script type="text/x-python">
+def place_simple(board, x, y, color):
+    """(x, y) に color の石をただ置くだけの関数(まだルールなし)"""
+    board[y][x] = color
+
+board = make_board()
+place_simple(board, 2, 3, BLACK)   # x=2, y=3 に黒
+place_simple(board, 5, 4, WHITE)   # x=5, y=4 に白
+print_board(board)
+</script>
+    </div>
+
+    <p>関数名のあとのカッコに並んだ <code>board, x, y, color</code> が<strong>引数(ひきすう)</strong>。呼び出すときに渡した値が、この名前で関数の中に届きます。</p>
+
+    <div class="warn">
+      <p>本物のオセロでは「相手の石を挟める場所」にしか置けません。ルールチェックは次のレッスンのお楽しみ。まずは部品を揃えます。</p>
+    </div>
+
+    <h2><span class="step">STEP 2</span>相手の色を知る — opponent 関数</h2>
+    <p>「黒の相手は白、白の相手は黒」。当たり前ですが、この変換はこの先ずっと使うので関数にしておきます。<code>if / else</code> で書いてみましょう。</p>
+
+    <div class="pyrunner" data-name="opponent.py" data-preamble="pre">
+<script type="text/x-python">
+def opponent(color):
+    """相手の色を返す"""
+    if color == BLACK:
+        return WHITE
+    else:
+        return BLACK
+
+print("黒の相手は", opponent(BLACK))
+print("白の相手は", opponent(WHITE))
+print("相手の相手は自分:", opponent(opponent(BLACK)))
+</script>
+    </div>
+
+    <div class="note">
+      <p>Pythonらしい短縮形 <code>return WHITE if color == BLACK else BLACK</code> という書き方もあります(条件式)。意味は同じなので、好きな方でOK。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>オセロの核心「8方向」をデータにする</h2>
+    <p>石を置いたとき、相手の石を挟めるかどうかは <strong>上下左右+ナナメの8方向</strong> をそれぞれ調べて判断します。方向は「xがどれだけ動くか(dx)、yがどれだけ動くか(dy)」のペアで表せます。</p>
+    <div class="codeblock"><pre>(-1,-1)  ( 0,-1)  ( 1,-1)      ↖  ↑  ↗
+(-1, 0)     ●     ( 1, 0)  =   ←  ●  →
+(-1, 1)  ( 0, 1)  ( 1, 1)      ↙  ↓  ↘</pre></div>
+    <p>この8個のペアをリストにしておけば、<code>for</code> ループで「8方向ぜんぶ調べる」が書けるようになります。盤面で見ると、こういうことです。</p>
+
+    <div class="static-board"
+         data-rows="........|........|..***...|..*●*...|..***...|........|........|........"
+         data-caption="(3,3) の石から見た8方向の隣マス。挟み判定は、この8方向すべてを調べることから始まります"></div>
+
+    <div class="pyrunner" data-name="directions.py" data-preamble="pre">
+<script type="text/x-python">
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+# (3, 3) の隣のマス8個を全部表示してみる
+x, y = 3, 3
+for dx, dy in DIRECTIONS:
+    nx = x + dx   # 隣のマスのx
+    ny = y + dy   # 隣のマスのy
+    print(f"方向({dx:>2},{dy:>2}) → 隣は ({nx}, {ny})")
+</script>
+    </div>
+
+    <p><code>for dx, dy in DIRECTIONS:</code> のように、ペア(タプル)を2つの変数に同時に受け取れるのがPythonの便利なところです。</p>
+
+    <h2><span class="step">STEP 4</span>1方向にまっすぐ歩く</h2>
+    <p>次に「ある方向に、盤の端まで1マスずつ進む」を書きます。これができれば、挟み判定まであと一歩。<strong>盤の外に出ないためのチェック</strong>がポイントです。</p>
+
+    <div class="pyrunner" data-name="walk.py" data-preamble="pre">
+<script type="text/x-python">
+# (2, 5) から右上方向 (dx=1, dy=-1) にまっすぐ歩いてみる
+x, y = 2, 5
+dx, dy = 1, -1
+
+nx = x + dx
+ny = y + dy
+while 0 <= nx < 8 and 0 <= ny < 8:   # 盤の中にいる間だけ
+    print(f"({nx}, {ny}) を通過")
+    nx = nx + dx
+    ny = ny + dy
+
+print("盤の端に到達!")
+</script>
+    </div>
+
+    <p><code>0 &lt;= nx &lt; 8</code> は「nxが0以上かつ8未満」という意味。<code>while</code> は「条件が成り立つ間くり返す」ループで、何マス進むか事前に分からないときに使います。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:8方向ぜんぶに歩こう</h3>
+      <p>STEP 3のDIRECTIONSとSTEP 4のwhileループを組み合わせて、「(3, 3) から8方向それぞれに、端まで歩いて通過マスを表示する」プログラムを書いてみましょう。二重ループになります。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+x, y = 3, 3
+for dx, dy in DIRECTIONS:
+    print(f"--- 方向 ({dx}, {dy}) ---")
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < 8 and 0 <= ny < 8:
+        print(f"  ({nx}, {ny})")
+        nx, ny = nx + dx, ny + dy</pre></div>
+          <p>この「8方向ループ+直進walk」の形、実は次回作る<strong>挟み判定そのもの</strong>です。もうオセロの心臓部に手が届いています。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>関数は <code>def 名前(引数1, 引数2):</code> で情報を受け取れる</li>
+      <li>8方向は <code>(dx, dy)</code> のペアのリストで表せる</li>
+      <li><code>while 0 &lt;= nx &lt; 8:</code> で盤からはみ出さずに直進できる</li>
+    </ul>
+    <p>部品が揃いました。次回、いよいよ「挟んだ石をひっくり返す」——オセロで一番おもしろいロジックを完成させます。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

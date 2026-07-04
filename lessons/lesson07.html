@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 7: 対戦AIを作る — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson07">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+def count_stones(board, color):
+    total = 0
+    for row in board:
+        total += row.count(color)
+    return total
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 07 / 08</div>
+      <h1>対戦AIを作る</h1>
+      <p class="lead">「AI」と聞くと大げさですが、正体は<strong>手を選ぶ関数</strong>。ランダムAIから始めて「欲張りAI」を作り、AI同士を100局戦わせる実験まで一気にいきます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>AI = 「盤面を見て手を返す関数」という考え方を身につける</li>
+        <li>関数を引数として渡せることを理解する(これが効く!)</li>
+        <li>ランダムAIと欲張りAIを作り、対戦実験で強さを比較する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>AIの正体は、ただの関数</h2>
+    <p>オセロAIに必要な能力はたった1つ。<strong>「盤面と手番を渡されたら、打つ手を1つ返す」</strong>。つまりこういう形の関数です。</p>
+    <div class="codeblock"><pre>def 何とかAI(board, color, moves):
+    # moves(打てる場所リスト)の中から1つ選んで…
+    return (x, y)</pre></div>
+    <p>一番シンプルなAI、<strong>ランダムAI</strong>はもう作れますね。</p>
+
+    <div class="pyrunner" data-name="ai_random.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def ai_random(board, color, moves):
+    """打てる場所から適当に選ぶAI"""
+    return random.choice(moves)
+
+# 試しに1手選ばせてみる
+board = make_board()
+moves = valid_moves(board, BLACK)
+print("打てる場所:", moves)
+print("ランダムAIの選択:", ai_random(board, BLACK, moves))
+</script>
+    </div>
+
+    <h2><span class="step">STEP 2</span>AI同士を戦わせる装置を作る</h2>
+    <p>ここでPythonの強力な機能を使います。<strong>関数は変数に入れたり、引数として渡したりできる</strong>のです。これを使えば「黒のAIと白のAIを受け取って対戦させる」装置が作れます。</p>
+
+    <div class="pyrunner" data-name="play_match.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def play_match(ai_black, ai_white):
+    """2つのAIを対戦させ、(黒の石数, 白の石数) を返す"""
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            if turn == BLACK:
+                ai = ai_black       # 関数そのものを変数に入れる!
+            else:
+                ai = ai_white
+            x, y = ai(board, turn, moves)   # 選ばせて
+            place(board, x, y, turn)        # 打つ
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+
+# ランダム vs ランダムで1局
+b, w = play_match(ai_random, ai_random)
+print(f"結果: 黒 {b} - {w} 白")
+</script>
+    </div>
+
+    <div class="note">
+      <p><code>play_match(ai_random, ai_random)</code> — カッコをつけずに関数名だけを渡しているのに注目。<code>ai_random()</code> だと「実行した結果」が渡ってしまいます。<strong>関数名だけ = 関数そのものを渡す</strong>、です。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>欲張りAI — 一番たくさん取れる手を選ぶ</h2>
+    <p>初めての「考えるAI」を作ります。作戦は人間の初心者と同じ、<strong>「いま一番たくさん裏返せる手を選ぶ」</strong>。<code>stones_to_flip</code> の長さを全部の手について調べて、最大のものを選びます。</p>
+
+    <div class="pyrunner" data-name="ai_greedy.py" data-preamble="pre">
+<script type="text/x-python">
+def ai_greedy(board, color, moves):
+    """一番たくさん裏返せる手を選ぶ「欲張りAI」"""
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n > best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
+# 動作チェック: 初期盤面 → どの手も1個なので最初の手を選ぶはず
+board = make_board()
+place(board, 2, 3, BLACK)   # 1手進めると差が出る
+moves = valid_moves(board, WHITE)
+for x, y in moves:
+    n = len(stones_to_flip(board, x, y, WHITE))
+    print(f"({x}, {y}) に打つと {n} 個裏返せる")
+print("欲張りAIの選択:", ai_greedy(board, WHITE, moves))
+</script>
+    </div>
+
+    <div class="tip">
+      <p>Python上級者はこう書きます: <code>return max(moves, key=lambda m: len(stones_to_flip(board, m[0], m[1], color)))</code>。1行で同じ意味! 今は読めなくてOKですが、「maxは選び方(key)を指定できる」と覚えておくと格好いいコードが書けます。</p>
+    </div>
+
+    <h2><span class="step">STEP 4</span>実験:欲張り vs ランダム、どっちが強い?</h2>
+    <p>いよいよ科学の時間です。1局だけでは運もあるので、<strong>50局戦わせて勝率で判断</strong>します。実行前に予想してみてください——欲張りAIの勝率は何%くらいだと思いますか?</p>
+
+    <div class="pyrunner" data-name="experiment.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def ai_greedy(board, color, moves):
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n > best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
+def play_match(ai_black, ai_white):
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            ai = ai_black if turn == BLACK else ai_white
+            x, y = ai(board, turn, moves)
+            place(board, x, y, turn)
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+
+# 欲張り(黒) vs ランダム(白) を50局! ※数秒かかります
+wins = losses = draws = 0
+for i in range(50):
+    b, w = play_match(ai_greedy, ai_random)
+    if b > w:
+        wins += 1
+    elif w > b:
+        losses += 1
+    else:
+        draws += 1
+
+print(f"欲張りAIの成績: {wins}勝 {losses}敗 {draws}分")
+print(f"勝率: {wins / 50 * 100:.0f}%")
+</script>
+    </div>
+
+    <p>おそらく勝率60〜75%前後になったはず。<strong>「たくさん取る」は思ったより圧勝ではない</strong>のがオセロの面白いところ。序盤に取りすぎると、かえって相手に打てる場所を与えてしまうのです。この弱点を突く方法は、最終レッスンで。</p>
+
+    <div class="static-board"
+         data-rows="★......★|........|........|........|........|........|........|★......★"
+         data-caption="オセロの格言「角を取れ」— 4つの角は、一度取ったら絶対に裏返されない最強のマス"></div>
+
+    <div class="challenge">
+      <h3>チャレンジ:角が大好きなAI</h3>
+      <p>オセロの格言「<strong>角を取れ</strong>」。角(0,0)(7,0)(0,7)(7,7)は絶対に裏返されない最強のマスです。「打てる場所に角があれば必ず角に打ち、なければ欲張りAIと同じ動きをする」<code>ai_corner</code> を作って、ランダムAIと50局戦わせてみましょう。欲張りAIより強いでしょうか?</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>CORNERS = [(0, 0), (7, 0), (0, 7), (7, 7)]
+
+def ai_corner(board, color, moves):
+    for corner in CORNERS:
+        if corner in moves:      # 角に打てるなら迷わず角!
+            return corner
+    return ai_greedy(board, color, moves)   # それ以外は欲張り
+
+wins = losses = draws = 0
+for i in range(50):
+    b, w = play_match(ai_corner, ai_random)
+    if b > w: wins += 1
+    elif w > b: losses += 1
+    else: draws += 1
+print(f"角好きAI: {wins}勝 {losses}敗 {draws}分")</pre></div>
+          <p>すでにあるAI(<code>ai_greedy</code>)を部品として呼び出しているのがポイント。AIの改造は「部品の組み合わせ」でどんどん進化させられます。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>オセロAI = <code>(board, color, moves) → 手</code> を返すただの関数</li>
+      <li>関数は引数として渡せる。だから <code>play_match(AI1, AI2)</code> が書ける</li>
+      <li>強さは大量対局の勝率で測る。1局の勝ち負けで判断しない</li>
+    </ul>
+    <p>最終レッスンでは「マスの価値」という考え方でAIを本格的に強くします。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プレイグラウンド — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="assets/app.js"></script>
+<script src="assets/runner.js"></script>
+</head>
+<body data-page="playground">
+
+<!-- ============ Python エンジン(レッスンで作ったものの完成形) ============ -->
+<script type="text/x-python" id="engine-code">
+import json
+import random
+
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+def count_stones(board, color):
+    total = 0
+    for row in board:
+        total += row.count(color)
+    return total
+
+def copy_board(board):
+    return [row[:] for row in board]
+
+WEIGHTS = [
+    [100, -20,  10,   5,   5,  10, -20, 100],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [100, -20,  10,   5,   5,  10, -20, 100],
+]
+
+def evaluate(board, color):
+    score = 0
+    for y in range(8):
+        for x in range(8):
+            if board[y][x] == color:
+                score += WEIGHTS[y][x]
+            elif board[y][x] == opponent(color):
+                score -= WEIGHTS[y][x]
+    return score
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def ai_greedy(board, color, moves):
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n > best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
+def ai_master(board, color, moves):
+    best_move = None
+    best_score = None
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, color)
+        score = evaluate(test, color)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_move = (x, y)
+    return best_move
+
+def builtin_ai(level, board, color, moves):
+    if level == "easy":
+        return ai_random(board, color, moves)
+    if level == "normal":
+        return ai_greedy(board, color, moves)
+    return ai_master(board, color, moves)
+
+# 対戦相手にする「あなたのAI」。保存コードを読み込んだ後に use_my_ai_as_opponent() で登録する
+versus_ai = None
+def use_my_ai_as_opponent():
+    global versus_ai
+    versus_ai = my_ai
+    return "ok"
+
+def pick_ai_move(level, board, color, moves):
+    # level が "custom" なら あなたのAI、それ以外は内蔵AI。
+    # あなたのAIが落ちたり反則手を返したりしても対局が壊れないよう保険をかける。
+    if level == "custom" and versus_ai is not None:
+        try:
+            mv = versus_ai(board, color, moves)
+            mv = (mv[0], mv[1])
+            if mv in moves:
+                return mv
+        except Exception:
+            pass
+        return random.choice(moves)
+    return builtin_ai(level, board, color, moves)
+
+# ---------- 対話ゲームの状態管理 ----------
+g = {"board": None, "turn": BLACK, "over": False, "msg": "",
+     "last": None, "level": "normal", "human": BLACK}
+
+def _advance():
+    g["msg"] = ""
+    for _ in range(2):
+        g["turn"] = opponent(g["turn"])
+        if valid_moves(g["board"], g["turn"]):
+            return
+        g["msg"] += ("黒" if g["turn"] == BLACK else "白") + "は打てる場所がないためパス。"
+    g["over"] = True
+
+def state():
+    return json.dumps({
+        "board": ["".join(row) for row in g["board"]],
+        "turn": g["turn"],
+        "human": g["human"],
+        "over": g["over"],
+        "msg": g["msg"],
+        "last": g["last"],
+        "moves": valid_moves(g["board"], g["turn"]) if not g["over"] else [],
+        "black": count_stones(g["board"], BLACK),
+        "white": count_stones(g["board"], WHITE),
+    })
+
+def new_game(human_black, level):
+    g["board"] = make_board()
+    g["turn"] = BLACK
+    g["over"] = False
+    g["msg"] = ""
+    g["last"] = None
+    g["level"] = level
+    g["human"] = BLACK if human_black else WHITE
+    return state()
+
+def human_move(x, y):
+    if g["over"] or g["turn"] != g["human"]:
+        return state()
+    if not stones_to_flip(g["board"], x, y, g["turn"]):
+        return state()
+    place(g["board"], x, y, g["turn"])
+    g["last"] = [x, y]
+    _advance()
+    return state()
+
+def ai_step():
+    if g["over"] or g["turn"] == g["human"]:
+        return state()
+    moves = valid_moves(g["board"], g["turn"])
+    mv = pick_ai_move(g["level"], g["board"], g["turn"], moves)
+    place(g["board"], mv[0], mv[1], g["turn"])
+    g["last"] = list(mv)
+    _advance()
+    return state()
+
+# ---------- AI工房: 自作AI vs 内蔵AI ----------
+def play_one(level, my_is_black, opening=4):
+    # ランダム性のないAIどうしだと毎回同じ棋譜になってしまうため、
+    # 最初の opening 手はランダムに打って展開をバラけさせる(実力勝負はその後から)
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    my_color = BLACK if my_is_black else WHITE
+    count = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            if count < opening:
+                mv = random.choice(moves)
+            elif turn == my_color:
+                mv = my_ai(board, turn, moves)
+                mv = (mv[0], mv[1])
+                if mv not in moves:
+                    raise ValueError(f"my_ai がルール違反の手 {mv} を返しました")
+            else:
+                mv = builtin_ai(level, board, turn, moves)
+            place(board, mv[0], mv[1], turn)
+            count += 1
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    my = count_stones(board, my_color)
+    op = count_stones(board, opponent(my_color))
+    result = "draw"
+    if my > op:
+        result = "my"
+    elif op > my:
+        result = "op"
+    return json.dumps({"result": result, "my": my, "op": op})
+
+def play_one_replay(level, opening=4):
+    # 「1局じっくり観戦」用。あなたのAI(黒) vs 内蔵AI(白)を1手ずつ記録して返す。
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    my_color = BLACK       # 観戦モードでは あなたのAI を必ず黒(先手)にして分かりやすく
+    count = 0
+    frames = [{
+        "board": ["".join(r) for r in board], "last": None, "mover": None,
+        "kind": "start", "turn": turn,
+        "black": count_stones(board, BLACK), "white": count_stones(board, WHITE),
+    }]
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        mover = turn
+        if moves:
+            if count < opening:
+                mv = random.choice(moves)
+                kind = "opening"
+            elif turn == my_color:
+                mv = my_ai(board, turn, moves)
+                mv = (mv[0], mv[1])
+                if mv not in moves:
+                    raise ValueError(f"my_ai がルール違反の手 {mv} を返しました")
+                kind = "my"
+            else:
+                mv = builtin_ai(level, board, turn, moves)
+                kind = "op"
+            place(board, mv[0], mv[1], turn)
+            count += 1
+            passes = 0
+            last = [mv[0], mv[1]]
+        else:
+            passes += 1
+            last = None
+            kind = "pass"
+        turn = opponent(turn)
+        frames.append({
+            "board": ["".join(r) for r in board], "last": last, "mover": mover,
+            "kind": kind, "turn": turn,
+            "black": count_stones(board, BLACK), "white": count_stones(board, WHITE),
+        })
+    my = count_stones(board, my_color)
+    op = count_stones(board, opponent(my_color))
+    result = "my" if my > op else ("op" if op > my else "draw")
+    return json.dumps({"frames": frames, "result": result, "my": my, "op": op})
+</script>
+
+<!-- ============ AI工房のお手本コード(プリセット) ============ -->
+<script type="text/x-python" id="preset-corner">
+# 【お手本: 角好きAI】
+# my_ai(board, color, moves) が「打つ手 (x, y)」を返す —— それがAIのすべて。
+# いまの作戦: 角があれば必ず角、なければ一番たくさん裏返せる手。
+
+def my_ai(board, color, moves):
+    for corner in [(0, 0), (7, 0), (0, 7), (7, 7)]:
+        if corner in moves:      # 角に打てるなら迷わず角!
+            return corner
+    return ai_greedy(board, color, moves)   # それ以外は欲張り作戦
+
+# 改造アイデア:
+#  - 角の「隣」には打たないようにしてみる(角を献上しがちな危険地帯)
+#  - ai_greedy の代わりに ai_master(評価関数AI)を使ってみる
+</script>
+
+<script type="text/x-python" id="preset-master">
+# 【お手本: 評価関数AI(Lesson 8)】
+# 「マスの価値」の表 MY_WEIGHTS を自分で調整して、最強のAIを目指そう!
+# 数字の意味: そのマスに自分の石があると何点うれしいか。
+
+MY_WEIGHTS = [
+    [100, -20,  10,   5,   5,  10, -20, 100],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [100, -20,  10,   5,   5,  10, -20, 100],
+]
+
+def my_ai(board, color, moves):
+    best_move = None
+    best_score = None
+    for x, y in moves:
+        test = copy_board(board)       # 盤面をコピーして…
+        place(test, x, y, color)       # 試し打ち!
+        score = 0
+        for yy in range(8):
+            for xx in range(8):
+                if test[yy][xx] == color:
+                    score += MY_WEIGHTS[yy][xx]
+                elif test[yy][xx] == opponent(color):
+                    score -= MY_WEIGHTS[yy][xx]
+        if best_score is None or score > best_score:
+            best_score = score
+            best_move = (x, y)
+    return best_move
+
+# 改造アイデア:
+#  - score に「打てる場所の数」を足す: + 3 * len(valid_moves(test, color))
+#  - 終盤(空きマスが少ない)だけ石の数で選ぶモードに切り替える
+</script>
+
+<script type="text/x-python" id="preset-random">
+# 【お手本: ランダムAI】
+# 一番シンプルなAI。これに勝率50%を超えたら「作戦に意味がある」証拠。
+# まずはこれで一度対戦して、流れをつかもう。
+import random
+
+def my_ai(board, color, moves):
+    return random.choice(moves)
+</script>
+
+<script type="text/x-python" id="preset-blank">
+# 【まっさらな雛形】ここから自由に作ろう!
+#
+# ルール:
+#   - my_ai は、打てる場所リスト moves の中から1つ選んで (x, y) で返す
+#   - board は8×8のリスト。board[y][x] が "●" / "○" / "." のどれか
+#   - color は自分の石("●" か "○")
+#
+# 使える関数は、下の「📖 リファレンス」を見てね。
+
+def my_ai(board, color, moves):
+    # いまは「最初に見つけた手」を選ぶだけ。ここを賢くしていこう!
+    return moves[0]
+</script>
+
+<div class="pg-wrap">
+  <div class="lesson-head" style="margin-bottom: 24px;">
+    <div class="crumb">PLAYGROUND</div>
+    <h1 style="font-size: clamp(25px, 3.4vw, 34px); margin: 6px 0 10px;">プレイグラウンド</h1>
+    <p class="lead" style="color: var(--text-soft); margin: 0;">レッスンで作ったオセロの完成形です。AIと対戦したり、自作AIのコードを書いて腕試ししたり。すべてブラウザの中のPythonで動いています。</p>
+  </div>
+
+  <div class="pg-tabs">
+    <button data-pane="play" class="active">🎮 対戦する</button>
+    <button data-pane="lab">🔬 AI工房</button>
+    <button data-pane="source">📖 エンジンのコード</button>
+  </div>
+
+  <!-- ============ 対戦タブ ============ -->
+  <section class="pg-pane active" id="pane-play">
+    <div class="play-grid">
+      <div class="board-frame">
+        <div class="board" id="board" aria-label="オセロ盤"></div>
+      </div>
+      <div class="pg-side">
+        <div class="score-card">
+          <div class="score-row">
+            <div class="score-item" id="score-black">
+              <span class="mini-disc B"></span>
+              <span><span class="cnt" id="cnt-black">2</span><br><span class="who" id="who-black">あなた</span></span>
+            </div>
+            <div class="score-item" id="score-white">
+              <span class="mini-disc W"></span>
+              <span><span class="cnt" id="cnt-white">2</span><br><span class="who" id="who-white">AI</span></span>
+            </div>
+          </div>
+          <div class="pg-msg" id="pg-msg">「新しいゲーム」を押してスタート!</div>
+        </div>
+        <div class="pg-controls">
+          <div>
+            <label for="sel-level">対戦相手</label>
+            <select id="sel-level">
+              <optgroup label="内蔵AI">
+                <option value="easy">やさしい(ランダムAI)</option>
+                <option value="normal" selected>ふつう(欲張りAI)</option>
+                <option value="strong">つよい(評価関数AI)</option>
+              </optgroup>
+              <optgroup label="あなたのAI" id="sel-saved-group" style="display: none;"></optgroup>
+            </select>
+          </div>
+          <div>
+            <label for="sel-color">あなたの色</label>
+            <select id="sel-color">
+              <option value="black" selected>黒(先手)</option>
+              <option value="white">白(後手)</option>
+            </select>
+          </div>
+          <label class="check-row"><input type="checkbox" id="chk-hints" checked> 打てる場所のヒントを表示</label>
+          <button class="btn btn-primary" id="btn-new" style="justify-content: center;">▶ 新しいゲーム</button>
+        </div>
+        <div class="pg-controls" style="display: block; font-size: 13.5px; color: var(--text-soft); line-height: 1.8;">
+          💡 このAIたちはLesson 7〜8で作った <code>ai_random</code> / <code>ai_greedy</code> / <code>ai_master</code> そのものです。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AI工房タブ ============ -->
+  <section class="pg-pane" id="pane-lab">
+    <div class="lab-intro">
+      <p style="margin: 0;">ここは<strong>自分で書いたAIを、内蔵AIと対戦させる実験室</strong>です。あなたが書くのは <code>my_ai</code> という関数ひとつだけ。<strong>1局じっくり観戦</strong>して戦いぶりを眺めるも良し、<strong>50局まとめて対戦</strong>して勝率で強さを測るも良し。</p>
+    </div>
+    <ol class="lab-steps">
+      <li><b>1</b> お手本コードを選んで、自由に改造する</li>
+      <li><b>2</b> 対戦相手と対局数を選ぶ</li>
+      <li><b>3</b> 「対戦開始」を押して、勝率を見る!</li>
+    </ol>
+    <div class="lab-grid">
+      <div>
+        <div class="preset-row">
+          <label for="lab-preset">✍️ お手本コードから始める:</label>
+          <select id="lab-preset">
+            <option value="corner" selected>角好きAI(おすすめの出発点)</option>
+            <option value="master">評価関数AI(Lesson 8・改造しがいアリ)</option>
+            <option value="random">ランダムAI(いちばんシンプル)</option>
+            <option value="blank">まっさらな雛形(自分でゼロから)</option>
+          </select>
+        </div>
+        <div class="preset-row" id="save-row">
+          <button class="btn btn-ghost lab-save-btn" id="lab-save">💾 このAIを保存</button>
+          <label for="lab-saved" style="margin-left: 6px;">保存したAI:</label>
+          <select id="lab-saved"><option value="">(まだありません)</option></select>
+          <button class="lab-mini-btn" id="lab-load" title="エディタに開く">📂 開く</button>
+          <button class="lab-mini-btn" id="lab-delete" title="削除">🗑</button>
+        </div>
+        <div class="tip" id="save-hint" style="margin: 0 0 14px; display: none;">保存すると「🎮 対戦する」タブの<strong>対戦相手</strong>に「あなたのAI」として並びます。自分の作ったAIと勝負できます!</div>
+        <div class="pyrunner" data-manual style="margin-top: 0;">
+          <div class="bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="fname">my_ai.py — あなたのAI</span>
+            <button class="reset-btn" id="lab-reset" title="選択中のお手本コードに戻す">↺ お手本に戻す</button>
+          </div>
+          <div id="lab-editor"></div>
+        </div>
+        <div class="pg-controls" style="flex-direction: row; flex-wrap: wrap; align-items: end; gap: 16px;">
+          <div style="flex: 1; min-width: 160px;">
+            <label for="lab-level">対戦相手</label>
+            <select id="lab-level">
+              <option value="easy">やさしい(ランダムAI)</option>
+              <option value="normal" selected>ふつう(欲張りAI)</option>
+              <option value="strong">つよい(評価関数AI)</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 120px;">
+            <label for="lab-games">モード</label>
+            <select id="lab-games">
+              <option value="1" selected>1局(じっくり観戦)</option>
+              <option value="50">50局(勝率を測る)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="lab-run">⚔️ 対戦開始</button>
+        </div>
+        <details class="solution lab-help">
+          <summary>📖 リファレンス: my_ai の書き方と使える関数</summary>
+          <div class="body">
+            <p style="font-size: 14px;"><strong>my_ai の約束事</strong> — 3つの引数を受け取り、打つ手を1つ返します。</p>
+            <div class="codeblock"><pre>def my_ai(board, color, moves):
+    return (x, y)   # moves の中の1手を選んで返す</pre></div>
+            <table>
+              <tr><td>board</td><td>8×8の盤面リスト。<code>board[y][x]</code> が <code>"●"</code> / <code>"○"</code> / <code>"."</code></td></tr>
+              <tr><td>color</td><td>自分の石の色(<code>"●"</code> か <code>"○"</code>)</td></tr>
+              <tr><td>moves</td><td>いま打てる場所のリスト。例: <code>[(2, 3), (5, 4)]</code></td></tr>
+            </table>
+            <p style="font-size: 14px;"><strong>使える関数</strong>(すべてレッスンで作ったものです)</p>
+            <table>
+              <tr><td>valid_moves(board, color)</td><td>打てる場所を全部探す → Lesson 5</td></tr>
+              <tr><td>stones_to_flip(board, x, y, color)</td><td>そこに打つと裏返せる石のリスト → Lesson 4</td></tr>
+              <tr><td>copy_board(board)</td><td>盤面のコピーを作る(試し打ちの前に!) → Lesson 8</td></tr>
+              <tr><td>place(board, x, y, color)</td><td>石を置いて裏返す。<strong>盤面が書き換わるのでコピーに使う</strong></td></tr>
+              <tr><td>count_stones(board, color)</td><td>石の数を数える → Lesson 5</td></tr>
+              <tr><td>opponent(color)</td><td>相手の色を返す → Lesson 3</td></tr>
+              <tr><td>evaluate(board, color) / WEIGHTS</td><td>内蔵の評価関数と重みテーブル → Lesson 8</td></tr>
+              <tr><td>ai_random / ai_greedy / ai_master</td><td>内蔵AI。部品として呼び出せる(引数は my_ai と同じ)</td></tr>
+            </table>
+            <p style="font-size: 14px;"><strong>対戦のルール</strong> — 「50局」モードでは公平のため先手・後手を1局ごとに交代(「1局観戦」モードではあなたのAIが黒=先手)。さらに、ランダム要素のないAIどうしだと毎回まったく同じ棋譜になってしまうため、<strong>各対局の最初の4手は自動的にランダムで打たれます</strong>(そこから先が実力勝負)。<code>moves</code> にない手を返したり、エラーが起きると対戦は中断されます(ログにエラー内容が出ます)。</p>
+          </div>
+        </details>
+      </div>
+      <div class="lab-results">
+        <h3>🏟️ 対戦結果</h3>
+        <div style="font-size: 13.5px; color: var(--text-soft);" id="lab-summary">まだ対戦していません。左のコードはそのまま動くので、まずは「⚔️ 対戦開始」を押してみましょう!</div>
+
+        <!-- 1局じっくり観戦ビュー -->
+        <div id="lab-single" style="display: none;">
+          <div class="lab-board-frame"><div class="board" id="lab-board" aria-label="観戦盤"></div></div>
+          <div class="playback">
+            <button id="lab-to-start" title="最初の手へ">⏮</button>
+            <button id="lab-step-back" title="1手戻る">◀</button>
+            <button id="lab-play" class="play" title="再生 / 一時停止">▶ 再生</button>
+            <button id="lab-step-fwd" title="1手進む">▶</button>
+            <button id="lab-to-end" title="最後の手へ">⏭</button>
+            <select id="lab-speed" title="再生速度">
+              <option value="0.22">ゆっくり</option>
+              <option value="1" selected>ふつう</option>
+              <option value="2">はやい</option>
+              <option value="4">とても速い</option>
+            </select>
+          </div>
+          <div class="scrub-row">
+            <input type="range" id="lab-scrub" min="0" max="0" value="0" title="手数をドラッグで移動">
+            <span id="lab-progress">0 / 0</span>
+          </div>
+          <div class="lab-score">
+            <div class="lab-score-item" id="lab-sc-my"><span class="mini-disc B"></span>あなたのAI<span class="n">2</span></div>
+            <div class="lab-score-item" id="lab-sc-op"><span class="mini-disc W"></span>相手AI<span class="n">2</span></div>
+          </div>
+          <div class="lab-move" id="lab-move"></div>
+        </div>
+
+        <!-- 50局まとめビュー -->
+        <div class="match-bar" id="lab-bar" style="display: none;">
+          <div class="seg my" style="width: 34%">0</div>
+          <div class="seg draw" style="width: 33%">0</div>
+          <div class="seg op" style="width: 33%">0</div>
+        </div>
+
+        <div class="lab-log" id="lab-log">📋 2つのモード:
+ 🎬 1局(じっくり観戦)
+    あなたのAI(黒)と内蔵AI(白)の対戦を
+    1手ずつアニメーションで再生します
+ 📊 50局(勝率を測る)
+    たくさん対戦して、勝率で強さを判定
+
+まずは1局モードで、AIの戦いぶりを
+見てみましょう!
+
+※ 毎回ちがう展開になるよう、各対局の
+   最初の4手は自動でランダムに打たれます</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ソースコードタブ ============ -->
+  <section class="pg-pane" id="pane-source">
+    <p style="color: var(--text-soft); max-width: 720px;">このプレイグラウンドを動かしているPythonコードの全文です。<strong>1行残らず、すべてレッスンの中であなたが書いたもの</strong>(+AI3種)でできています。コピーして手元のPython環境で動かすこともできます。</p>
+    <div class="codeblock" style="max-height: 640px; overflow-y: auto;"><pre id="source-view"></pre></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let labCm = null;   // AI工房のエディタ(?tab=lab のタブ切替がこの宣言より先に走るため冒頭で確保)
+
+  /* ---------- tabs ---------- */
+  document.querySelectorAll(".pg-tabs button").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".pg-tabs button").forEach((x) => x.classList.toggle("active", x === b));
+      document.querySelectorAll(".pg-pane").forEach((p) => p.classList.toggle("active", p.id === "pane-" + b.dataset.pane));
+      // 非表示中に生成されたCodeMirrorは寸法を測れず空表示になるので、表示時に再描画する
+      if (b.dataset.pane === "lab" && labCm) requestAnimationFrame(() => labCm.refresh());
+    });
+  });
+  // ?tab=lab などのディープリンクで直接タブを開けるように
+  {
+    const initTab = new URLSearchParams(location.search).get("tab");
+    const btn = initTab && document.querySelector(`.pg-tabs button[data-pane="${initTab}"]`);
+    if (btn) btn.click();
+  }
+
+  /* ---------- python engine ---------- */
+  const ENGINE = window.PGI.dedent(document.getElementById("engine-code").textContent);
+  $("#source-view").textContent = ENGINE;
+
+  let ns = null, pyRef = null;
+  async function engine() {
+    if (ns) return { py: pyRef, ns };
+    const py = await window.PGI.ensurePyodide();
+    pyRef = py;
+    ns = py.globals.get("dict")();
+    py.runPython(ENGINE, { globals: ns });
+    return { py, ns };
+  }
+  function call(py, expr) {
+    return JSON.parse(py.runPython(expr, { globals: ns }));
+  }
+
+  /* ================= 対戦タブ ================= */
+  const boardEl = $("#board");
+  let st = null;            // 最新のゲーム状態
+  let prevRows = null;      // アニメ用: 前回の盤面
+  let busy = false;         // AI思考中は入力ロック
+  let opponentLabel = "AI"; // 対戦相手の表示名(あなたのAIなら その名前)
+
+  // 盤のマスを作っておく
+  const squares = [];
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const sq = document.createElement("div");
+      sq.className = "sq";
+      sq.dataset.x = x; sq.dataset.y = y;
+      sq.addEventListener("click", () => onCellClick(x, y));
+      boardEl.append(sq);
+      squares.push(sq);
+    }
+  }
+
+  function render() {
+    if (!st) return;
+    const humanTurn = !st.over && st.turn === st.human && !busy;
+    const hints = $("#chk-hints").checked;
+    const moveSet = new Set(st.moves.map(([x, y]) => x + "," + y));
+
+    squares.forEach((sq) => {
+      const x = +sq.dataset.x, y = +sq.dataset.y;
+      const cur = st.board[y][x];   // "." "●" "○" (文字列の添字アクセス)
+      const prev = prevRows ? prevRows[y][x] : ".";
+      sq.classList.toggle("can", humanTurn && hints && moveSet.has(x + "," + y));
+      sq.classList.toggle("last", !!st.last && st.last[0] === x && st.last[1] === y);
+
+      let disc = sq.querySelector(".disc");
+      if (cur === ".") { if (disc) disc.remove(); return; }
+      const cls = cur === "●" ? "B" : "W";
+      if (!disc) {
+        disc = document.createElement("div");
+        disc.className = "disc " + cls;   // 新規: place-in アニメ
+        sq.append(disc);
+      } else if (prev !== "." && prev !== cur) {
+        disc.className = "disc " + cls + " flip";   // 色が変わった: flip アニメ
+        disc.addEventListener("animationend", () => disc.classList.remove("flip"), { once: true });
+      } else {
+        disc.className = "disc " + cls;
+        disc.style.animation = "none";    // 変化なし: アニメさせない
+      }
+    });
+
+    // スコアと状態表示
+    $("#cnt-black").textContent = st.black;
+    $("#cnt-white").textContent = st.white;
+    const humanIsBlack = st.human === "●";
+    $("#who-black").textContent = humanIsBlack ? "あなた" : opponentLabel;
+    $("#who-white").textContent = humanIsBlack ? opponentLabel : "あなた";
+    $("#score-black").classList.toggle("turn", !st.over && st.turn === "●");
+    $("#score-white").classList.toggle("turn", !st.over && st.turn === "○");
+
+    const msg = $("#pg-msg");
+    msg.classList.remove("win");
+    if (st.over) {
+      const my = humanIsBlack ? st.black : st.white;
+      const op = humanIsBlack ? st.white : st.black;
+      msg.classList.add("win");
+      if (my > op) msg.textContent = `🎉 あなたの勝ち! ${my} - ${op}`;
+      else if (op > my) msg.textContent = `😢 AIの勝ち… ${op} - ${my}。もう一度挑戦!`;
+      else msg.textContent = `🤝 引き分け! ${my} - ${op}`;
+    } else if (busy) {
+      msg.textContent = (st.msg || "") + "🤖 AIが考えています…";
+    } else if (st.turn === st.human) {
+      msg.textContent = (st.msg || "") + "あなたの番です。緑の印をクリック!";
+    } else {
+      msg.textContent = st.msg || "";
+    }
+    prevRows = st.board;
+  }
+
+  async function aiLoop() {
+    const { py } = await engine();
+    busy = true;
+    render();
+    while (st && !st.over && st.turn !== st.human) {
+      await sleep(550);
+      st = call(py, "ai_step()");
+      render();
+    }
+    busy = false;
+    render();
+  }
+
+  async function onCellClick(x, y) {
+    if (!st || busy || st.over || st.turn !== st.human) return;
+    if (!st.moves.some(([mx, my]) => mx === x && my === y)) return;
+    const { py } = await engine();
+    st = call(py, `human_move(${x}, ${y})`);
+    render();
+    if (!st.over && st.turn !== st.human) await aiLoop();
+  }
+
+  $("#btn-new").addEventListener("click", async () => {
+    const btn = $("#btn-new");
+    btn.disabled = true;
+    try {
+      const { py } = await engine();
+      const humanBlack = $("#sel-color").value === "black";
+      const sel = $("#sel-level").value;
+      let level = sel;
+      opponentLabel = "AI";
+      if (sel.startsWith("save:")) {
+        const name = sel.slice(5);
+        const ai = loadSaved().find((a) => a.name === name);
+        if (!ai) { $("#pg-msg").textContent = "そのAIが見つかりませんでした。"; return; }
+        try {
+          py.runPython(ai.code, { globals: ns });
+          py.runPython("assert callable(my_ai), 'my_ai が定義されていません'", { globals: ns });
+          py.runPython("use_my_ai_as_opponent()", { globals: ns });
+        } catch (e) {
+          const msg = $("#pg-msg");
+          msg.classList.remove("win");
+          msg.textContent = `「${name}」のコードにエラーがあり対戦できません。AI工房で直してね。`;
+          return;
+        }
+        level = "custom";
+        opponentLabel = name;
+      }
+      prevRows = null;
+      st = call(py, `new_game(${humanBlack ? "True" : "False"}, "${level}")`);
+      render();
+      if (st.turn !== st.human) await aiLoop();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $("#chk-hints").addEventListener("change", render);
+
+  /* ================= AI工房タブ ================= */
+  const PRESETS = {};
+  for (const key of ["corner", "master", "random", "blank"]) {
+    PRESETS[key] = window.PGI.dedent(document.getElementById("preset-" + key).textContent);
+  }
+  let currentPreset = "corner";
+  window.PGI.ensureCodeMirror().then(() => {
+    labCm = CodeMirror(document.getElementById("lab-editor"), {
+      value: PRESETS[currentPreset],
+      mode: "python",
+      theme: "material-darker",
+      lineNumbers: true,
+      indentUnit: 4,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      viewportMargin: Infinity,
+    });
+    // AI工房タブが既に開いている場合(?tab=lab など)は、生成直後に再描画して確実に表示
+    if (document.getElementById("pane-lab").classList.contains("active")) {
+      requestAnimationFrame(() => labCm.refresh());
+    }
+  });
+  $("#lab-preset").addEventListener("change", () => {
+    if (!labCm) return;
+    const next = $("#lab-preset").value;
+    const edited = labCm.getValue() !== PRESETS[currentPreset];
+    if (edited && !confirm("エディタのコードをお手本コードで置き換えます。よろしいですか?\n(いま書いてあるコードは消えます)")) {
+      $("#lab-preset").value = currentPreset;   // キャンセル → 選択を元に戻す
+      return;
+    }
+    currentPreset = next;
+    labCm.setValue(PRESETS[next]);
+  });
+  $("#lab-reset").addEventListener("click", () => labCm && labCm.setValue(PRESETS[currentPreset]));
+
+  /* ---- 作ったAIの保存 / 読み込み(localStorage) ---- */
+  const SAVE_KEY = "pgi-saved-ais";
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem(SAVE_KEY) || "[]"); } catch { return []; }
+  }
+  function storeSaved(list) { localStorage.setItem(SAVE_KEY, JSON.stringify(list)); }
+
+  function refreshSavedUI() {
+    const list = loadSaved();
+    // 対戦タブの「対戦相手」ドロップダウン
+    const grp = $("#sel-saved-group");
+    grp.innerHTML = "";
+    if (list.length) {
+      grp.style.display = "";
+      for (const a of list) {
+        const o = document.createElement("option");
+        o.value = "save:" + a.name;
+        o.textContent = "🧠 " + a.name;
+        grp.append(o);
+      }
+    } else {
+      grp.style.display = "none";
+    }
+    // 工房の「保存したAI」リスト
+    const sel = $("#lab-saved");
+    const prev = sel.value;
+    sel.innerHTML = "";
+    if (list.length) {
+      for (const a of list) {
+        const o = document.createElement("option");
+        o.value = a.name; o.textContent = a.name; sel.append(o);
+      }
+      if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+      $("#lab-load").disabled = false;
+      $("#lab-delete").disabled = false;
+    } else {
+      const o = document.createElement("option");
+      o.value = ""; o.textContent = "(まだありません)"; sel.append(o);
+      $("#lab-load").disabled = true;
+      $("#lab-delete").disabled = true;
+    }
+  }
+
+  $("#lab-save").addEventListener("click", () => {
+    if (!labCm) return;
+    const code = labCm.getValue();
+    if (!/def\s+my_ai\s*\(/.test(code)) {
+      if (!confirm("このコードには my_ai 関数が見当たりません。それでも保存しますか?")) return;
+    }
+    const list = loadSaved();
+    const name = (prompt("このAIに名前をつけて保存します:", `マイAI ${list.length + 1}`) || "").trim();
+    if (!name) return;
+    const idx = list.findIndex((a) => a.name === name);
+    if (idx >= 0) {
+      if (!confirm(`「${name}」はすでにあります。上書きしますか?`)) return;
+      list[idx].code = code;
+    } else {
+      list.push({ name, code });
+    }
+    storeSaved(list);
+    refreshSavedUI();
+    $("#lab-saved").value = name;
+    $("#save-hint").style.display = "block";
+    logLine(`💾 「${name}」を保存しました。「🎮 対戦する」タブの対戦相手に選べます!`);
+  });
+
+  $("#lab-load").addEventListener("click", () => {
+    const name = $("#lab-saved").value;
+    if (!name || !labCm) return;
+    const ai = loadSaved().find((a) => a.name === name);
+    if (!ai) return;
+    if (labCm.getValue().trim() && !confirm(`エディタの内容を「${name}」のコードで置き換えます。よろしいですか?`)) return;
+    labCm.setValue(ai.code);
+  });
+
+  $("#lab-delete").addEventListener("click", () => {
+    const name = $("#lab-saved").value;
+    if (!name) return;
+    if (!confirm(`保存した「${name}」を削除しますか?`)) return;
+    storeSaved(loadSaved().filter((a) => a.name !== name));
+    refreshSavedUI();
+  });
+
+  refreshSavedUI();
+
+  function logLine(text) {
+    const log = $("#lab-log");
+    log.textContent += text + "\n";
+    log.scrollTop = log.scrollHeight;
+  }
+  const fmtErr = (e) => String(e.message || e).split("\n").filter((l) => l.trim()).slice(-1)[0];
+  const levelNameOf = (lv) => ({ easy: "やさしい", normal: "ふつう", strong: "つよい" }[lv]);
+
+  /* ---- 観戦盤(1局モード)---- */
+  const labSquares = [];
+  function buildLabBoard() {
+    const el = $("#lab-board");
+    if (!el || labSquares.length) return;
+    for (let i = 0; i < 64; i++) {
+      const sq = document.createElement("div");
+      sq.className = "sq";
+      el.append(sq);
+      labSquares.push(sq);
+    }
+  }
+  function renderLabFrame(frame, prevRows, animate) {
+    const rows = frame.board;
+    labSquares.forEach((sq, idx) => {
+      const x = idx % 8, y = (idx / 8) | 0;
+      const cur = rows[y][x];
+      const prev = prevRows ? prevRows[y][x] : ".";
+      sq.classList.toggle("last", !!frame.last && frame.last[0] === x && frame.last[1] === y);
+      let disc = sq.querySelector(".disc");
+      if (cur === ".") { if (disc) disc.remove(); return; }
+      const cls = cur === "●" ? "B" : "W";
+      if (!disc) {
+        disc = document.createElement("div");
+        disc.className = "disc " + cls;
+        if (!animate) disc.style.animation = "none";   // シーク/コマ戻し時はアニメなし
+        sq.append(disc);
+      } else if (animate && prev !== "." && prev !== cur) {
+        disc.className = "disc " + cls + " flip";       // 裏返った石: flip アニメ
+        disc.addEventListener("animationend", () => disc.classList.remove("flip"), { once: true });
+      } else {
+        disc.className = "disc " + cls;
+        disc.style.animation = "none";
+      }
+    });
+    $("#lab-sc-my .n").textContent = frame.black;
+    $("#lab-sc-op .n").textContent = frame.white;
+    const live = frame.kind !== "start";
+    $("#lab-sc-my").classList.toggle("turn", live && frame.turn === "●");
+    $("#lab-sc-op").classList.toggle("turn", live && frame.turn === "○");
+  }
+  function describeMove(frame, levelName, moveNo) {
+    const who = frame.mover;
+    const colorName = who === "●" ? "黒" : "白";
+    const coord = frame.last ? `(${frame.last[0]}, ${frame.last[1]})` : "";
+    switch (frame.kind) {
+      case "start": return "対局開始! まず4手は序盤ランダム";
+      case "opening": return `${moveNo}手目 · 序盤ランダム(${colorName}) → ${coord}`;
+      case "my": return `${moveNo}手目 · あなたのAI(黒) → ${coord}`;
+      case "op": return `${moveNo}手目 · ${levelName}AI(白) → ${coord}`;
+      case "pass": return `${colorName}(${who === "●" ? "あなた" : levelName + "AI"})はパス`;
+      default: return "";
+    }
+  }
+
+  /* ---- 再生コントローラー ---- */
+  let labFrames = null;      // 全フレーム
+  let labIdx = 0;            // 現在のフレーム番号
+  let labMoveNums = [];      // 各フレームの手数
+  let labPrevRows = null;    // 直前に描画した盤面(差分アニメ用)
+  let labResult = null;      // {result, my, op}
+  let labLevelName = "";
+  let labTimer = null;       // 自動再生タイマー
+  let labPlaying = false;    // 自動再生中か
+  let labResultLogged = false;
+
+  function stepTo(i, animate) {
+    if (!labFrames) return;
+    i = Math.max(0, Math.min(labFrames.length - 1, i));
+    labIdx = i;
+    const f = labFrames[i];
+    renderLabFrame(f, labPrevRows, animate);
+    labPrevRows = f.board;
+    $("#lab-move").textContent = (i === labFrames.length - 1)
+      ? "対局終了!" : describeMove(f, labLevelName, labMoveNums[i]);
+    updateLabControls();
+    if (i === labFrames.length - 1) showLabResult();
+  }
+  function updateLabControls() {
+    if (!labFrames) return;
+    const atStart = labIdx <= 0, atEnd = labIdx >= labFrames.length - 1;
+    $("#lab-play").textContent = labPlaying ? "⏸ 停止" : (atEnd ? "↻ もう一度" : "▶ 再生");
+    $("#lab-to-start").disabled = atStart;
+    $("#lab-step-back").disabled = atStart;
+    $("#lab-step-fwd").disabled = atEnd;
+    $("#lab-to-end").disabled = atEnd;
+    const sl = $("#lab-scrub");
+    sl.max = labFrames.length - 1;
+    sl.value = labIdx;
+    $("#lab-progress").textContent = `${labIdx} / ${labFrames.length - 1}手`;
+  }
+  function labTick() {
+    if (labIdx >= labFrames.length - 1) { pauseLab(); return; }
+    stepTo(labIdx + 1, true);
+    if (labIdx >= labFrames.length - 1) { pauseLab(); return; }
+    labTimer = setTimeout(labTick, 340 / (+$("#lab-speed").value));
+  }
+  function playLab() {
+    if (!labFrames) return;
+    if (labIdx >= labFrames.length - 1) stepTo(0, false);   // 最後まで見ていたら頭出し
+    labPlaying = true;
+    updateLabControls();
+    labTimer = setTimeout(labTick, 340 / (+$("#lab-speed").value));
+  }
+  function pauseLab() {
+    labPlaying = false;
+    if (labTimer) { clearTimeout(labTimer); labTimer = null; }
+    updateLabControls();
+  }
+  function showLabResult() {
+    if (!labResult) return;
+    const r = labResult;
+    const txt = r.result === "my" ? "🎉 あなたのAIの勝ち!"
+      : r.result === "op" ? "😢 あなたのAIの負け…" : "🤝 引き分け!";
+    $("#lab-summary").textContent = `${txt}  黒 ${r.my} - ${r.op} 白`;
+    if (!labResultLogged) {
+      labResultLogged = true;
+      logLine(`結果: 黒(あなた) ${r.my} - ${r.op} 白(${labLevelName}AI) → ${txt.replace(/[🎉😢🤝]/g, "").trim()}`);
+      logLine("「▶ 再生」や ◀ ▶ でもう一度見返せます。別の展開は「対戦開始」、勝率は「50局」で!");
+    }
+  }
+
+  // コントロールの配線(一度だけ)
+  $("#lab-play").addEventListener("click", () => labPlaying ? pauseLab() : playLab());
+  $("#lab-step-back").addEventListener("click", () => { pauseLab(); stepTo(labIdx - 1, false); });
+  $("#lab-step-fwd").addEventListener("click", () => { pauseLab(); stepTo(labIdx + 1, true); });
+  $("#lab-to-start").addEventListener("click", () => { pauseLab(); stepTo(0, false); });
+  $("#lab-to-end").addEventListener("click", () => { pauseLab(); stepTo(labFrames.length - 1, false); });
+  $("#lab-scrub").addEventListener("input", (e) => { const v = +e.target.value; pauseLab(); stepTo(v, false); });
+
+  async function runSingle(py, level, levelName) {
+    buildLabBoard();
+    pauseLab();
+    $("#lab-single").style.display = "block";
+    $("#lab-bar").style.display = "none";
+    labSquares.forEach((sq) => { const d = sq.querySelector(".disc"); if (d) d.remove(); sq.classList.remove("last"); });
+    labPrevRows = null;
+    labResultLogged = false;
+    labLevelName = levelName;
+    $("#lab-summary").textContent = "対局を計算中…";
+
+    let data;
+    try {
+      data = call(py, `play_one_replay("${level}")`);
+    } catch (e) {
+      $("#lab-single").style.display = "none";
+      $("#lab-summary").textContent = "❌ my_ai が対局中にエラーを出しました";
+      logLine("  " + fmtErr(e));
+      return;
+    }
+
+    labFrames = data.frames;
+    labResult = { result: data.result, my: data.my, op: data.op };
+    labMoveNums = [];
+    let mn = 0;
+    for (const f of labFrames) {
+      if (f.kind === "my" || f.kind === "op" || f.kind === "opening") mn++;
+      labMoveNums.push(mn);
+    }
+    logLine(`🎬 観戦: あなたのAI(黒) vs ${levelName}AI(白) (全${labFrames.length - 1}手)`);
+    $("#lab-summary").textContent = "▶ 再生中… 速度変更・コマ送り(◀ ▶)・バーで移動できます";
+    stepTo(0, false);
+    playLab();
+  }
+
+  async function runMulti(py, level, games, levelName) {
+    pauseLab();
+    $("#lab-single").style.display = "none";
+    $("#lab-run").textContent = "⚔️ 対戦中…";
+    logLine(`📊 vs ${levelName}AI ${games}本勝負、開始!`);
+    let my = 0, op = 0, draw = 0;
+    const bar = $("#lab-bar");
+    bar.style.display = "flex";
+
+    for (let i = 0; i < games; i++) {
+      const myBlack = i % 2 === 0;
+      let r;
+      try {
+        r = call(py, `play_one("${level}", ${myBlack ? "True" : "False"})`);
+      } catch (e) {
+        logLine(`第${i + 1}局: ❌ my_ai が実行中にエラーを出しました`);
+        logLine("  " + fmtErr(e));
+        break;
+      }
+      if (r.result === "my") { my++; logLine(`第${i + 1}局: 🏆 勝ち  ${r.my}-${r.op} (${myBlack ? "先手" : "後手"})`); }
+      else if (r.result === "op") { op++; logLine(`第${i + 1}局: ・負け ${r.my}-${r.op} (${myBlack ? "先手" : "後手"})`); }
+      else { draw++; logLine(`第${i + 1}局: 🤝 引分 ${r.my}-${r.op}`); }
+
+      const total = my + op + draw;
+      bar.querySelector(".my").style.width = (my / total * 100) + "%";
+      bar.querySelector(".my").textContent = my ? `あなた ${my}` : "";
+      bar.querySelector(".draw").style.width = (draw / total * 100) + "%";
+      bar.querySelector(".draw").textContent = draw || "";
+      bar.querySelector(".op").style.width = (op / total * 100) + "%";
+      bar.querySelector(".op").textContent = op ? `相手 ${op}` : "";
+      $("#lab-summary").textContent = `あなた ${my} 勝 — ${op} 敗 ${draw} 分 (${total}/${games}局)`;
+      await sleep(15);
+    }
+    if (my + op + draw === games) {
+      const rate = Math.round(my / games * 100);
+      logLine(`\n最終成績: ${my}勝 ${op}敗 ${draw}分 — 勝率 ${rate}%`);
+      if (rate >= 70) logLine("圧勝! 相手のレベルを上げよう 💪");
+      else if (rate >= 50) logLine("勝ち越し! いい調子 👍");
+      else logLine("うーん、作戦を練り直そう。WEIGHTSの調整やモビリティが鍵かも 🤔");
+    }
+  }
+
+  $("#lab-run").addEventListener("click", async () => {
+    if (!labCm) return;
+    const btn = $("#lab-run");
+    btn.disabled = true;
+    btn.textContent = "準備中…";
+    $("#lab-log").textContent = "";
+    $("#lab-summary").textContent = "準備中…";
+    try {
+      const { py } = await engine();
+      try {
+        py.runPython(labCm.getValue(), { globals: ns });
+        py.runPython("assert callable(my_ai), 'my_ai という関数が見つかりません'", { globals: ns });
+      } catch (e) {
+        $("#lab-summary").textContent = "❌ コードにエラーがあります";
+        logLine("エラー: " + fmtErr(e));
+        return;
+      }
+      const level = $("#lab-level").value;
+      const games = +$("#lab-games").value;
+      const levelName = levelNameOf(level);
+      if (games === 1) await runSingle(py, level, levelName);
+      else await runMulti(py, level, games, levelName);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "⚔️ 対戦開始";
+    }
+  });
+})();
+</script>
+</body>
+</html>

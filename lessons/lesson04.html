@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 4: 石をひっくり返す — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson04">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 04 / 08</div>
+      <h1>石をひっくり返す</h1>
+      <p class="lead">オセロの心臓部、「挟んだ石を裏返す」ロジックを完成させます。このレッスンが本教材の山場。越えれば景色が変わります。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>「挟める石のリスト」を返す <code>stones_to_flip</code> を完成させる</li>
+        <li>ルールに従って石を置く <code>place</code> を完成させる</li>
+        <li>実際に石がパタパタ裏返るのを自分のコードで確認する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ルールをプログラムの言葉に翻訳する</h2>
+    <p>オセロのルール「相手の石を挟んだら裏返せる」を、コンピュータが分かる手順に分解すると、こうなります。</p>
+    <ol>
+      <li>置きたいマスから、<strong>8方向それぞれ</strong>に1マスずつ進む</li>
+      <li>進んだ先が<strong>相手の石なら、リストに記録</strong>してさらに進む</li>
+      <li>相手の石の列の先に<strong>自分の石があれば、記録した石は全部「挟めた」</strong></li>
+      <li>先が空きマスや盤の端なら、その方向は<strong>挟めない(記録は捨てる)</strong></li>
+    </ol>
+    <div class="static-board"
+         data-rows="★○○○●...|........|★○○○....|........|....★○○○"
+         data-caption="★=黒を置く場所。上段: 白3つの先に黒 → 全部裏返せる! / 中段: 先が空きマス → この方向はダメ / 下段: 盤の端に到達 → この方向はダメ"></div>
+
+    <h2><span class="step">STEP 2</span>まず1方向だけで考える</h2>
+    <p>いきなり8方向は大変なので、右方向 <code>(dx, dy) = (1, 0)</code> だけで「挟める石集め」を書いてみます。前回の「直進walk」に、記録用リストを足しただけです。</p>
+
+    <div class="pyrunner" data-name="one_direction.py" data-preamble="pre">
+<script type="text/x-python">
+board = make_board()
+print_board(board)
+
+# (2, 3) に黒を置くとして、右方向だけ調べる
+x, y = 2, 3
+color = BLACK
+dx, dy = 1, 0
+
+line = []                # 途中で見つけた相手の石を記録
+nx, ny = x + dx, y + dy
+while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+    line.append((nx, ny))         # 相手の石だ、記録して進む
+    nx, ny = nx + dx, ny + dy
+
+# ループを抜けた場所に自分の石があれば「挟めた」!
+if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+    print("挟めた石:", line)
+else:
+    print("この方向では挟めません")
+</script>
+    </div>
+
+    <p>whileの条件が3つ重なっているのがミソです。「盤の中」かつ「相手の石」の間だけ進む。抜けたあと、<code>line</code> に石が入っていて、かつ止まった場所が自分の石なら挟み成立です。</p>
+
+    <div class="note">
+      <p><code>if line and ...</code> の <code>line</code> は「リストが空っぽでない」という意味になります。空のリストはPythonでは「偽(False)」として扱われる——よく使うイディオムです。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>8方向まとめて — stones_to_flip 完成</h2>
+    <p>あとはこれを <code>for dx, dy in DIRECTIONS:</code> で包んで、8方向分の結果を合体させるだけ。<strong>オセロエンジンで最重要の関数</strong>、完成させましょう。</p>
+
+    <div class="pyrunner" data-name="stones_to_flip.py" data-preamble="pre">
+<script type="text/x-python">
+def stones_to_flip(board, x, y, color):
+    """(x, y) に color を置いたとき裏返せる石の座標リストを返す。
+    置けない場所なら空リスト [] を返す。"""
+    if board[y][x] != EMPTY:      # すでに石があるなら置けない
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:     # 8方向それぞれについて…
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line          # この方向の石を合体
+    return flips
+
+# --- テスト ---
+board = make_board()
+print("(2,3)に黒 →", stones_to_flip(board, 2, 3, BLACK))
+print("(4,5)に黒 →", stones_to_flip(board, 4, 5, BLACK))
+print("(0,0)に黒 →", stones_to_flip(board, 0, 0, BLACK), "← 置けない場所")
+print("(2,3)に白 →", stones_to_flip(board, 2, 3, WHITE), "← 白は挟めない")
+</script>
+    </div>
+
+    <p>テスト結果を確認しましょう。初期盤面で黒が(2,3)に置くと(3,3)の白を挟める、(0,0)は何も挟めないので空リスト——期待通りに動いていますか?</p>
+
+    <h2><span class="step">STEP 4</span>place — 置いて、裏返す</h2>
+    <p>仕上げです。<code>stones_to_flip</code> の結果を使って、実際に盤面を書き換える <code>place</code> 関数を作ります。挟めない場所なら「置けないよ」と <code>False</code> を返して盤面を触りません。</p>
+
+    <div class="pyrunner" data-name="place.py" data-preamble="pre">
+<script type="text/x-python">
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    """ルールに従って石を置く。置けたらTrue、置けなければFalse"""
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:                 # 1つも挟めない → 置けない
+        return False
+    board[y][x] = color           # 石を置く
+    for fx, fy in flips:          # 挟んだ石をぜんぶ裏返す
+        board[fy][fx] = color
+    return True
+
+# --- 対局っぽく動かしてみる ---
+board = make_board()
+print("初期盤面:")
+print_board(board)
+
+print("\n黒が (2,3) に置く →", place(board, 2, 3, BLACK))
+print_board(board)
+
+print("\n白が (2,2) に置く →", place(board, 2, 2, WHITE))
+print_board(board)
+
+print("\n黒が (0,0) に置こうとする →", place(board, 0, 0, BLACK), "(拒否された!)")
+</script>
+    </div>
+
+    <p>白石が黒に変わり、置けない場所はちゃんと拒否される。<strong>おめでとうございます、オセロのルールがあなたのコードで動きました!</strong></p>
+
+    <div class="challenge">
+      <h3>チャレンジ:連続対局</h3>
+      <p>上のコードの続きに手を追加して、黒→白→黒…と交互に3手以上進めてみましょう。「どこなら置けるか」を頭で考えながら座標を選ぶのがコツ。置けない座標を選ぶと <code>False</code> が返ってくるはずです。</p>
+      <details class="solution">
+        <summary>進め方の例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>board = make_board()
+place(board, 2, 3, BLACK)   # 黒
+place(board, 2, 2, WHITE)   # 白
+place(board, 3, 2, BLACK)   # 黒
+place(board, 2, 4, WHITE)   # 白
+print_board(board)</pre></div>
+          <p>「次にどこへ置けるか」を毎回頭で探すのは大変ですよね。次のレッスンで、それを<strong>コンピュータに探させる</strong>関数を作ります。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>挟み判定 = 「8方向ループ × 直進walk × 記録リスト」の組み合わせ</li>
+      <li><code>stones_to_flip</code> は「裏返せる石のリスト」を返す。空リスト = 置けない</li>
+      <li><code>place</code> は置く+裏返すを実行し、成功/失敗を <code>True/False</code> で返す</li>
+    </ul>
+    <p>エンジンの心臓部が完成。次は「打てる場所を自動で探す」機能です。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

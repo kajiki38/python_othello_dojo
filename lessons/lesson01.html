@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 1: はじめの一歩 — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson01">
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 01 / 08</div>
+      <h1>はじめの一歩</h1>
+      <p class="lead">まずはこのサイトの使い方と、Pythonの超基本を体で覚えましょう。ここで触る「変数」「リスト」は、オセロ盤を作るための大事な部品になります。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>ブラウザ上でPythonコードを実行・編集できるようになる</li>
+        <li><code>print</code> / 変数 / f文字列 が使えるようになる</li>
+        <li>リストの「番号(インデックス)でのアクセス」を理解する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>コードを実行してみよう</h2>
+    <p>下の黒い箱は<strong>本物のPythonが動くエディタ</strong>です。「▶ 実行」ボタンを押してみてください(初回だけPython環境の読み込みに10秒ほどかかります)。</p>
+
+    <div class="pyrunner" data-name="hello.py">
+<script type="text/x-python">
+print("こんにちは、オセロ道場へようこそ!")
+print("Python は", 2026 - 1991, "歳です")
+</script>
+    </div>
+
+    <p>実行できたら、次は<strong>コードを書き換えて</strong>もう一度実行してみましょう。メッセージを自分の好きな言葉に変えてみてください。壊れても「↺ リセット」で元に戻せるので、遠慮なくいじり倒すのがこのサイトの正しい使い方です。</p>
+
+    <div class="note">
+      <p><strong>ショートカット:</strong> エディタ内で <code>Ctrl + Enter</code> を押しても実行できます。</p>
+    </div>
+
+    <h2><span class="step">STEP 2</span>変数 — データに名前をつける</h2>
+    <p>オセロのプログラムでは「黒の石の数」「今の手番」など、たくさんのデータを扱います。データに名前をつけて保存しておく仕組みが<strong>変数</strong>です。</p>
+
+    <div class="pyrunner" data-name="variables.py">
+<script type="text/x-python">
+black = 2      # 黒の石の数
+white = 2      # 白の石の数
+turn = "黒"    # いまの手番
+
+print("黒:", black, "個")
+print("白:", white, "個")
+print("次は", turn, "の番です")
+
+# f文字列を使うと、文字列の中に変数を埋め込めます
+print(f"合計 {black + white} 個の石が盤上にあります")
+</script>
+    </div>
+
+    <p>ポイントは最後の行の <code>f"..."</code> です。文字列の前に <code>f</code> を付けると、<code>{ }</code> の中に変数や計算式を埋め込めます。これからたくさん使うので覚えておきましょう。</p>
+
+    <div class="challenge">
+      <h3>やってみよう</h3>
+      <p>上のコードを書き換えて、黒の石を <code>34</code> 個、白の石を <code>30</code> 個にして、「黒が4個リードしています」のような差を計算して表示する行を追加してみましょう。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>black = 34
+white = 30
+print(f"黒が {black - white} 個リードしています")</pre></div>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 3</span>リスト — データを並べて持つ</h2>
+    <p>オセロ盤の1行は「8個のマスの並び」です。こういう「並んだデータ」を扱うのが<strong>リスト</strong>。オセロ作りで一番大事な道具です。</p>
+
+    <div class="pyrunner" data-name="list_basics.py">
+<script type="text/x-python">
+# オセロ盤の1行を、リストで表してみます
+# "." = 空きマス、"●" = 黒石、"○" = 白石
+row = [".", ".", ".", "○", "●", ".", ".", "."]
+
+print(row)          # リスト全体
+print(row[3])       # 4番目のマス(番号は0から数える!)
+print(row[0])       # 1番目のマス
+print(len(row))     # マスの数
+</script>
+    </div>
+
+    <div class="warn">
+      <p><strong>超重要:</strong> リストの番号(インデックス)は <strong>0から</strong> 始まります。<code>row[3]</code> は「先頭から数えて4番目」。オセロ盤の座標も0〜7で扱うので、この感覚に慣れておきましょう。</p>
+    </div>
+
+    <h3>リストは書き換えられる</h3>
+    <p>「石を置く」「石をひっくり返す」は、プログラム的には<strong>リストの中身の書き換え</strong>です。もう体験してしまいましょう。</p>
+
+    <div class="pyrunner" data-name="list_update.py">
+<script type="text/x-python">
+row = [".", ".", ".", "○", "●", ".", ".", "."]
+print("最初:", " ".join(row))
+
+# 2番のマスに黒石を「置く」
+row[2] = "●"
+print("置いた:", " ".join(row))
+
+# 3番の白石を黒に「ひっくり返す」
+row[3] = "●"
+print("返した:", " ".join(row))
+</script>
+    </div>
+
+    <p><code>" ".join(row)</code> は「リストの中身をスペースでつないで1つの文字列にする」テクニックです。盤面をきれいに表示するのに使います。</p>
+
+    <h2><span class="step">STEP 4</span>くり返し — forループ</h2>
+    <p>8マス、8行、64マス…オセロは「同じ処理のくり返し」だらけ。<code>for</code> ループで一気に処理します。</p>
+
+    <div class="pyrunner" data-name="loops.py">
+<script type="text/x-python">
+row = ["●", "●", "○", ".", "○", "○", "○", "."]
+
+# マスを1つずつ取り出す
+for cell in row:
+    print(cell, end=" ")
+print()  # 改行
+
+# range(8) は 0,1,2,...,7 を順番に生み出す
+black_count = 0
+for i in range(8):
+    if row[i] == "●":
+        black_count = black_count + 1
+
+print(f"この行に黒石は {black_count} 個あります")
+</script>
+    </div>
+
+    <p>ここで <code>if</code> も登場しました。「もし〜なら」の条件分岐です。<code>for</code> と <code>if</code> の行末には <code>:</code>(コロン)、その次の行は<strong>スペース4つ</strong>で字下げ(インデント)する——これがPythonの文法の核心です。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:白石を数えよう</h3>
+      <p>上のコードに、白石(<code>"○"</code>)の数を数えて表示する処理を追加してください。さらに余裕があれば、空きマス(<code>"."</code>)の数も。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>white_count = 0
+empty_count = 0
+for i in range(8):
+    if row[i] == "○":
+        white_count = white_count + 1
+    if row[i] == ".":
+        empty_count = empty_count + 1
+
+print(f"白石は {white_count} 個、空きマスは {empty_count} 個")</pre></div>
+          <p>ちなみに、Pythonには <code>row.count("○")</code> という便利な書き方もあります。今後こちらも使っていきます。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>ゴールの景色を見ておこう</h2>
+    <p>今日触った「リスト」を8行束ねると、こんな<strong>本物のオセロ盤</strong>になります。次のレッスンで、これをあなたのコードで作ります。</p>
+    <div class="static-board"
+         data-rows="........|........|........|...○●...|...●○...|........|........|........"
+         data-caption="オセロの初期盤面。中央に黒2つ・白2つ — 次回、この盤面を生み出すのはあなたのコードです"></div>
+
+    <h2><span class="step">STEP 6</span>まとめ</h2>
+    <ul>
+      <li><code>print()</code> で表示、<code>f"{ }"</code> で変数の埋め込み</li>
+      <li>リストは <code>[番号]</code> で読み書きできる。番号は <strong>0始まり</strong></li>
+      <li><code>for</code> でくり返し、<code>if</code> で条件分岐。<strong>コロンとインデント</strong>を忘れずに</li>
+    </ul>
+    <p>次のレッスンでは、いよいよ「リストのリスト」を使って8×8のオセロ盤を作ります。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

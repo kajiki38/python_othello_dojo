@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 8: AIをもっと強く — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson08">
+
+<script type="text/x-python" id="pre">
+import random
+
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+def count_stones(board, color):
+    total = 0
+    for row in board:
+        total += row.count(color)
+    return total
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def ai_greedy(board, color, moves):
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n > best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
+def play_match(ai_black, ai_white):
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            ai = ai_black if turn == BLACK else ai_white
+            x, y = ai(board, turn, moves)
+            place(board, x, y, turn)
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+</script>
+
+<!-- STEP 3までのコード(WEIGHTS・evaluate・ai_master込み)を含む拡張プリアンブル -->
+<script type="text/x-python" id="pre2">
+import random
+
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+def count_stones(board, color):
+    total = 0
+    for row in board:
+        total += row.count(color)
+    return total
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def ai_greedy(board, color, moves):
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n > best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
+def play_match(ai_black, ai_white):
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            ai = ai_black if turn == BLACK else ai_white
+            x, y = ai(board, turn, moves)
+            place(board, x, y, turn)
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+
+WEIGHTS = [
+    [100, -20,  10,   5,   5,  10, -20, 100],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [100, -20,  10,   5,   5,  10, -20, 100],
+]
+
+def copy_board(board):
+    return [row[:] for row in board]
+
+def evaluate(board, color):
+    score = 0
+    for y in range(8):
+        for x in range(8):
+            if board[y][x] == color:
+                score += WEIGHTS[y][x]
+            elif board[y][x] == opponent(color):
+                score -= WEIGHTS[y][x]
+    return score
+
+def ai_master(board, color, moves):
+    best_move = None
+    best_score = None
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, color)
+        score = evaluate(test, color)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_move = (x, y)
+    return best_move
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 08 / 08</div>
+      <h1>AIをもっと強く</h1>
+      <p class="lead">最終レッスン。「マスの価値」と「評価関数」という本格AIの考え方を導入して、欲張りAIを倒します。ここから先は、あなた自身の研究テーマです。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>「マスごとの価値」を重みテーブルで表現する</li>
+        <li>盤面のコピーと「試し打ち」で1手先を評価する</li>
+        <li>評価関数ベースのAIを作り、欲張りAIとの対戦で検証する</li>
+        <li>「序盤ランダム」でAIの強さをフェアに測る方法を知る</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <p>このページでは、これまで作った全部品に加えて <code>ai_random</code> / <code>ai_greedy</code> / <code>play_match</code> も読み込み済みです。</p>
+    </div>
+
+    <h2><span class="step">STEP 1</span>マスには「価値」がある</h2>
+    <p>前回、欲張りAIが意外と勝ちきれないことを見ました。理由は<strong>マスの価値がまるで違う</strong>から。角は絶対に取り返されない最強のマス。逆に角のナナメ隣(X打ちと呼ばれます)は、相手に角を献上しがちな危険地帯です。</p>
+    <div class="static-board"
+         data-rows="★......★|.×....×.|........|........|........|........|.×....×.|★......★"
+         data-caption="★=角(+100点)は最強 / ✕=X打ち(−50点)は相手に角を献上しがちな危険地帯"></div>
+
+    <p>この知識を、8×8の<strong>重みテーブル</strong>としてプログラムに教え込みます。</p>
+
+    <div class="pyrunner" data-name="weights.py" data-preamble="pre">
+<script type="text/x-python">
+WEIGHTS = [
+    [100, -20,  10,   5,   5,  10, -20, 100],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [100, -20,  10,   5,   5,  10, -20, 100],
+]
+
+# 見やすく表示してみる(:>4 は「4文字分の幅で右寄せ」)
+for row in WEIGHTS:
+    print("".join(f"{w:>4}" for w in row))
+
+print()
+print("角の価値:", WEIGHTS[0][0])
+print("角のナナメ隣(危険!):", WEIGHTS[1][1])
+</script>
+    </div>
+
+    <p>数字は「そのマスに自分の石があると、どれくらい嬉しいか」。角は+100、X打ちは−50。この値はオセロAI研究で昔から使われている定番の形ですが、<strong>正解はありません</strong>。あとで自由に調整してみてください。</p>
+
+    <h2><span class="step">STEP 2</span>試し打ち — 盤面をコピーして1手先を見る</h2>
+    <p>「この手を打ったら盤面がどうなるか」を知るには、<strong>コピーした盤面で試し打ち</strong>すればOK。本物の盤面は汚さずに未来を覗けます。</p>
+
+    <div class="pyrunner" data-name="copy_try.py" data-preamble="pre">
+<script type="text/x-python">
+def copy_board(board):
+    """盤面の完全なコピーを作る(行ごとに複製するのがポイント)"""
+    return [row[:] for row in board]
+
+board = make_board()
+test = copy_board(board)
+place(test, 2, 3, BLACK)    # コピーの方に試し打ち
+
+print("本物の盤面(無傷!):")
+print_board(board)
+print("\n試し打ちした盤面:")
+print_board(test)
+</script>
+    </div>
+
+    <div class="warn">
+      <p><code>test = board</code> ではコピーになりません! 同じ盤面に2つの名前がつくだけで、<code>test</code> を変えると <code>board</code> も変わってしまいます。リストのコピーには <code>row[:]</code>(スライスコピー)のような明示的な複製が必要——Python学習者が全員一度はハマる落とし穴です。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>評価関数AI — ai_master 誕生</h2>
+    <p>部品が揃いました。<strong>「各手を試し打ちして、重みの合計点が一番高くなる手を選ぶ」</strong>AIを作ります。盤面の点数を計算する関数を<strong>評価関数</strong>と呼びます。</p>
+
+    <div class="pyrunner" data-name="ai_master.py" data-preamble="pre">
+<script type="text/x-python">
+WEIGHTS = [
+    [100, -20,  10,   5,   5,  10, -20, 100],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [100, -20,  10,   5,   5,  10, -20, 100],
+]
+
+def copy_board(board):
+    return [row[:] for row in board]
+
+def evaluate(board, color):
+    """color から見た盤面の点数(高いほど有利)"""
+    score = 0
+    for y in range(8):
+        for x in range(8):
+            if board[y][x] == color:
+                score += WEIGHTS[y][x]
+            elif board[y][x] == opponent(color):
+                score -= WEIGHTS[y][x]
+    return score
+
+def ai_master(board, color, moves):
+    """全部の手を試し打ちして、評価が最高の手を選ぶAI"""
+    best_move = None
+    best_score = None
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, color)
+        score = evaluate(test, color)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_move = (x, y)
+    return best_move
+
+# --- いざ検証! ai_master(黒) vs ai_greedy(白) で2局対戦 ---
+b, w = play_match(ai_master, ai_greedy)
+print(f"1局目: ai_master {b} - {w} ai_greedy")
+
+b, w = play_match(ai_master, ai_greedy)
+print(f"2局目: ai_master {b} - {w} ai_greedy")
+
+print("→ 2局とも完全に同じ結果…なぜ?")
+</script>
+    </div>
+
+    <p>おそらく圧勝ですね。<strong>「目先の石数」より「場所の価値」</strong>——たった8×8の数字テーブルで、AIは見違えるほど強くなります。</p>
+    <p>…ところで、<strong>2局の結果がまったく同じ</strong>だったことに気づきましたか?</p>
+
+    <h2><span class="step">STEP 4</span>強さを正しく測る — 決定的AIの落とし穴</h2>
+    <p>理由はこうです。<code>ai_master</code> も <code>ai_greedy</code> も<strong>ランダム要素ゼロ</strong>。同じ盤面では必ず同じ手を選ぶので、何局やっても<strong>まったく同じ棋譜をなぞるだけ</strong>なのです。つまりさっきの勝利は「その1つの展開で勝てた」ことしか証明していません。100局やっても情報量は1局分!</p>
+    <p>解決策はシンプルで、<strong>対局のスタート地点をバラけさせる</strong>こと。最初の数手だけランダムに打ち、そこから先を実力勝負にします。プロのオセロAI開発でも使われている定番の測定方法で、プレイグラウンドのAI工房もこの方式です。</p>
+
+    <div class="pyrunner" data-name="fair_match.py" data-preamble="pre2">
+<script type="text/x-python">
+def play_match_varied(ai_black, ai_white, opening=4):
+    """最初の opening 手だけランダムに打って、展開をバラけさせる対戦"""
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    count = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            if count < opening:
+                x, y = random.choice(moves)     # 序盤はランダムで散らす
+            else:
+                ai = ai_black if turn == BLACK else ai_white
+                x, y = ai(board, turn, moves)   # ここからが実力勝負
+            place(board, x, y, turn)
+            count += 1
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+
+# ai_master vs ai_greedy 30局。先手・後手も交互に交代してフェアに!
+# ※10秒ほどかかることがあります
+wins = losses = draws = 0
+for i in range(30):
+    if i % 2 == 0:
+        b, w = play_match_varied(ai_master, ai_greedy)
+        my, op = b, w                  # ai_master が黒だった局
+    else:
+        b, w = play_match_varied(ai_greedy, ai_master)
+        my, op = w, b                  # ai_master が白だった局
+    if my > op:
+        wins += 1
+    elif op > my:
+        losses += 1
+    else:
+        draws += 1
+
+print(f"ai_master の成績: {wins}勝 {losses}敗 {draws}分")
+print(f"勝率: {wins / 30 * 100:.0f}%")
+</script>
+    </div>
+
+    <p>今度は毎回違う結果になり、それでも <code>ai_master</code> が高い勝率をキープするはず。これが<strong>本当の実力差</strong>です。「先手・後手の交代」と「序盤ランダム」——この2つがAIの強さ測定の基本です。</p>
+
+    <div class="note">
+      <p>このページのウィジェットには、STEP 3までで作った <code>ai_master</code> 一式も読み込み済みです(📦マーク)。だからこのエディタでは <code>ai_master</code> をそのまま呼べています。</p>
+    </div>
+
+    <h2><span class="step">STEP 5</span>研究テーマ — ここからは自由研究</h2>
+    <p>ここから先に「教科書」はありません。強いオセロAIづくりの定番アイデアをいくつか紹介するので、好きなものを選んで <code>ai_master</code> を改造してみてください。</p>
+    <ul>
+      <li><strong>重みの調整</strong> — WEIGHTSの数字を変えて対戦実験。角は100で足りる? X打ちはもっと減点?</li>
+      <li><strong>着手可能数(モビリティ)</strong> — Lesson 5で作った「打てる場所の数」を評価に足す。<code>evaluate</code> に <code>+ 3 * len(valid_moves(board, color))</code> のような項を追加</li>
+      <li><strong>終盤モード</strong> — 残りマスが少なくなったら(例: 12マス以下)、重みではなく<strong>石数そのもの</strong>で評価を切り替える</li>
+      <li><strong>2手先読み</strong> — 自分の手の後、相手が最善手を打ったときの評価で選ぶ(ミニマックス法への入り口)</li>
+    </ul>
+
+    <div class="challenge">
+      <h3>ラスボスチャレンジ:モビリティ入りAI</h3>
+      <p>「重み + 着手可能数×3 − 相手の着手可能数×3」で評価する <code>ai_ultimate</code> を作り、<code>ai_master</code> と30局対戦させてみましょう。STEP 4のエディタに追記して、測定にはもちろん <code>play_match_varied</code> を使います(決定的AI同士の対決だからこそ!)。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def evaluate2(board, color):
+    score = evaluate(board, color)   # 重みによる点数
+    my_mob = len(valid_moves(board, color))
+    op_mob = len(valid_moves(board, opponent(color)))
+    return score + 3 * my_mob - 3 * op_mob
+
+def ai_ultimate(board, color, moves):
+    best_move = None
+    best_score = None
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, color)
+        score = evaluate2(test, color)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_move = (x, y)
+    return best_move
+
+wins = losses = draws = 0
+for i in range(30):
+    if i % 2 == 0:
+        b, w = play_match_varied(ai_ultimate, ai_master)
+        my, op = b, w
+    else:
+        b, w = play_match_varied(ai_master, ai_ultimate)
+        my, op = w, b
+    if my > op: wins += 1
+    elif op > my: losses += 1
+    else: draws += 1
+print(f"ai_ultimate: {wins}勝 {losses}敗 {draws}分")</pre></div>
+          <p>係数「3」を変えると強さはどう変わるでしょう? こうした実験の積み重ねが、AI開発の醍醐味です。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 6</span>卒業、おめでとうございます 🎓</h2>
+    <p>変数とリストから始めて、ルールエンジン、ゲームループ、そして評価関数AIまで——<strong>あなたはゼロからオセロAIを作り上げました</strong>。</p>
+    <p>仕上げに<a href="../playground.html?tab=lab">プレイグラウンドのAI工房</a>へ行きましょう。ここで作ったAIのコードをそのまま持ち込んで、内蔵AIとの自動対戦で腕試しができます(お手本コードとして「評価関数AI」も用意してあります)。クリック対戦で自分の目でAIと戦うのも忘れずに!</p>
+    <div style="margin: 20px 0; display: flex; gap: 12px; flex-wrap: wrap;">
+      <a class="btn btn-primary" href="../playground.html?tab=lab">🔬 AI工房で腕試しする →</a>
+      <a class="btn btn-ghost" href="../playground.html">🎮 自分で対戦してみる</a>
+    </div>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

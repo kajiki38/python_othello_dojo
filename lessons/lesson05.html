@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 5: 打てる場所を探す — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson05">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 05 / 08</div>
+      <h1>打てる場所を探す</h1>
+      <p class="lead">「どこに置ける?」をコンピュータに全部探させます。合法手の一覧・石数のカウント・パスの判定——ゲーム完成に必要な残りの部品を一気に揃えましょう。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>打てる場所を全部リストアップする <code>valid_moves</code> を作る</li>
+        <li>石の数を数える <code>count_stones</code> を作る</li>
+        <li>「パス」をどう判定するかを理解する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>valid_moves — 全マスをチェック</h2>
+    <p>今日作るのは、この「打てる場所探し」です。初期盤面なら黒が打てるのは4か所——これをコンピュータに探させます。</p>
+
+    <div class="static-board"
+         data-rows="........|........|...*....|..*○●...|...●○*..|....*...|........|........"
+         data-caption="初期盤面で黒が打てる4か所(点線の丸)。プレイグラウンドのヒント表示も、今日作る valid_moves で動いています"></div>
+
+    <p>作戦は単純明快。<strong>64マス全部について「そこに置いたら1個でも裏返せる?」を聞いてまわる</strong>だけです。前回作った <code>stones_to_flip</code> がそのまま使えます。</p>
+
+    <div class="pyrunner" data-name="valid_moves.py" data-preamble="pre">
+<script type="text/x-python">
+def valid_moves(board, color):
+    """color が打てる場所すべてを (x, y) のリストで返す"""
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):   # 裏返せる石が1つでもあれば
+                moves.append((x, y))
+    return moves
+
+board = make_board()
+print("黒が打てる場所:", valid_moves(board, BLACK))
+print("白が打てる場所:", valid_moves(board, WHITE))
+</script>
+    </div>
+
+    <p>初期盤面では黒も白も4か所ずつ。オセロを知っている人なら「たしかに!」という結果のはずです。<code>if stones_to_flip(...)</code> は「返ってきたリストが空でなければ」という意味でしたね。</p>
+
+    <h2><span class="step">STEP 2</span>打てる場所を盤面に表示する</h2>
+    <p>座標の数字だけでは分かりにくいので、打てる場所に <code>*</code> 印をつけて表示してみましょう。デバッグ(動作確認)にとても便利なテクニックです。</p>
+
+    <div class="pyrunner" data-name="show_moves.py" data-preamble="pre">
+<script type="text/x-python">
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+def print_board_with_hints(board, color):
+    """打てる場所に * をつけて表示"""
+    moves = valid_moves(board, color)
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        row = []
+        for x in range(8):
+            if (x, y) in moves:
+                row.append("*")
+            else:
+                row.append(board[y][x])
+        print(y, " ".join(row))
+
+board = make_board()
+print("黒の打てる場所(*印):")
+print_board_with_hints(board, BLACK)
+
+# 1手進めてからもう一度
+place(board, 2, 3, BLACK)
+print("\n黒が(2,3)に打った後、白の打てる場所:")
+print_board_with_hints(board, WHITE)
+</script>
+    </div>
+
+    <div class="note">
+      <p><code>(x, y) in moves</code> — 「このペアはリストに入ってる?」を1発で聞ける、Pythonの気持ちいい構文です。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>石を数える — count_stones</h2>
+    <p>勝敗判定に必要な「石の数」。リストの <code>count</code> メソッドを使えばあっという間です。</p>
+
+    <div class="pyrunner" data-name="count.py" data-preamble="pre">
+<script type="text/x-python">
+def count_stones(board, color):
+    """盤上にある color の石の数を返す"""
+    total = 0
+    for row in board:
+        total += row.count(color)   # 各行の中の color を数えて足す
+    return total
+
+board = make_board()
+place(board, 2, 3, BLACK)
+place(board, 2, 2, WHITE)
+print_board(board)
+print(f"黒: {count_stones(board, BLACK)} 個")
+print(f"白: {count_stones(board, WHITE)} 個")
+print(f"空き: {count_stones(board, EMPTY)} マス")
+</script>
+    </div>
+
+    <p><code>+=</code> は「足して代入」の省略形。<code>total = total + ...</code> と同じ意味です。空きマスも同じ関数で数えられるのがちょっと得した気分ですね。</p>
+
+    <h2><span class="step">STEP 4</span>パスの判定</h2>
+    <p>オセロでは、打てる場所が1つもないとき<strong>パス</strong>になります。そして<strong>両者連続でパス</strong>ならゲーム終了。判定は <code>valid_moves</code> の結果が空かどうかを見るだけです。</p>
+
+    <div class="pyrunner" data-name="pass_check.py" data-preamble="pre">
+<script type="text/x-python">
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+# わざと極端な盤面を作る: 黒石が2つだけ、白石ゼロ
+board = [[EMPTY] * 8 for _ in range(8)]
+board[0][0] = BLACK
+board[0][1] = BLACK
+print_board(board)
+
+moves = valid_moves(board, WHITE)
+if moves:
+    print("白は打てます:", moves)
+else:
+    print("白は打てる場所がありません → パス!")
+</script>
+    </div>
+
+    <div class="tip">
+      <p>「白石が1つもなければ黒は何も挟めない」——自分の頭でルールを追いかけて、プログラムの出力と一致するか確かめるクセをつけると、デバッグ力がぐんぐん伸びます。</p>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:どちらが「自由」か?</h3>
+      <p>「打てる場所の数」は強さに直結する重要な指標です(<strong>着手可能数</strong>と呼びます)。初期盤面から黒が(2,3)、白が(2,2)、黒が(3,2)と進めた局面で、黒と白の打てる場所の数を比べて、多い方を「◯◯のほうが自由!」と表示するプログラムを書いてみましょう。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>board = make_board()
+place(board, 2, 3, BLACK)
+place(board, 2, 2, WHITE)
+place(board, 3, 2, BLACK)
+print_board(board)
+
+b = len(valid_moves(board, BLACK))
+w = len(valid_moves(board, WHITE))
+print(f"黒: {b} か所 / 白: {w} か所")
+if b > w:
+    print("黒のほうが自由!")
+elif w > b:
+    print("白のほうが自由!")
+else:
+    print("互角!")</pre></div>
+          <p><code>len(リスト)</code> でリストの長さが取れます。この「着手可能数」、最終レッスンのAI強化で再登場します。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li><code>valid_moves</code> = 64マス総当たりで「置ける?」を確認するだけ</li>
+      <li><code>count_stones</code> で石数、<code>len(valid_moves(...))</code> で打てる場所の数</li>
+      <li>打てる場所ゼロ → パス。両者連続パス → ゲーム終了</li>
+    </ul>
+    <p>これで部品はすべて揃いました。次回、ついに1つのゲームとして組み上げます!</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

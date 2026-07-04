@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Python×オセロ道場 — ブラウザで学ぶゲームプログラミング</title>
+<meta name="description" content="インストール不要。ブラウザ上でPythonを書きながら、オセロ(リバーシ)を1から作って学ぶハンズオン教材。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="assets/app.js"></script>
+</head>
+<body data-page="home">
+
+<main>
+  <section class="hero">
+    <div class="inner">
+      <div>
+        <h1>Pythonで<span class="grad">オセロ</span>を作りながら、<br>プログラミングを身につけよう</h1>
+        <p class="lead">
+          インストールも環境構築も不要。ブラウザの中でPythonコードを書いて、その場で実行。
+          8つのレッスンを進めるだけで、ルール実装から対戦AIまで、動くゲームがあなたの手で完成します。
+        </p>
+        <div class="badges">
+          <span class="badge">環境構築ゼロ</span>
+          <span class="badge">全コード実行可能</span>
+          <span class="badge">初心者〜中級者向け</span>
+          <span class="badge">AI対戦つき</span>
+        </div>
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <a class="btn btn-primary" href="lessons/lesson01.html">レッスンを始める →</a>
+          <a class="btn btn-ghost" href="playground.html">🎮 まず遊んでみる</a>
+        </div>
+      </div>
+      <div class="hero-board" id="hero-board" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2><span class="accent-bar"></span>この教材の特徴</h2>
+    <p class="sub">「読むだけ」で終わらない。すべてのコードをその場で書き換えて、実行して、壊して、直せます。</p>
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="icon">⚡</div>
+        <h3>ブラウザだけで完結</h3>
+        <p>Pyodideという技術で、本物のPythonがブラウザ内で動きます。面倒なインストール作業は一切ナシ。開いたその瞬間から書き始められます。</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🧩</div>
+        <h3>1つのゲームを完成させる</h3>
+        <p>バラバラの文法練習ではなく、「オセロを作る」というゴールに向かって一直線。変数もループも関数も、必要になった瞬間に学ぶから頭に残ります。</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🤖</div>
+        <h3>AI作りまで到達できる</h3>
+        <p>最後は自分だけの対戦AIを設計。評価関数を改造して、内蔵AIとの100戦勝負に挑みます。中級者も楽しめる奥深さです。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="lessons">
+    <h2><span class="accent-bar"></span>カリキュラム</h2>
+    <p class="sub">上から順番に進めるのがおすすめ。1レッスン20〜40分。進捗はこのブラウザに自動保存されます。</p>
+    <div class="progress-wrap">
+      <span class="progress-label">進捗 0 / 8 レッスン</span>
+      <div class="progress-track"><div class="progress-fill"></div></div>
+    </div>
+    <div class="lesson-grid" data-auto></div>
+  </section>
+
+  <section class="section">
+    <h2><span class="accent-bar"></span>卒業制作:プレイグラウンド</h2>
+    <p class="sub">レッスンで作ったゲームの完成形がここに。クリックで対戦したり、自作AIのコードを書いて戦わせたりできます。</p>
+    <div style="display:flex; gap:14px; flex-wrap:wrap;">
+      <a class="btn btn-primary" href="playground.html">🎮 プレイグラウンドを開く</a>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ヒーローのオセロ盤アニメーション */
+(function () {
+  const board = document.getElementById("hero-board");
+  if (!board) return;
+  // 実際のオセロ中盤風の配置
+  const B = "b", W = "w", _ = null;
+  const layout = [
+    [_,_,_,_,_,_,_,_],
+    [_,_,_,W,B,_,_,_],
+    [_,_,W,W,B,B,_,_],
+    [_,W,W,B,B,W,_,_],
+    [_,_,B,B,W,W,W,_],
+    [_,_,B,W,W,B,_,_],
+    [_,_,_,B,_,_,_,_],
+    [_,_,_,_,_,_,_,_],
+  ];
+  let delay = 0;
+  layout.flat().forEach(v => {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    if (v) {
+      const d = document.createElement("div");
+      d.className = "disc " + v;
+      d.style.animationDelay = (delay += 0.045) + "s";
+      cell.append(d);
+    }
+    board.append(cell);
+  });
+})();
+</script>
+</body>
+</html>

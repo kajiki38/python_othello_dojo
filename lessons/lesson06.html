@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 6: ゲームを完成させる — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson06">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+def count_stones(board, color):
+    total = 0
+    for row in board:
+        total += row.count(color)
+    return total
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">LESSON 06 / 08</div>
+      <h1>ゲームを完成させる</h1>
+      <p class="lead">部品はすべて手の中に。手番の交代、パス、終了判定、勝敗発表——「ゲームループ」を組み上げて、最初の1局を最後まで走らせます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>ゲーム全体の流れ(ゲームループ)を設計できる</li>
+        <li>パスと終了(両者連続パス)を正しく処理する</li>
+        <li>1局を自動対局させて、勝敗を発表する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ゲームの流れを言葉で書く</h2>
+    <p>コードを書く前に、オセロ1局の流れを日本語で整理します。プログラム設計の第一歩は、いつもこれです。</p>
+    <div class="codeblock"><pre>1. 盤面を初期化。手番は黒から
+2. ゲームが終わるまでくり返し:
+     a. いまの手番が打てる場所を探す
+     b. あれば → どこかに打つ(パス連続回数をリセット)
+        なければ → パス(パス連続回数 +1)
+     c. 手番を交代
+3. 「両者連続パス」になったら終了
+4. 石を数えて勝敗発表</pre></div>
+    <p>「打つ場所をどう選ぶか」だけがまだ決まっていませんね。今回は<strong>ランダムに選ぶ</strong>ことにします(次回、ここが「AI」に進化します)。今日のゴールは、こんな<strong>終局図</strong>にたどり着くことです。</p>
+
+    <div class="static-board"
+         data-rows="○●●●○○○○|○○○○○○○○|○○●○○○●○|○●○○○●○○|○○○●●●●○|○○●●●○○○|○●○○○○○○|●●○○○○○○"
+         data-caption="実際にこのレッスンのコードで打ち切った終局図(黒17 - 白47 で白の勝ち)。全64マスが埋まるまで、あなたのゲームループが回り続けます"></div>
+
+    <h2><span class="step">STEP 2</span>手番の交代とrandom</h2>
+    <p>2つの新しい道具を確認しておきましょう。手番交代は <code>opponent</code> を自分に使うだけ。ランダム選択は標準ライブラリ <code>random</code> の出番です。</p>
+
+    <div class="pyrunner" data-name="tools.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+# 道具1: 手番の交代は opponent() で一発
+turn = BLACK
+for i in range(4):
+    print(f"{i+1}手目は {turn} の番")
+    turn = opponent(turn)   # 交代!
+
+# 道具2: リストからランダムに1つ選ぶ
+moves = [(2, 3), (3, 2), (4, 5), (5, 4)]
+print("ランダムに選んだ手:", random.choice(moves))
+print("もう1回:", random.choice(moves))
+</script>
+    </div>
+
+    <h2><span class="step">STEP 3</span>ゲームループを組む</h2>
+    <p>いよいよ組み立てです。STEP 1の日本語を、1行ずつPythonに翻訳していきます。<code>passes</code>(パスの連続回数)が2になったら終了、がポイントです。</p>
+
+    <div class="pyrunner" data-name="game_loop.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def play_game(show_moves=False):
+    """ランダム同士で1局対戦し、終了時の盤面を返す"""
+    board = make_board()
+    turn = BLACK
+    passes = 0        # 連続パスの回数
+    move_no = 0
+
+    while passes < 2:                       # 両者連続パスまで続ける
+        moves = valid_moves(board, turn)
+        if moves:
+            x, y = random.choice(moves)     # ランダムに1手選ぶ
+            place(board, x, y, turn)
+            passes = 0
+            move_no += 1
+            if show_moves:
+                print(f"{move_no:2d}手目: {turn} → ({x}, {y})")
+        else:
+            passes += 1
+            if show_moves:
+                print(f"       {turn} はパス!")
+        turn = opponent(turn)               # 手番交代
+
+    return board
+
+# --- 1局、最初の様子を見ながら実行 ---
+board = play_game(show_moves=True)
+print()
+print_board(board)
+</script>
+    </div>
+
+    <p>実行するたびに違う棋譜が流れて、最後まで打ち切った盤面が表示されます。<strong>60手前後の対局が一瞬で終わる</strong>——コンピュータの計算力を体感できたのではないでしょうか。</p>
+
+    <div class="note">
+      <p><code>show_moves=False</code> のような「デフォルト値つき引数」を使うと、<code>play_game()</code> と呼べば静かに、<code>play_game(show_moves=True)</code> と呼べば実況つきに、と切り替えられます。</p>
+    </div>
+
+    <h2><span class="step">STEP 4</span>勝敗を発表する</h2>
+    <p>最後の仕上げ、結果発表です。<code>count_stones</code> で数えて比べるだけ。</p>
+
+    <div class="pyrunner" data-name="result.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def play_game():
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            x, y = random.choice(moves)
+            place(board, x, y, turn)
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return board
+
+board = play_game()
+print_board(board)
+
+black = count_stones(board, BLACK)
+white = count_stones(board, WHITE)
+print(f"\n【結果】 黒 {black} - {white} 白")
+if black > white:
+    print("🏆 黒の勝ち!")
+elif white > black:
+    print("🏆 白の勝ち!")
+else:
+    print("🤝 引き分け!")
+</script>
+    </div>
+
+    <p><strong>これで、あなたはオセロを1本作り上げました。</strong> <code>make_board</code> から始まった部品たちが、1つのゲームとして動いています。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:100局トーナメント</h3>
+      <p>ランダム同士だと黒と白、どちらが勝ちやすいのでしょう? <code>play_game()</code> を100回くり返して、黒勝ち・白勝ち・引き分けの回数を集計してみましょう(数秒かかります)。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>black_wins = 0
+white_wins = 0
+draws = 0
+
+for i in range(100):
+    board = play_game()
+    b = count_stones(board, BLACK)
+    w = count_stones(board, WHITE)
+    if b > w:
+        black_wins += 1
+    elif w > b:
+        white_wins += 1
+    else:
+        draws += 1
+
+print(f"黒 {black_wins} 勝 / 白 {white_wins} 勝 / 引き分け {draws}")</pre></div>
+          <p>何度か実行すると、毎回結果が揺れつつも大きくは偏らないことが分かります。この「大量対局で実力を測る」手法は、次回のAI開発でフル活用します。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>ゲームループ = 「打てるなら打つ / 打てないならパス / 交代」のくり返し</li>
+      <li>終了条件は「連続2回のパス」。<code>passes</code> カウンタで管理</li>
+      <li>デフォルト引数で関数の動きを切り替えられる</li>
+    </ul>
+    <p>ゲームは完成。ここからは「賢く打つ」の世界——次回、AI開発に突入します。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>
