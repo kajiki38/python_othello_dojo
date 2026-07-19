@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>きほん Lesson 4: 関数 — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="basics-04">
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">きほん LESSON 04 / 04</div>
+      <h1>関数</h1>
+      <p class="lead">きほんコース最終回。ゲームのプログラムは「盤面を作る」「石を置く」「勝ちを判定する」…という<strong>部品(関数)の組み合わせ</strong>でできています。部品の作り方を覚えたら、いよいよ好きな種目へ!</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li><code>def</code> で関数を定義し、引数を渡して呼び出せる</li>
+        <li><code>return</code> で結果を返し、受け取って使える</li>
+        <li>タプル <code>(x, y)</code> で複数の値をまとめて扱える</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>def — 処理に名前をつける</h2>
+    <p>関数とは「処理のかたまりに名前をつけたもの」。一度作れば、何度でも一言で呼び出せます。</p>
+
+    <div class="pyrunner" data-name="def_basics.py">
+<script type="text/x-python">
+def cheer(name):
+    print(f"{name} さん、ようこそオセロ道場へ!")
+    print("今日も一局、楽しみましょう")
+
+# 関数は「呼び出す」まで実行されない
+cheer("あなた")
+cheer("Python")
+</script>
+    </div>
+
+    <p><code>def 関数名(引数):</code> で定義して、インデントの中に処理を書きます。<code>name</code> のような<strong>引数</strong>は「呼び出すときに渡すデータの受け口」です。</p>
+
+    <h2><span class="step">STEP 2</span>return — 結果を返す</h2>
+    <p>表示するだけでなく、<strong>計算結果を呼び出し元に返す</strong>のが関数の本領です。前のレッスンで書いた勝敗判定を、部品化してみましょう。</p>
+
+    <div class="pyrunner" data-name="judge.py">
+<script type="text/x-python">
+def judge(black, white):
+    """石の数から勝敗のメッセージを返す"""
+    if black > white:
+        return "黒の勝ち!"
+    elif white > black:
+        return "白の勝ち!"
+    else:
+        return "引き分け!"
+
+# 返ってきた結果は変数に入れて使える
+result = judge(34, 30)
+print("1局目:", result)
+print("2局目:", judge(20, 44))
+print("3局目:", judge(32, 32))
+</script>
+    </div>
+
+    <p>同じ判定を3回書かずに済みました。<strong>「2回以上書きそうな処理は関数にする」</strong>——これがプログラムをきれいに保つ鉄則です。ちなみに <code>"""..."""</code> は関数の説明メモ(docstring)で、書いておくと後で読み返すときに助かります。</p>
+
+    <h2><span class="step">STEP 3</span>タプル — 複数の値をまとめて返す</h2>
+    <p>ゲームでは「座標 (x, y)」のように<strong>2つセットの値</strong>を頻繁に扱います。カンマで並べた値の組を<strong>タプル</strong>と呼び、関数からまとめて返すこともできます。</p>
+
+    <div class="pyrunner" data-name="tuple.py">
+<script type="text/x-python">
+def center_of(width, height):
+    """盤面の中央の座標を返す"""
+    return (width // 2, height // 2)     # // は「小数点以下切り捨てのわり算」
+
+# 受け取るときは x, y = ... と2つの変数に展開できる(アンパック)
+x, y = center_of(9, 9)
+print(f"9×9の五目並べ盤の中央は ({x}, {y})")
+
+x, y = center_of(7, 6)
+print(f"7×6のコネクトフォー盤の中央は ({x}, {y})")
+
+# タプルはリストの中にも入れられる → 「打てる場所のリスト」でよく使う形
+moves = [(2, 3), (4, 5), (5, 2)]
+for mx, my in moves:
+    print(f"候補: x={mx}, y={my}")
+</script>
+    </div>
+
+    <p>2か所、初めて出た書き方があります。ひとつは <code>//</code>。ふつうのわり算 <code>/</code> は <code>9 / 2 = 4.5</code> と小数になりますが、マスの番号は整数でないと <code>board[4.5]</code> のように使えません。<code>//</code> は<strong>小数点以下を切り捨てて整数を返す</strong>わり算なので、<code>9 // 2 = 4</code>(中央のマス番号)がそのまま得られます。</p>
+    <p>もうひとつは <code>for mx, my in moves:</code>。<code>moves</code> の中身はタプル <code>(2, 3)</code> なので、取り出すたびに<strong>自動で <code>mx = 2</code>, <code>my = 3</code> に分解(アンパック)されます</strong>。<code>for m in moves:</code> と書いて <code>m[0]</code> / <code>m[1]</code> で取り出すこともできますが、名前を付けて分解したほうがぐっと読みやすくなります。</p>
+
+    <div class="note">
+      <p><strong>この形、あとで何度も見ます:</strong> <code>for mx, my in moves:</code> のように「座標のリストを回す」書き方は、オセロの合法手探し・五目並べのAI・コネクトフォーの判定…あらゆる場面で登場します。ここで手に馴染ませておくと後がラクです。</p>
+    </div>
+
+    <h2><span class="step">STEP 4</span>部品を組み合わせる</h2>
+    <p>仕上げに、どの種目でも実際に使う関数 <code>opponent</code>(相手の色を返す)を作って、手番交代を再現してみましょう。<strong>関数 × ループ</strong>の合わせ技です。</p>
+
+    <div class="pyrunner" data-name="opponent.py">
+<script type="text/x-python">
+BLACK = "●"
+WHITE = "○"
+
+def opponent(color):
+    """相手の色を返す"""
+    if color == BLACK:
+        return WHITE
+    else:
+        return BLACK
+
+# 手番を6回交代してみる
+turn = BLACK
+for i in range(6):
+    print(f"{i + 1}手目: {turn} の番")
+    turn = opponent(turn)
+</script>
+    </div>
+
+    <p>この <code>opponent</code> は、オセロ・五目並べ・コネクトフォーの3種目すべてに<strong>そのままの形で登場する本物の部品</strong>です。あなたはもう、ゲームエンジンの最初の1個を書き上げました。</p>
+
+    <div class="note">
+      <p><strong>1行で書く書き方(条件式):</strong> <code>opponent</code> の <code>if/else</code> は、次のように<strong>1行</strong>にまとめられます。</p>
+      <div class="codeblock"><pre>def opponent(color):
+    return WHITE if color == BLACK else BLACK</pre></div>
+      <p><code>Aの値 if 条件 else Bの値</code> は「条件が成り立てば A、そうでなければ B」を返す省略記法(<strong>条件式</strong>)です。各種目のエンジンではこの1行版がよく使われるので、見たら「あの <code>if/else</code> の短縮形だ」と思い出せるようにしておきましょう。</p>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:盤内チェックを関数に</h3>
+      <p>前のレッスンで書いた「盤内チェック」を、<code>is_inside(x, y)</code> という関数にしてみましょう。8×8の盤として、盤の中なら <code>True</code>、外なら <code>False</code> を返すようにします(<code>True</code>/<code>False</code> はそのまま <code>return</code> できます)。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def is_inside(x, y):
+    return 0 &lt;= x &lt; 8 and 0 &lt;= y &lt; 8
+
+print(is_inside(3, 5))    # True
+print(is_inside(8, 0))    # False
+print(is_inside(-1, 4))   # False</pre></div>
+          <p>比較式の結果(<code>True</code> / <code>False</code>)をそのまま返せば、<code>if</code> を書かなくても1行で完成します。この関数も、各種目の「盤の外をたどらない」処理でそのまま活躍します。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ — きほんコース修了!</h2>
+    <ul>
+      <li><code>def 名前(引数):</code> で部品を定義、<code>return</code> で結果を返す</li>
+      <li>タプル <code>(x, y)</code> とアンパック <code>x, y = ...</code> で座標を扱う</li>
+      <li>「2回書きそうなら関数にする」がきれいなコードの鉄則</li>
+    </ul>
+    <p>おつかれさまでした!これでゲーム作りに必要な文法はそろいました。ここから先は<strong>種目別コース</strong>です。オセロ(じっくり8方向ロジックとAI改造まで)・五目並べ(シンプルで最短)・コネクトフォー(重力が効いた一味違う盤面)——<strong>どれから始めてもOK</strong>。好きなゲームを選んでください!</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

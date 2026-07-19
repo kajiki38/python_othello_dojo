@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ・プレイグラウンド — Python×オセロ道場</title>
+<title>五目並べ・プレイグラウンド — Python×オセロ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -12,9 +12,9 @@
 <script src="assets/app.js"></script>
 <script src="assets/runner.js"></script>
 </head>
-<body data-page="playground">
+<body data-page="playground" data-board-theme="gomoku">
 
-<!-- ============ Python エンジン(レッスンで作ったものの完成形) ============ -->
+<!-- ============ Python エンジン(五目並べレッスンで作ったものの完成形) ============ -->
 <script type="text/x-python" id="engine-code">
 import json
 import random
@@ -22,114 +22,205 @@ import random
 EMPTY = "."
 BLACK = "●"
 WHITE = "○"
+SIZE = 15
 
 def make_board():
-    board = [[EMPTY] * 8 for _ in range(8)]
-    board[3][3] = WHITE
-    board[3][4] = BLACK
-    board[4][3] = BLACK
-    board[4][4] = WHITE
-    return board
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
 
 def opponent(color):
     return WHITE if color == BLACK else BLACK
 
-DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
-              (-1,  0),          (1,  0),
-              (-1,  1), (0,  1), (1,  1)]
-
-def stones_to_flip(board, x, y, color):
-    if board[y][x] != EMPTY:
-        return []
-    flips = []
-    for dx, dy in DIRECTIONS:
-        line = []
-        nx, ny = x + dx, y + dy
-        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
-            line.append((nx, ny))
-            nx, ny = nx + dx, ny + dy
-        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
-            flips += line
-    return flips
-
 def place(board, x, y, color):
-    flips = stones_to_flip(board, x, y, color)
-    if not flips:
+    if board[y][x] != EMPTY:
         return False
     board[y][x] = color
-    for fx, fy in flips:
-        board[fy][fx] = color
     return True
 
-def valid_moves(board, color):
-    moves = []
-    for y in range(8):
-        for x in range(8):
-            if stones_to_flip(board, x, y, color):
-                moves.append((x, y))
-    return moves
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
 
-def count_stones(board, color):
-    total = 0
-    for row in board:
-        total += row.count(color)
-    return total
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
 
-def copy_board(board):
-    return [row[:] for row in board]
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 5:
+            return True
+    return False
 
-WEIGHTS = [
-    [100, -20,  10,   5,   5,  10, -20, 100],
-    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
-    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
-    [  5,  -2,   1,   0,   0,   1,  -2,   5],
-    [  5,  -2,   1,   0,   0,   1,  -2,   5],
-    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
-    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
-    [100, -20,  10,   5,   5,  10, -20, 100],
-]
+def winning_line(board, x, y, color):
+    # 勝ちが決まった手 (x, y) を通る5つ並びのマスを返す(勝利ハイライト用)
+    for dx, dy in DIRECTIONS4:
+        cells = [[x, y]]
+        for sx, sy in ((dx, dy), (-dx, -dy)):
+            nx, ny = x + sx, y + sy
+            while 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == color:
+                cells.append([nx, ny])
+                nx += sx
+                ny += sy
+        if len(cells) >= 5:
+            return cells
+    return []
 
-def evaluate(board, color):
-    score = 0
-    for y in range(8):
-        for x in range(8):
-            if board[y][x] == color:
-                score += WEIGHTS[y][x]
-            elif board[y][x] == opponent(color):
-                score -= WEIGHTS[y][x]
-    return score
+def empty_cells(board):
+    cells = []
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] == EMPTY:
+                cells.append((x, y))
+    return cells
+
+def find_winning_move(board, color, moves):
+    # moves の中に「置いたら即勝ち」の手があれば返す。なければ None
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
 
 def ai_random(board, color, moves):
     return random.choice(moves)
 
-def ai_greedy(board, color, moves):
-    best_move = moves[0]
-    best_count = 0
-    for x, y in moves:
-        n = len(stones_to_flip(board, x, y, color))
-        if n > best_count:
-            best_count = n
-            best_move = (x, y)
-    return best_move
+def ai_block(board, color, moves):
+    # Lesson 5 の勝ち・防御AI。ただし15路盤は広すぎて完全ランダムだと
+    # 戦いと無関係な場所に打ってしまうため、暇な手は「石の近く」から選ぶ
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    cand = _near_cells(board)
+    if cand:
+        return random.choice(cand)
+    return random.choice(moves)
 
-def ai_master(board, color, moves):
-    best_move = None
-    best_score = None
-    for x, y in moves:
-        test = copy_board(board)
-        place(test, x, y, color)
-        score = evaluate(test, color)
-        if best_score is None or score > best_score:
-            best_score = score
-            best_move = (x, y)
-    return best_move
+def ai_center(board, color, moves):
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    center = SIZE // 2
+    return min(moves, key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+
+def _near_cells(board, color=None):
+    # 石(color指定時はその色の石だけ)の周囲1マスにある空点を集める。
+    # 81マス全部を調べると重いので、意味のある候補だけに絞るための道具
+    cells = set()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            stone = board[y][x]
+            if stone != EMPTY and (color is None or stone == color):
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == EMPTY:
+                            cells.add((nx, ny))
+    return list(cells)
+
+def _new_reaches(board, x, y, color):
+    # (x, y) に石を置いた直後、color が「あと1手で勝ち」になる置き場所を数える。
+    # 新しい勝ち筋は必ず (x, y) を通るので、4つの軸の近く(±4マス)だけ調べれば十分
+    count = 0
+    for dx, dy in DIRECTIONS4:
+        for step in range(-4, 5):
+            if step == 0:
+                continue
+            nx, ny = x + dx * step, y + dy * step
+            if 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == EMPTY:
+                board[ny][nx] = color
+                win = check_win(board, nx, ny, color)
+                board[ny][nx] = EMPTY
+                if win:
+                    count += 1
+                    if count >= 2:
+                        return count
+    return count
+
+def ai_strong(board, color, moves):
+    # 「つよい」= Lesson 5の勝ち手・防御に「ダブルリーチ」の先読みを足した強化版。
+    # 勝ち手を同時に2つ作る手(例: 両端の空いた四連)は自分で狙い、相手には先回りして塞ぐ
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    opp = opponent(color)
+    block_move = find_winning_move(board, opp, moves)
+    if block_move:
+        return block_move
+    center = SIZE // 2
+    key = lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2
+    def ordered(cells):
+        random.shuffle(cells)            # 同率の候補から毎回違う手を選び、棋譜をバラけさせる
+        cells.sort(key=key)
+        return cells
+    for x, y in ordered(_near_cells(board, color)):   # 自分のダブルリーチを狙う
+        board[y][x] = color
+        n = _new_reaches(board, x, y, color)
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    for x, y in ordered(_near_cells(board, opp)):     # 相手のダブルリーチ予定地を先回りして塞ぐ
+        board[y][x] = opp                # 相手がここに置いたら…
+        n = _new_reaches(board, x, y, opp)
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    cand = ordered(_near_cells(board))
+    if cand:
+        return cand[0]                   # 石の近く・中央寄りに展開(同率はランダム)
+    around = [m for m in moves if abs(m[0] - center) <= 1 and abs(m[1] - center) <= 1]
+    return random.choice(around if around else moves)   # 盤が空なら中央付近からランダム
+
+def _double_reach_spot(board, color):
+    # color がそこに置くと「勝ち手が2つ以上」できる場所(ダブルリーチ予定地)を探す
+    center = SIZE // 2
+    cand = _near_cells(board, color)
+    random.shuffle(cand)              # 同率候補の選び方をバラけさせ、毎回同じ棋譜になるのを防ぐ
+    cand.sort(key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+    for x, y in cand:
+        board[y][x] = color
+        n = _new_reaches(board, x, y, color)
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    return None
+
+def ai_normal(board, color, moves):
+    # 「ふつう」= Lesson 5 の勝ち・防御に、相手のダブルリーチ(両端の空いた三 → 四)を
+    # 先回りして塞ぐ守りを足した対戦用チューニング版。自分からは仕掛けない受け身型
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    opp = opponent(color)
+    block_move = find_winning_move(board, opp, moves)
+    if block_move:
+        return block_move
+    spot = _double_reach_spot(board, opp)
+    if spot:
+        return spot
+    cand = _near_cells(board)
+    if cand:
+        return random.choice(cand)
+    center = SIZE // 2                # 盤が空なら中央付近からランダムに開局
+    around = [m for m in moves if abs(m[0] - center) <= 1 and abs(m[1] - center) <= 1]
+    return random.choice(around if around else moves)
 
 def builtin_ai(level, board, color, moves):
     if level == "easy":
         return ai_random(board, color, moves)
     if level == "normal":
-        return ai_greedy(board, color, moves)
-    return ai_master(board, color, moves)
+        return ai_normal(board, color, moves)
+    return ai_strong(board, color, moves)
 
 # 対戦相手にする「あなたのAI」。保存コードを読み込んだ後に use_my_ai_as_opponent() で登録する
 versus_ai = None
@@ -153,17 +244,11 @@ def pick_ai_move(level, board, color, moves):
     return builtin_ai(level, board, color, moves)
 
 # ---------- 対話ゲームの状態管理 ----------
-g = {"board": None, "turn": BLACK, "over": False, "msg": "",
+g = {"board": None, "turn": BLACK, "over": False, "winner": None, "win_cells": [],
      "last": None, "level": "normal", "human": BLACK}
 
-def _advance():
-    g["msg"] = ""
-    for _ in range(2):
-        g["turn"] = opponent(g["turn"])
-        if valid_moves(g["board"], g["turn"]):
-            return
-        g["msg"] += ("黒" if g["turn"] == BLACK else "白") + "は打てる場所がないためパス。"
-    g["over"] = True
+def _count(board, color):
+    return sum(row.count(color) for row in board)
 
 def state():
     return json.dumps({
@@ -171,354 +256,341 @@ def state():
         "turn": g["turn"],
         "human": g["human"],
         "over": g["over"],
-        "msg": g["msg"],
+        "winner": g["winner"],
+        "win_cells": g["win_cells"],
         "last": g["last"],
-        "moves": valid_moves(g["board"], g["turn"]) if not g["over"] else [],
-        "black": count_stones(g["board"], BLACK),
-        "white": count_stones(g["board"], WHITE),
+        "black": _count(g["board"], BLACK),
+        "white": _count(g["board"], WHITE),
     })
 
 def new_game(human_black, level):
     g["board"] = make_board()
     g["turn"] = BLACK
     g["over"] = False
-    g["msg"] = ""
+    g["winner"] = None
+    g["win_cells"] = []
     g["last"] = None
     g["level"] = level
     g["human"] = BLACK if human_black else WHITE
     return state()
 
-def human_move(x, y):
-    if g["over"] or g["turn"] != g["human"]:
-        return state()
-    if not stones_to_flip(g["board"], x, y, g["turn"]):
-        return state()
-    place(g["board"], x, y, g["turn"])
+def _after_move(x, y):
+    color = g["turn"]
     g["last"] = [x, y]
-    _advance()
+    if check_win(g["board"], x, y, color):
+        g["over"] = True
+        g["winner"] = color
+        g["win_cells"] = winning_line(g["board"], x, y, color)
+    elif not empty_cells(g["board"]):
+        g["over"] = True    # 盤面が埋まったら引き分け
+    else:
+        g["turn"] = opponent(color)
     return state()
+
+def human_move(x, y):
+    if g["over"] or g["turn"] != g["human"] or g["board"][y][x] != EMPTY:
+        return state()
+    g["board"][y][x] = g["human"]
+    return _after_move(x, y)
 
 def ai_step():
     if g["over"] or g["turn"] == g["human"]:
         return state()
-    moves = valid_moves(g["board"], g["turn"])
+    moves = empty_cells(g["board"])
     mv = pick_ai_move(g["level"], g["board"], g["turn"], moves)
-    place(g["board"], mv[0], mv[1], g["turn"])
-    g["last"] = list(mv)
-    _advance()
-    return state()
+    g["board"][mv[1]][mv[0]] = g["turn"]
+    return _after_move(mv[0], mv[1])
 
 # ---------- AI工房: 自作AI vs 内蔵AI ----------
+def _opening_choices(board):
+    # 序盤ランダムは中央7×7から選ぶ(端に置くと展開が不自然になるため)
+    c = SIZE // 2
+    cands = [(x, y) for y in range(c - 3, c + 4) for x in range(c - 3, c + 4) if board[y][x] == EMPTY]
+    return cands if cands else empty_cells(board)
+
 def play_one(level, my_is_black, opening=4):
     # ランダム性のないAIどうしだと毎回同じ棋譜になってしまうため、
-    # 最初の opening 手はランダムに打って展開をバラけさせる(実力勝負はその後から)
+    # 最初の opening 手は中央付近にランダムで打って展開をバラけさせる
     board = make_board()
     turn = BLACK
-    passes = 0
     my_color = BLACK if my_is_black else WHITE
     count = 0
-    while passes < 2:
-        moves = valid_moves(board, turn)
-        if moves:
-            if count < opening:
-                mv = random.choice(moves)
-            elif turn == my_color:
-                mv = my_ai(board, turn, moves)
-                mv = (mv[0], mv[1])
-                if mv not in moves:
-                    raise ValueError(f"my_ai がルール違反の手 {mv} を返しました")
-            else:
-                mv = builtin_ai(level, board, turn, moves)
-            place(board, mv[0], mv[1], turn)
-            count += 1
-            passes = 0
+    while True:
+        moves = empty_cells(board)
+        if not moves:
+            return json.dumps({"result": "draw", "moves": count})
+        if count < opening:
+            mv = random.choice(_opening_choices(board))
+        elif turn == my_color:
+            mv = my_ai(board, turn, moves)
+            mv = (mv[0], mv[1])
+            if mv not in moves:
+                raise ValueError(f"my_ai がルール違反の手 {mv} を返しました")
         else:
-            passes += 1
+            mv = builtin_ai(level, board, turn, moves)
+        board[mv[1]][mv[0]] = turn
+        count += 1
+        if check_win(board, mv[0], mv[1], turn):
+            result = "my" if turn == my_color else "op"
+            return json.dumps({"result": result, "moves": count})
         turn = opponent(turn)
-    my = count_stones(board, my_color)
-    op = count_stones(board, opponent(my_color))
-    result = "draw"
-    if my > op:
-        result = "my"
-    elif op > my:
-        result = "op"
-    return json.dumps({"result": result, "my": my, "op": op})
 
 def play_one_replay(level, my_is_black=True, opening=4):
     # 「1局じっくり観戦」用。あなたのAI vs 内蔵AI を1手ずつ記録して返す。
     board = make_board()
     turn = BLACK
-    passes = 0
     my_color = BLACK if my_is_black else WHITE   # あなたのAIの手番はUI側で選択(ランダムも可)
     count = 0
+    result = "draw"
+    win_cells = []
     frames = [{
         "board": ["".join(r) for r in board], "last": None, "mover": None,
-        "kind": "start", "turn": turn,
-        "black": count_stones(board, BLACK), "white": count_stones(board, WHITE),
+        "kind": "start", "turn": turn, "black": 0, "white": 0,
     }]
-    while passes < 2:
-        moves = valid_moves(board, turn)
+    while True:
+        moves = empty_cells(board)
+        if not moves:
+            break
         mover = turn
-        if moves:
-            if count < opening:
-                mv = random.choice(moves)
-                kind = "opening"
-            elif turn == my_color:
-                mv = my_ai(board, turn, moves)
-                mv = (mv[0], mv[1])
-                if mv not in moves:
-                    raise ValueError(f"my_ai がルール違反の手 {mv} を返しました")
-                kind = "my"
-            else:
-                mv = builtin_ai(level, board, turn, moves)
-                kind = "op"
-            place(board, mv[0], mv[1], turn)
-            count += 1
-            passes = 0
-            last = [mv[0], mv[1]]
+        if count < opening:
+            mv = random.choice(_opening_choices(board))
+            kind = "opening"
+        elif turn == my_color:
+            mv = my_ai(board, turn, moves)
+            mv = (mv[0], mv[1])
+            if mv not in moves:
+                raise ValueError(f"my_ai がルール違反の手 {mv} を返しました")
+            kind = "my"
         else:
-            passes += 1
-            last = None
-            kind = "pass"
-        turn = opponent(turn)
+            mv = builtin_ai(level, board, turn, moves)
+            kind = "op"
+        board[mv[1]][mv[0]] = turn
+        count += 1
+        won = check_win(board, mv[0], mv[1], mover)
+        turn = opponent(mover)
         frames.append({
-            "board": ["".join(r) for r in board], "last": last, "mover": mover,
+            "board": ["".join(r) for r in board], "last": [mv[0], mv[1]], "mover": mover,
             "kind": kind, "turn": turn,
-            "black": count_stones(board, BLACK), "white": count_stones(board, WHITE),
+            "black": _count(board, BLACK), "white": _count(board, WHITE),
         })
-    my = count_stones(board, my_color)
-    op = count_stones(board, opponent(my_color))
-    result = "my" if my > op else ("op" if op > my else "draw")
-    return json.dumps({"frames": frames, "result": result, "my": my, "op": op})
+        if won:
+            result = "my" if mover == my_color else "op"
+            win_cells = winning_line(board, mv[0], mv[1], mover)
+            break
+    return json.dumps({"frames": frames, "result": result, "moves": count, "win_cells": win_cells})
 </script>
 
 <!-- ============ 手元で遊べる完全版(print_board + 対戦ループ入り) ============ -->
 <script type="text/x-python" id="standalone-code">
 # ==================================================================
-#  Python×オセロ道場 — オセロ「手元で遊べる完全版」
-#  使い方: このコードを othello.py として保存して、ターミナルで
-#          python othello.py
-#  ※ ブラウザの緑の盤はページのJavaScriptが描いています。
+#  Python×オセロ道場 — 五目並べ「手元で遊べる完全版」
+#  使い方: このコードを gomoku.py として保存して、ターミナルで
+#          python gomoku.py
+#  ※ ブラウザの碁盤はページのJavaScriptが描いています。
 #     こちらは print_board で盤面を「文字」で描き、キーボードで対戦します。
 # ==================================================================
 import random
 
 EMPTY, BLACK, WHITE = ".", "●", "○"
+SIZE = 15
 
 def make_board():
-    board = [[EMPTY] * 8 for _ in range(8)]
-    board[3][3] = WHITE
-    board[3][4] = BLACK
-    board[4][3] = BLACK
-    board[4][4] = WHITE
-    return board
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
 
 def opponent(color):
     return WHITE if color == BLACK else BLACK
 
-DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
-              (-1,  0),          (1,  0),
-              (-1,  1), (0,  1), (1,  1)]
-
-def stones_to_flip(board, x, y, color):
-    if board[y][x] != EMPTY:
-        return []
-    flips = []
-    for dx, dy in DIRECTIONS:
-        line = []
-        nx, ny = x + dx, y + dy
-        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
-            line.append((nx, ny))
-            nx += dx
-            ny += dy
-        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
-            flips += line
-    return flips
-
 def place(board, x, y, color):
-    flips = stones_to_flip(board, x, y, color)
-    if not flips:
+    if board[y][x] != EMPTY:
         return False
     board[y][x] = color
-    for fx, fy in flips:
-        board[fy][fx] = color
     return True
 
-def valid_moves(board, color):
-    moves = []
-    for y in range(8):
-        for x in range(8):
-            if stones_to_flip(board, x, y, color):
-                moves.append((x, y))
-    return moves
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
 
-def count_stones(board, color):
-    return sum(row.count(color) for row in board)
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
 
-def copy_board(board):
-    return [row[:] for row in board]
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 5:
+            return True
+    return False
+
+def empty_cells(board):
+    return [(x, y) for y in range(SIZE) for x in range(SIZE) if board[y][x] == EMPTY]
+
+def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
 
 # ---------- 盤面を「文字の絵」で表示する(ブラウザ版には無い部品)----------
-def print_board(board, hints=None):
-    hints = set(hints or [])
-    print("    " + "  ".join(str(x) for x in range(8)))
-    for y in range(8):
-        cells = []
-        for x in range(8):
-            if board[y][x] != EMPTY:
-                cells.append(board[y][x])
-            elif (x, y) in hints:
-                cells.append("*")       # あなたが打てる場所
-            else:
-                cells.append("·")
-        print(f" {y}  " + "  ".join(cells))
-    print(f"    ●(黒) {count_stones(board, BLACK)}  -  ○(白) {count_stones(board, WHITE)}")
+def print_board(board):
+    print("   " + " ".join(str(x) for x in range(SIZE)))
+    for y in range(SIZE):
+        cells = [c if c != EMPTY else "·" for c in board[y]]
+        print(f"{y}  " + " ".join(cells))
 
-# ---------- AI(Lesson 6〜7で作った評価関数AI)----------
-WEIGHTS = [
-    [100, -20,  10,   5,   5,  10, -20, 100],
-    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
-    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
-    [  5,  -2,   1,   0,   0,   1,  -2,   5],
-    [  5,  -2,   1,   0,   0,   1,  -2,   5],
-    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
-    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
-    [100, -20,  10,   5,   5,  10, -20, 100],
-]
-
-def ai_master(board, color, moves):
-    best_move, best_score = moves[0], None
-    for x, y in moves:
-        test = copy_board(board)
-        place(test, x, y, color)
-        score = 0
-        for yy in range(8):
-            for xx in range(8):
-                if test[yy][xx] == color:
-                    score += WEIGHTS[yy][xx]
-                elif test[yy][xx] == opponent(color):
-                    score -= WEIGHTS[yy][xx]
-        if best_score is None or score > best_score:
-            best_score, best_move = score, (x, y)
-    return best_move
+# ---------- AI(Lesson 5 の勝ち・防御AI)----------
+# もっと強くしたい人は、Lesson 6 の ai_strong をここに貼り替えてください。
+def ai_block(board, color, moves):
+    win = find_winning_move(board, color, moves)
+    if win:
+        return win
+    block = find_winning_move(board, opponent(color), moves)
+    if block:
+        return block
+    center = SIZE // 2
+    return min(moves, key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
 
 # ---------- 人間(●) vs AI(○) の対戦ループ ----------
 def main():
     board = make_board()
     human = BLACK
     turn = BLACK
-    print("オセロ！ あなたは ●(黒)。'x y' の形で座標を入力します(例: 2 3)。\n")
-    while valid_moves(board, BLACK) or valid_moves(board, WHITE):
-        moves = valid_moves(board, turn)
-        print()
-        print_board(board, moves if turn == human else None)
+    print("五目並べ！ あなたは ●。先に5つ並べたら勝ち。'x y' で入力します(例: 4 4)。")
+    while True:
+        moves = empty_cells(board)
         if not moves:
-            print(("あなた" if turn == human else "AI") + "は打てる場所がないのでパス。")
-            turn = opponent(turn)
-            continue
+            print("\n🤝 引き分け！(盤が埋まりました)")
+            break
+        print()
+        print_board(board)
         if turn == human:
             try:
                 parts = input("あなたの手 x y > ").split()
                 x, y = int(parts[0]), int(parts[1])
             except (ValueError, IndexError):
-                print("→ '2 3' のように数字を2つ入力してください。")
+                print("→ '4 4' のように数字を2つ入力してください。")
                 continue
-            if (x, y) not in moves:
-                print("→ そこには打てません。* の場所を選んでください。")
+            if not (0 <= x < SIZE and 0 <= y < SIZE) or board[y][x] != EMPTY:
+                print("→ そこには置けません。")
                 continue
-            place(board, x, y, human)
         else:
-            x, y = ai_master(board, turn, moves)
-            print(f"AI(○)は ({x}, {y}) に打ちました。")
-            place(board, x, y, turn)
+            x, y = ai_block(board, turn, moves)
+            print(f"AI(○)は ({x}, {y}) に置きました。")
+        place(board, x, y, turn)
+        if check_win(board, x, y, turn):
+            print()
+            print_board(board)
+            print("🎉 あなたの勝ち！" if turn == human else "😢 AIの勝ち…")
+            break
         turn = opponent(turn)
-
-    print("\n=== 対局終了 ===")
-    print_board(board)
-    b, w = count_stones(board, BLACK), count_stones(board, WHITE)
-    if b > w:
-        print("🎉 あなたの勝ち！")
-    elif w > b:
-        print("😢 AIの勝ち…")
-    else:
-        print("🤝 引き分け！")
 
 if __name__ == "__main__":
     main()
 </script>
 
 <!-- ============ AI工房のお手本コード(プリセット) ============ -->
-<script type="text/x-python" id="preset-corner">
-# 【お手本: 角好きAI】
+<script type="text/x-python" id="preset-block">
+# 【お手本: 勝ち・防御AI(Lesson 5)】
 # my_ai(board, color, moves) が「打つ手 (x, y)」を返す —— それがAIのすべて。
-# いまの作戦: 角があれば必ず角、なければ一番たくさん裏返せる手。
+# いまの作戦: 勝てる手があれば勝つ。相手が勝ちそうなら防ぐ。それ以外はランダム。
+import random
 
 def my_ai(board, color, moves):
-    for corner in [(0, 0), (7, 0), (0, 7), (7, 7)]:
-        if corner in moves:      # 角に打てるなら迷わず角!
-            return corner
-    return ai_greedy(board, color, moves)   # それ以外は欲張り作戦
+    win_move = find_winning_move(board, color, moves)     # 自分の勝ち手
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)   # 相手の勝ち手 = 防ぐ場所
+    if block_move:
+        return block_move
+    return random.choice(moves)
 
 # 改造アイデア:
-#  - 角の「隣」には打たないようにしてみる(角を献上しがちな危険地帯)
-#  - ai_greedy の代わりに ai_master(評価関数AI)を使ってみる
+#  - ランダムの代わりに「盤の中心に近い手」を選ぶ(お手本の中央志向AIを見てみよう)
+#  - 「置くと4つ並びのリーチができる手」を優先してみる(count_line が使えます)
 </script>
 
-<script type="text/x-python" id="preset-master">
-# 【お手本: 評価関数AI(Lesson 7)】
-# 「マスの価値」の表 MY_WEIGHTS を自分で調整して、最強のAIを目指そう!
-# 数字の意味: そのマスに自分の石があると何点うれしいか。
-
-MY_WEIGHTS = [
-    [100, -20,  10,   5,   5,  10, -20, 100],
-    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
-    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
-    [  5,  -2,   1,   0,   0,   1,  -2,   5],
-    [  5,  -2,   1,   0,   0,   1,  -2,   5],
-    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
-    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
-    [100, -20,  10,   5,   5,  10, -20, 100],
-]
+<script type="text/x-python" id="preset-center">
+# 【お手本: 中央志向AI(Lesson 5 チャレンジ)】
+# 勝ち・防御がなければ、盤の中心に近い手を選ぶ。
+# 五目並べは中心付近ほど並びを作りやすい、というのが定石。
 
 def my_ai(board, color, moves):
-    best_move = None
-    best_score = None
-    for x, y in moves:
-        test = copy_board(board)       # 盤面をコピーして…
-        place(test, x, y, color)       # 試し打ち!
-        score = 0
-        for yy in range(8):
-            for xx in range(8):
-                if test[yy][xx] == color:
-                    score += MY_WEIGHTS[yy][xx]
-                elif test[yy][xx] == opponent(color):
-                    score -= MY_WEIGHTS[yy][xx]
-        if best_score is None or score > best_score:
-            best_score = score
-            best_move = (x, y)
-    return best_move
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    center = SIZE // 2
+    # 中心からの距離が一番近い手を選ぶ
+    return min(moves, key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
 
 # 改造アイデア:
-#  - score に「打てる場所の数」を足す: + 3 * len(valid_moves(test, color))
-#  - 終盤(空きマスが少ない)だけ石の数で選ぶモードに切り替える
+#  - 距離の代わりに「自分の石の隣」を優先してみる
+#  - 「相手の4つ並びリーチ」だけでなく「3つ並び」も先回りして防いでみる
 </script>
 
-<script type="text/x-python" id="preset-greedy">
-# 【お手本: 対戦相手「ふつう」の正体(欲張りAI・Lesson 6)】
-# 一番たくさん裏返せる手を選ぶだけ。単純だけど、意外とあなどれない。
+<script type="text/x-python" id="preset-normal">
+# 【お手本: 対戦相手「ふつう」の正体】
+# 勝ち → 防御 → 相手のダブルリーチ(両端の空いた三)を先回り → 石の近くにランダム。
+# 「_」で始まる関数はエンジン内部の部品です(📖 エンジンのコードに定義があります)。
+import random
+
 def my_ai(board, color, moves):
-    best_move = moves[0]
-    best_count = 0
-    for x, y in moves:
-        n = len(stones_to_flip(board, x, y, color))
-        if n > best_count:
-            best_count = n
-            best_move = (x, y)
-    return best_move
+    win_move = find_winning_move(board, color, moves)      # ① 勝てるなら勝つ
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)   # ② 相手の即勝ちは防ぐ
+    if block_move:
+        return block_move
+    spot = _double_reach_spot(board, opponent(color))      # ③ ダブルリーチ予定地を先回りして塞ぐ
+    if spot:
+        return spot
+    cand = _near_cells(board)                              # ④ あとは石の近くにランダム
+    if cand:
+        return random.choice(cand)
+    return (SIZE // 2, SIZE // 2)                          # 盤が空なら中央
 
 # 改造アイデア:
-#  - 「角が取れるときだけは角を最優先」を足してみる(角好きAIとの合体)
-#  - 逆に「裏返す数が一番少ない手」を選んだら強い? 弱い? 勝率で確かめよう
+#  - これは「守り専用」。④を「自分がリーチを作れる手を優先」に変えて攻めを足すと…?
+#  - ③で相手だけでなく自分のダブルリーチも探すようにすれば、それはもう「つよい」
+</script>
+
+<script type="text/x-python" id="preset-strong">
+# 【お手本: 対戦相手「つよい」の正体(Lesson 6の先読みAI)】
+# 勝ち → 防御 → 自分のダブルリーチを狙う → 相手のダブルリーチを先回り → 中央寄り。
+# 「_」で始まる関数はエンジン内部の部品です(📖 エンジンのコードに定義があります)。
+import random
+
+def my_ai(board, color, moves):
+    win_move = find_winning_move(board, color, moves)      # ① 勝てるなら勝つ
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)   # ② 相手の即勝ちは防ぐ
+    if block_move:
+        return block_move
+    spot = _double_reach_spot(board, color)                # ③ 自分のダブルリーチを狙う(攻め)
+    if spot:
+        return spot
+    spot = _double_reach_spot(board, opponent(color))      # ④ 相手のダブルリーチは先回り(守り)
+    if spot:
+        return spot
+    center = SIZE // 2                                     # ⑤ 石の近く・中央寄りに展開
+    cand = _near_cells(board)
+    if cand:
+        random.shuffle(cand)
+        cand.sort(key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+        return cand[0]
+    return (center, center)
+
+# 改造アイデア:
+#  - ⑤を「リーチ(勝ち手1つ)を作れる手を優先」にして攻め続ける(Lesson 6 チャレンジ)
+#  - 「四三」のような複合の形を自分から作る手を探してみる
 </script>
 
 <script type="text/x-python" id="preset-random">
@@ -535,8 +607,8 @@ def my_ai(board, color, moves):
 # 【まっさらな雛形】ここから自由に作ろう!
 #
 # ルール:
-#   - my_ai は、打てる場所リスト moves の中から1つ選んで (x, y) で返す
-#   - board は8×8のリスト。board[y][x] が "●" / "○" / "." のどれか
+#   - my_ai は、置ける場所リスト moves の中から1つ選んで (x, y) で返す
+#   - board は15×15のリスト。board[y][x] が "●" / "○" / "." のどれか
 #   - color は自分の石("●" か "○")
 #
 # 使える関数は、下の「📖 リファレンス」を見てね。
@@ -549,13 +621,13 @@ def my_ai(board, color, moves):
 <div class="pg-wrap">
   <div class="lesson-head" style="margin-bottom: 24px;">
     <div class="crumb">PLAYGROUND</div>
-    <h1 style="font-size: clamp(25px, 3.4vw, 34px); margin: 6px 0 10px;">オセロ・プレイグラウンド</h1>
-    <p class="lead" style="color: var(--text-soft); margin: 0;">レッスンで作ったオセロの完成形です。AIと対戦したり、自作AIのコードを書いて腕試ししたり。すべてブラウザの中のPythonで動いています。</p>
+    <h1 style="font-size: clamp(25px, 3.4vw, 34px); margin: 6px 0 10px;">五目並べ・プレイグラウンド</h1>
+    <p class="lead" style="color: var(--text-soft); margin: 0;">レッスンで作った五目並べの完成形です。AIと対戦したり、自作AIのコードを書いて腕試ししたり。すべてブラウザの中のPythonで動いています。</p>
   </div>
 
   <div class="pg-games">
-    <a href="playground.html" class="active">🟩 オセロ</a>
-    <a href="playground-gomoku.html">🟫 五目並べ</a>
+    <a href="playground.html">🟩 オセロ</a>
+    <a href="playground-gomoku.html" class="active">🟫 五目並べ</a>
     <a href="playground-connect4.html">🟦 コネクトフォー</a>
   </div>
 
@@ -569,18 +641,18 @@ def my_ai(board, color, moves):
   <section class="pg-pane active" id="pane-play">
     <div class="play-grid">
       <div class="board-frame">
-        <div class="board" id="board" aria-label="オセロ盤"></div>
+        <div class="sb sb-gomoku sb-play pg-main-board" id="board" aria-label="五目並べ盤"></div>
       </div>
       <div class="pg-side">
         <div class="score-card">
           <div class="score-row">
             <div class="score-item" id="score-black">
               <span class="mini-disc B"></span>
-              <span><span class="cnt" id="cnt-black">2</span><br><span class="who" id="who-black">あなた</span></span>
+              <span><span class="cnt" id="cnt-black">0</span><br><span class="who" id="who-black">あなた</span></span>
             </div>
             <div class="score-item" id="score-white">
               <span class="mini-disc W"></span>
-              <span><span class="cnt" id="cnt-white">2</span><br><span class="who" id="who-white">AI</span></span>
+              <span><span class="cnt" id="cnt-white">0</span><br><span class="who" id="who-white">AI</span></span>
             </div>
           </div>
           <div class="pg-msg" id="pg-msg">「新しいゲーム」を押してスタート!</div>
@@ -591,8 +663,8 @@ def my_ai(board, color, moves):
             <select id="sel-level">
               <optgroup label="内蔵AI">
                 <option value="easy">やさしい(ランダムAI)</option>
-                <option value="normal" selected>ふつう(欲張りAI)</option>
-                <option value="strong">つよい(評価関数AI)</option>
+                <option value="normal" selected>ふつう(勝ち・防御AI)</option>
+                <option value="strong">つよい(先読みAI)</option>
               </optgroup>
               <optgroup label="あなたのAI" id="sel-saved-group" style="display: none;"></optgroup>
             </select>
@@ -604,11 +676,10 @@ def my_ai(board, color, moves):
               <option value="white">白(後手)</option>
             </select>
           </div>
-          <label class="check-row"><input type="checkbox" id="chk-hints" checked> 打てる場所のヒントを表示</label>
           <button class="btn btn-primary" id="btn-new" style="justify-content: center;">▶ 新しいゲーム</button>
         </div>
         <div class="pg-controls" style="display: block; font-size: 13.5px; color: var(--text-soft); line-height: 1.8;">
-          💡 このAIたちはLesson 6〜7で作った <code>ai_random</code> / <code>ai_greedy</code> / <code>ai_master</code> そのものです。
+          💡 「やさしい」はLesson 5の <code>ai_random</code>、「ふつう」はLesson 5の勝ち・防御に「相手のダブルリーチだけは先回りして塞ぐ」守りを足した <code>ai_normal</code>、「つよい」はさらに自分から攻める、Lesson 6で作る先読みAI <code>ai_strong</code> です。先に5つ並べたほうの勝ち!
         </div>
       </div>
     </div>
@@ -630,11 +701,12 @@ def my_ai(board, color, moves):
           <label for="lab-preset">✍️ お手本コードから始める:</label>
           <select id="lab-preset">
             <optgroup label="改造の出発点(おすすめ)">
-              <option value="corner" selected>角好きAI(角を最優先する作戦)</option>
+              <option value="block" selected>勝ち・防御AI(Lesson 5)</option>
+              <option value="center">中央志向AI(Lesson 5チャレンジ)</option>
             </optgroup>
             <optgroup label="対戦相手の正体">
-              <option value="greedy">ふつうの正体(欲張りAI・Lesson 6)</option>
-              <option value="master">つよいの正体(評価関数AI・Lesson 7)</option>
+              <option value="normal">ふつうの正体(先回りブロックAI)</option>
+              <option value="strong">つよいの正体(先読みAI・Lesson 6)</option>
             </optgroup>
             <optgroup label="シンプル・ゼロから">
               <option value="random">ランダムAI(いちばんシンプル)</option>
@@ -664,8 +736,8 @@ def my_ai(board, color, moves):
             <label for="lab-level">対戦相手</label>
             <select id="lab-level">
               <option value="easy">やさしい(ランダムAI)</option>
-              <option value="normal" selected>ふつう(欲張りAI)</option>
-              <option value="strong">つよい(評価関数AI)</option>
+              <option value="normal" selected>ふつう(勝ち・防御AI)</option>
+              <option value="strong">つよい(先読みAI)</option>
             </select>
           </div>
           <div style="flex: 1; min-width: 120px;">
@@ -692,22 +764,21 @@ def my_ai(board, color, moves):
             <div class="codeblock"><pre>def my_ai(board, color, moves):
     return (x, y)   # moves の中の1手を選んで返す</pre></div>
             <table>
-              <tr><td>board</td><td>8×8の盤面リスト。<code>board[y][x]</code> が <code>"●"</code> / <code>"○"</code> / <code>"."</code></td></tr>
+              <tr><td>board</td><td>15×15の盤面リスト。<code>board[y][x]</code> が <code>"●"</code> / <code>"○"</code> / <code>"."</code></td></tr>
               <tr><td>color</td><td>自分の石の色(<code>"●"</code> か <code>"○"</code>)</td></tr>
-              <tr><td>moves</td><td>いま打てる場所のリスト。例: <code>[(2, 3), (5, 4)]</code></td></tr>
+              <tr><td>moves</td><td>いま置ける場所(空いている交点)のリスト。例: <code>[(2, 3), (5, 4)]</code></td></tr>
             </table>
             <p style="font-size: 14px;"><strong>使える関数</strong>(すべてレッスンで作ったものです)</p>
             <table>
-              <tr><td>valid_moves(board, color)</td><td>打てる場所を全部探す → Lesson 4</td></tr>
-              <tr><td>stones_to_flip(board, x, y, color)</td><td>そこに打つと裏返せる石のリスト → Lesson 3</td></tr>
-              <tr><td>copy_board(board)</td><td>盤面のコピーを作る(試し打ちの前に!) → Lesson 7</td></tr>
-              <tr><td>place(board, x, y, color)</td><td>石を置いて裏返す。<strong>盤面が書き換わるのでコピーに使う</strong></td></tr>
-              <tr><td>count_stones(board, color)</td><td>石の数を数える → Lesson 4</td></tr>
+              <tr><td>find_winning_move(board, color, moves)</td><td>「置いたら即勝ち」の手を探す。なければ <code>None</code> → Lesson 5</td></tr>
+              <tr><td>check_win(board, x, y, color)</td><td>(x, y) に置いた石で5つ並んだか判定 → Lesson 3</td></tr>
+              <tr><td>count_line(board, x, y, dx, dy, color)</td><td>(x, y) の隣から (dx, dy) 方向に続く自分の石を数える → Lesson 3</td></tr>
+              <tr><td>empty_cells(board)</td><td>空いている交点を全部探す → Lesson 4</td></tr>
               <tr><td>opponent(color)</td><td>相手の色を返す → Lesson 2</td></tr>
-              <tr><td>evaluate(board, color) / WEIGHTS</td><td>内蔵の評価関数と重みテーブル → Lesson 7</td></tr>
-              <tr><td>ai_random / ai_greedy / ai_master</td><td>内蔵AI。部品として呼び出せる(引数は my_ai と同じ)</td></tr>
+              <tr><td>DIRECTIONS4 / SIZE</td><td>4方向のリスト <code>[(1,0),(0,1),(1,1),(1,-1)]</code> と盤サイズ <code>15</code></td></tr>
+              <tr><td>ai_random / ai_block / ai_normal / ai_center / ai_strong</td><td>内蔵AI。部品として呼び出せる(引数は my_ai と同じ)。<code>ai_normal</code> は守り特化、<code>ai_strong</code> はダブルリーチを先読みして攻める強化版 → Lesson 6</td></tr>
             </table>
-            <p style="font-size: 14px;"><strong>対戦のルール</strong> — 「50局」モードでは公平のため先手・後手を1局ごとに交代。「1局観戦」モードの手番は「あなたのAIの手番」で選べます(ランダムも可)。さらに、ランダム要素のないAIどうしだと毎回まったく同じ棋譜になってしまうため、<strong>各対局の最初の4手は自動的にランダムで打たれます</strong>(そこから先が実力勝負)。<code>moves</code> にない手を返したり、エラーが起きると対戦は中断されます(ログにエラー内容が出ます)。</p>
+            <p style="font-size: 14px;"><strong>対戦のルール</strong> — 「50局」モードでは公平のため先手・後手を1局ごとに交代。「1局観戦」モードの手番は「あなたのAIの手番」で選べます(ランダムも可)。さらに、ランダム要素のないAIどうしだと毎回まったく同じ棋譜になってしまうため、<strong>各対局の最初の4手は自動的に中央付近へランダムで打たれます</strong>(そこから先が実力勝負)。<code>moves</code> にない手を返したり、エラーが起きると対戦は中断されます(ログにエラー内容が出ます)。</p>
           </div>
         </details>
       </div>
@@ -717,7 +788,7 @@ def my_ai(board, color, moves):
 
         <!-- 1局じっくり観戦ビュー -->
         <div id="lab-single" style="display: none;">
-          <div class="lab-board-frame"><div class="board" id="lab-board" aria-label="観戦盤"></div></div>
+          <div class="lab-board-frame"><div class="sb sb-gomoku pg-lab-board" id="lab-board" aria-label="観戦盤"></div></div>
           <div class="playback">
             <button id="lab-to-start" title="最初の手へ">⏮</button>
             <button id="lab-step-back" title="1手戻る">◀</button>
@@ -736,8 +807,8 @@ def my_ai(board, color, moves):
             <span id="lab-progress">0 / 0</span>
           </div>
           <div class="lab-score">
-            <div class="lab-score-item" id="lab-sc-my"><span class="mini-disc B"></span>あなたのAI<span class="n">2</span></div>
-            <div class="lab-score-item" id="lab-sc-op"><span class="mini-disc W"></span>相手AI<span class="n">2</span></div>
+            <div class="lab-score-item" id="lab-sc-my"><span class="mini-disc B"></span>あなたのAI<span class="n">0</span></div>
+            <div class="lab-score-item" id="lab-sc-op"><span class="mini-disc W"></span>相手AI<span class="n">0</span></div>
           </div>
           <div class="lab-move" id="lab-move"></div>
         </div>
@@ -761,16 +832,17 @@ def my_ai(board, color, moves):
 見てみましょう!
 
 ※ 毎回ちがう展開になるよう、各対局の
-   最初の4手は自動でランダムに打たれます</div>
+   最初の4手は自動で中央付近にランダムで
+   打たれます</div>
       </div>
     </div>
   </section>
 
   <!-- ============ ソースコードタブ ============ -->
   <section class="pg-pane" id="pane-source">
-    <p style="color: var(--text-soft); max-width: 720px;">このプレイグラウンドを動かしているPythonコードの全文です。オセロのルールと3種類のAIが、<strong>すべてレッスンで書いた関数</strong>でできています。</p>
+    <p style="color: var(--text-soft); max-width: 720px;">このプレイグラウンドを動かしているPythonコードの全文です。五目並べのルールと内蔵AIが、<strong>すべて五目並べレッスンで書いた関数</strong>でできています(「つよい」の <code>ai_strong</code> はLesson 6「AIをもっと強く」で作る先読みAI)。</p>
     <div class="note" style="max-width: 720px;">
-      <p><strong>盤面の「見た目」はこのコードには入っていません。</strong> 緑の盤や石が返るアニメーションを描いているのは、このページのJavaScript側です。下のPythonは盤面を <code>".●○"</code> の文字リストとして持つ<strong>“頭脳”(ルールとAI)だけ</strong>なので、そのまま実行しても盤の絵は出ません(盤面を文字で表示する <code>print_board</code> も、ブラウザでは不要なので入れていません)。</p>
+      <p><strong>盤面の「見た目」はこのコードには入っていません。</strong> 碁盤や石を描いているのは、このページのJavaScript側です。下のPythonは盤面を <code>".●○"</code> の文字リストとして持つ<strong>“頭脳”(ルールとAI)だけ</strong>なので、そのまま実行しても盤の絵は出ません(盤面を文字で表示する <code>print_board</code> も、ブラウザでは不要なので入れていません)。</p>
       <p style="margin-bottom: 0;">🖥 <strong>手元で実際に遊びたい人へ:</strong> 下の「手元で遊べる完全版」に、<code>print_board</code> とキーボード対戦の <code>main()</code> を足した、<strong>1ファイルで完結する遊べる版</strong>を用意しました。</p>
     </div>
     <div class="source-cm" id="source-host"><div class="codeblock" style="max-height: 640px; overflow-y: auto;"><pre id="source-view"></pre></div></div>
@@ -778,7 +850,7 @@ def my_ai(board, color, moves):
     <details class="solution" id="standalone-details" style="margin-top: 22px; max-width: 100%;">
       <summary>🖥 手元のターミナルで遊べる「完全版」を見る / コピーする</summary>
       <div class="body">
-        <p style="font-size: 14px;">盤面を文字で描く <code>print_board</code> と、キーボードで対戦する <code>main()</code> を足した、1ファイルで完結する版です。<code>othello.py</code> として保存し、ターミナルで <code>python othello.py</code> と打つと遊べます(盤面は文字で表示されます)。</p>
+        <p style="font-size: 14px;">盤面を文字で描く <code>print_board</code> と、キーボードで対戦する <code>main()</code> を足した、1ファイルで完結する版です。<code>gomoku.py</code> として保存し、ターミナルで <code>python gomoku.py</code> と打つと遊べます(盤面は文字で表示されます)。</p>
         <button class="btn btn-ghost" id="copy-standalone" style="margin-bottom: 14px;">📋 コードをコピー</button>
         <div class="source-cm" id="standalone-host"><div class="codeblock" style="max-height: 480px; overflow-y: auto;"><pre id="standalone-view"></pre></div></div>
       </div>
@@ -791,6 +863,7 @@ def my_ai(board, color, moves):
   "use strict";
   const $ = (s) => document.querySelector(s);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const SIZE = 15;
   let labCm = null;   // AI工房のエディタ(?tab=lab のタブ切替がこの宣言より先に走るため冒頭で確保)
   let srcCm = null;   // エンジンのコード表示(読み取り専用CodeMirror)
 
@@ -879,54 +952,67 @@ def my_ai(board, color, moves):
     return JSON.parse(py.runPython(expr, { globals: ns }));
   }
 
+  /* ---------- 碁盤セルの共通ビルダー ---------- */
+  function buildGoban(el, onClick) {
+    el.style.gridTemplateColumns = `repeat(${SIZE}, var(--sb-cell, 34px))`;
+    const cells = [];
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const c = document.createElement("div");
+        c.className = "c";
+        if (y === 0) c.classList.add("edge-t");
+        if (y === SIZE - 1) c.classList.add("edge-b");
+        if (x === 0) c.classList.add("edge-l");
+        if (x === SIZE - 1) c.classList.add("edge-r");
+        c.insertAdjacentHTML("beforeend", '<span class="gl gl-h"></span><span class="gl gl-v"></span>');
+        c.dataset.x = x; c.dataset.y = y;
+        if (onClick) c.addEventListener("click", () => onClick(x, y));
+        el.append(c);
+        cells.push(c);
+      }
+    }
+    return cells;
+  }
+  // 盤面文字列 rows を cells に反映する(石は増えるだけなので差分は「追加」のみ)
+  function paintBoard(cells, rows, opts) {
+    const o = opts || {};
+    const lastKey = o.last ? o.last[0] + "," + o.last[1] : null;
+    const winSet = new Set((o.winCells || []).map(([x, y]) => x + "," + y));
+    cells.forEach((sq) => {
+      const x = +sq.dataset.x, y = +sq.dataset.y;
+      const cur = rows[y][x];
+      const key = x + "," + y;
+      sq.classList.toggle("last", key === lastKey);
+      sq.classList.toggle("win", winSet.has(key));
+      let d = sq.querySelector(".d");
+      if (cur === ".") { if (d) d.remove(); return; }
+      const cls = cur === "●" ? "B" : "W";
+      if (!d) {
+        d = document.createElement("div");
+        d.className = "d " + cls + (o.animate === false ? "" : " pop");
+        sq.append(d);
+      } else {
+        d.className = "d " + cls;
+      }
+    });
+  }
+
   /* ================= 対戦タブ ================= */
   const boardEl = $("#board");
   let st = null;            // 最新のゲーム状態
-  let prevRows = null;      // アニメ用: 前回の盤面
   let busy = false;         // AI思考中は入力ロック
   let opponentLabel = "AI"; // 対戦相手の表示名(あなたのAIなら その名前)
 
-  // 盤のマスを作っておく
-  const squares = [];
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      const sq = document.createElement("div");
-      sq.className = "sq";
-      sq.dataset.x = x; sq.dataset.y = y;
-      sq.addEventListener("click", () => onCellClick(x, y));
-      boardEl.append(sq);
-      squares.push(sq);
-    }
-  }
+  const squares = buildGoban(boardEl, onCellClick);
 
   function render() {
     if (!st) return;
     const humanTurn = !st.over && st.turn === st.human && !busy;
-    const hints = $("#chk-hints").checked;
-    const moveSet = new Set(st.moves.map(([x, y]) => x + "," + y));
-
     squares.forEach((sq) => {
       const x = +sq.dataset.x, y = +sq.dataset.y;
-      const cur = st.board[y][x];   // "." "●" "○" (文字列の添字アクセス)
-      const prev = prevRows ? prevRows[y][x] : ".";
-      sq.classList.toggle("can", humanTurn && hints && moveSet.has(x + "," + y));
-      sq.classList.toggle("last", !!st.last && st.last[0] === x && st.last[1] === y);
-
-      let disc = sq.querySelector(".disc");
-      if (cur === ".") { if (disc) disc.remove(); return; }
-      const cls = cur === "●" ? "B" : "W";
-      if (!disc) {
-        disc = document.createElement("div");
-        disc.className = "disc " + cls;   // 新規: place-in アニメ
-        sq.append(disc);
-      } else if (prev !== "." && prev !== cur) {
-        disc.className = "disc " + cls + " flip";   // 色が変わった: flip アニメ
-        disc.addEventListener("animationend", () => disc.classList.remove("flip"), { once: true });
-      } else {
-        disc.className = "disc " + cls;
-        disc.style.animation = "none";    // 変化なし: アニメさせない
-      }
+      sq.classList.toggle("can", humanTurn && st.board[y][x] === ".");
     });
+    paintBoard(squares, st.board, { last: st.last, winCells: st.over ? st.win_cells : [] });
 
     // スコアと状態表示
     $("#cnt-black").textContent = st.black;
@@ -940,20 +1026,17 @@ def my_ai(board, color, moves):
     const msg = $("#pg-msg");
     msg.classList.remove("win");
     if (st.over) {
-      const my = humanIsBlack ? st.black : st.white;
-      const op = humanIsBlack ? st.white : st.black;
       msg.classList.add("win");
-      if (my > op) msg.textContent = `🎉 あなたの勝ち! ${my} - ${op}`;
-      else if (op > my) msg.textContent = `😢 AIの勝ち… ${op} - ${my}。もう一度挑戦!`;
-      else msg.textContent = `🤝 引き分け! ${my} - ${op}`;
+      if (!st.winner) msg.textContent = "🤝 引き分け! 盤面が埋まりました";
+      else if (st.winner === st.human) msg.textContent = "🎉 あなたの勝ち! 5つ並びました";
+      else msg.textContent = "😢 AIの勝ち… 5つ並べられました。もう一度挑戦!";
     } else if (busy) {
-      msg.textContent = (st.msg || "") + "🤖 AIが考えています…";
+      msg.textContent = "🤖 AIが考えています…";
     } else if (st.turn === st.human) {
-      msg.textContent = (st.msg || "") + "あなたの番です。緑の印をクリック!";
+      msg.textContent = "あなたの番です。好きな交点をクリック!";
     } else {
-      msg.textContent = st.msg || "";
+      msg.textContent = "";
     }
-    prevRows = st.board;
   }
 
   async function aiLoop() {
@@ -961,7 +1044,7 @@ def my_ai(board, color, moves):
     busy = true;
     render();
     while (st && !st.over && st.turn !== st.human) {
-      await sleep(550);
+      await sleep(450);
       st = call(py, "ai_step()");
       render();
     }
@@ -971,7 +1054,7 @@ def my_ai(board, color, moves):
 
   async function onCellClick(x, y) {
     if (!st || busy || st.over || st.turn !== st.human) return;
-    if (!st.moves.some(([mx, my]) => mx === x && my === y)) return;
+    if (st.board[y][x] !== ".") return;
     const { py } = await engine();
     st = call(py, `human_move(${x}, ${y})`);
     render();
@@ -1004,7 +1087,7 @@ def my_ai(board, color, moves):
         level = "custom";
         opponentLabel = name;
       }
-      prevRows = null;
+      squares.forEach((sq) => { const d = sq.querySelector(".d"); if (d) d.remove(); sq.classList.remove("last", "win"); });
       st = call(py, `new_game(${humanBlack ? "True" : "False"}, "${level}")`);
       render();
       if (st.turn !== st.human) await aiLoop();
@@ -1013,14 +1096,12 @@ def my_ai(board, color, moves):
     }
   });
 
-  $("#chk-hints").addEventListener("change", render);
-
   /* ================= AI工房タブ ================= */
   const PRESETS = {};
-  for (const key of ["corner", "greedy", "master", "random", "blank"]) {
+  for (const key of ["block", "center", "normal", "strong", "random", "blank"]) {
     PRESETS[key] = window.PGI.dedent(document.getElementById("preset-" + key).textContent);
   }
-  let currentPreset = "corner";
+  let currentPreset = "block";
   window.PGI.ensureCodeMirror().then(() => {
     labCm = CodeMirror(document.getElementById("lab-editor"), {
       value: PRESETS[currentPreset],
@@ -1086,7 +1167,7 @@ def my_ai(board, color, moves):
   });
 
   /* ---- 作ったAIの保存 / 読み込み(localStorage) ---- */
-  const SAVE_KEY = "pgi-saved-ais";
+  const SAVE_KEY = "pgi-saved-ais-gomoku";
   let lastSavedName = null;   // 直近に保存/読込したAI名(Ctrl+S の上書き先)
   let labSnapshot = "";       // 「未保存の編集があるか」判定の基準(お手本/保存時点の内容)
   function loadSaved() {
@@ -1194,40 +1275,13 @@ def my_ai(board, color, moves):
   const levelNameOf = (lv) => ({ easy: "やさしい", normal: "ふつう", strong: "つよい" }[lv]);
 
   /* ---- 観戦盤(1局モード)---- */
-  const labSquares = [];
+  let labSquares = null;
   function buildLabBoard() {
-    const el = $("#lab-board");
-    if (!el || labSquares.length) return;
-    for (let i = 0; i < 64; i++) {
-      const sq = document.createElement("div");
-      sq.className = "sq";
-      el.append(sq);
-      labSquares.push(sq);
-    }
+    if (labSquares) return;
+    labSquares = buildGoban($("#lab-board"), null);
   }
-  function renderLabFrame(frame, prevRows, animate) {
-    const rows = frame.board;
-    labSquares.forEach((sq, idx) => {
-      const x = idx % 8, y = (idx / 8) | 0;
-      const cur = rows[y][x];
-      const prev = prevRows ? prevRows[y][x] : ".";
-      sq.classList.toggle("last", !!frame.last && frame.last[0] === x && frame.last[1] === y);
-      let disc = sq.querySelector(".disc");
-      if (cur === ".") { if (disc) disc.remove(); return; }
-      const cls = cur === "●" ? "B" : "W";
-      if (!disc) {
-        disc = document.createElement("div");
-        disc.className = "disc " + cls;
-        if (!animate) disc.style.animation = "none";   // シーク/コマ戻し時はアニメなし
-        sq.append(disc);
-      } else if (animate && prev !== "." && prev !== cur) {
-        disc.className = "disc " + cls + " flip";       // 裏返った石: flip アニメ
-        disc.addEventListener("animationend", () => disc.classList.remove("flip"), { once: true });
-      } else {
-        disc.className = "disc " + cls;
-        disc.style.animation = "none";
-      }
-    });
+  function renderLabFrame(frame, animate, winCells) {
+    paintBoard(labSquares, frame.board, { last: frame.last, winCells: winCells || [], animate });
     $("#lab-sc-my .n").textContent = labMyIsBlack ? frame.black : frame.white;
     $("#lab-sc-op .n").textContent = labMyIsBlack ? frame.white : frame.black;
     const live = frame.kind !== "start";
@@ -1236,18 +1290,15 @@ def my_ai(board, color, moves):
     $("#lab-sc-op").classList.toggle("turn", live && frame.turn !== myStone);
   }
   function describeMove(frame, levelName, moveNo) {
-    const who = frame.mover;
-    const colorName = who === "●" ? "黒" : "白";
-    const myStone = labMyIsBlack ? "●" : "○";
+    const colorName = frame.mover === "●" ? "黒" : "白";
     const myColor = labMyIsBlack ? "黒" : "白";
     const opColor = labMyIsBlack ? "白" : "黒";
     const coord = frame.last ? `(${frame.last[0]}, ${frame.last[1]})` : "";
     switch (frame.kind) {
-      case "start": return "対局開始! まず4手は序盤ランダム";
+      case "start": return "対局開始! 最初の4手は中央付近にランダム";
       case "opening": return `${moveNo}手目 · 序盤ランダム(${colorName}) → ${coord}`;
       case "my": return `${moveNo}手目 · あなたのAI(${myColor}) → ${coord}`;
       case "op": return `${moveNo}手目 · ${levelName}AI(${opColor}) → ${coord}`;
-      case "pass": return `${colorName}(${who === myStone ? "あなた" : levelName + "AI"})はパス`;
       default: return "";
     }
   }
@@ -1256,9 +1307,8 @@ def my_ai(board, color, moves):
   let labFrames = null;      // 全フレーム
   let labIdx = 0;            // 現在のフレーム番号
   let labMyIsBlack = true;   // 観戦モードで あなたのAI が黒(先手)か
-  let labMoveNums = [];      // 各フレームの手数
-  let labPrevRows = null;    // 直前に描画した盤面(差分アニメ用)
-  let labResult = null;      // {result, my, op}
+  let labWinCells = [];      // 勝った5つ並びのマス(最終フレームでハイライト)
+  let labResult = null;      // {result, moves}
   let labLevelName = "";
   let labTimer = null;       // 自動再生タイマー
   let labPlaying = false;    // 自動再生中か
@@ -1267,14 +1317,16 @@ def my_ai(board, color, moves):
   function stepTo(i, animate) {
     if (!labFrames) return;
     i = Math.max(0, Math.min(labFrames.length - 1, i));
+    const atEnd = i === labFrames.length - 1;
+    // 巻き戻し時は一度クリアしてから描き直す(石は「増える」だけなので過去に戻れないため)
+    if (i < labIdx) {
+      labSquares.forEach((sq) => { const d = sq.querySelector(".d"); if (d) d.remove(); sq.classList.remove("last", "win"); });
+    }
     labIdx = i;
-    const f = labFrames[i];
-    renderLabFrame(f, labPrevRows, animate);
-    labPrevRows = f.board;
-    $("#lab-move").textContent = (i === labFrames.length - 1)
-      ? "対局終了!" : describeMove(f, labLevelName, labMoveNums[i]);
+    renderLabFrame(labFrames[i], animate, atEnd ? labWinCells : []);
+    $("#lab-move").textContent = atEnd ? "対局終了!" : describeMove(labFrames[i], labLevelName, i);
     updateLabControls();
-    if (i === labFrames.length - 1) showLabResult();
+    if (atEnd) showLabResult();
   }
   function updateLabControls() {
     if (!labFrames) return;
@@ -1312,12 +1364,10 @@ def my_ai(board, color, moves):
     const r = labResult;
     const txt = r.result === "my" ? "🎉 あなたのAIの勝ち!"
       : r.result === "op" ? "😢 あなたのAIの負け…" : "🤝 引き分け!";
-    $("#lab-summary").textContent = labMyIsBlack
-      ? `${txt}  黒 ${r.my} - ${r.op} 白`
-      : `${txt}  白 ${r.my} - ${r.op} 黒`;
+    $("#lab-summary").textContent = `${txt}(${r.moves}手)`;
     if (!labResultLogged) {
       labResultLogged = true;
-      logLine(`結果: あなた(${labMyIsBlack ? "黒" : "白"}) ${r.my} - ${r.op} ${labLevelName}AI(${labMyIsBlack ? "白" : "黒"}) → ${txt.replace(/[🎉😢🤝]/g, "").trim()}`);
+      logLine(`結果: ${r.moves}手で ${txt.replace(/[🎉😢🤝]/g, "").trim()}`);
       logLine("「▶ 再生」や ◀ ▶ でもう一度見返せます。別の展開は「対戦開始」、勝率は「50局」で!");
     }
   }
@@ -1335,8 +1385,7 @@ def my_ai(board, color, moves):
     pauseLab();
     $("#lab-single").style.display = "block";
     $("#lab-bar").style.display = "none";
-    labSquares.forEach((sq) => { const d = sq.querySelector(".disc"); if (d) d.remove(); sq.classList.remove("last"); });
-    labPrevRows = null;
+    labSquares.forEach((sq) => { const d = sq.querySelector(".d"); if (d) d.remove(); sq.classList.remove("last", "win"); });
     labResultLogged = false;
     labLevelName = levelName;
     // あなたのAIの手番(選択 or ランダム)
@@ -1357,13 +1406,9 @@ def my_ai(board, color, moves):
     }
 
     labFrames = data.frames;
-    labResult = { result: data.result, my: data.my, op: data.op };
-    labMoveNums = [];
-    let mn = 0;
-    for (const f of labFrames) {
-      if (f.kind === "my" || f.kind === "op" || f.kind === "opening") mn++;
-      labMoveNums.push(mn);
-    }
+    labWinCells = data.win_cells || [];
+    labResult = { result: data.result, moves: data.moves };
+    labIdx = 0;
     logLine(`🎬 観戦: あなたのAI(${labMyIsBlack ? "黒・先手" : "白・後手"}) vs ${levelName}AI(${labMyIsBlack ? "白" : "黒"}) (全${labFrames.length - 1}手)`);
     $("#lab-summary").textContent = "▶ 再生中… 速度変更・コマ送り(◀ ▶)・バーで移動できます";
     stepTo(0, false);
@@ -1389,9 +1434,9 @@ def my_ai(board, color, moves):
         logLine("  " + fmtErr(e));
         break;
       }
-      if (r.result === "my") { my++; logLine(`第${i + 1}局: 🏆 勝ち  ${r.my}-${r.op} (${myBlack ? "先手" : "後手"})`); }
-      else if (r.result === "op") { op++; logLine(`第${i + 1}局: ・負け ${r.my}-${r.op} (${myBlack ? "先手" : "後手"})`); }
-      else { draw++; logLine(`第${i + 1}局: 🤝 引分 ${r.my}-${r.op}`); }
+      if (r.result === "my") { my++; logLine(`第${i + 1}局: 🏆 勝ち (${r.moves}手, ${myBlack ? "先手" : "後手"})`); }
+      else if (r.result === "op") { op++; logLine(`第${i + 1}局: ・負け (${r.moves}手, ${myBlack ? "先手" : "後手"})`); }
+      else { draw++; logLine(`第${i + 1}局: 🤝 引分 (盤面が埋まりました)`); }
 
       const total = my + op + draw;
       bar.querySelector(".my").style.width = (my / total * 100) + "%";
@@ -1408,7 +1453,7 @@ def my_ai(board, color, moves):
       logLine(`\n最終成績: ${my}勝 ${op}敗 ${draw}分 — 勝率 ${rate}%`);
       if (rate >= 70) logLine("圧勝! 相手のレベルを上げよう 💪");
       else if (rate >= 50) logLine("勝ち越し! いい調子 👍");
-      else logLine("うーん、作戦を練り直そう。WEIGHTSの調整やモビリティが鍵かも 🤔");
+      else logLine("うーん、作戦を練り直そう。「リーチを作る手」を優先するのが鍵かも 🤔");
     }
   }
 

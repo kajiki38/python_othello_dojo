@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lesson 2: 盤面を作ろう — Python×オセロ道場</title>
+<title>オセロ Lesson 1: 盤面を作ろう — Python×オセロ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
 
   <article class="lesson">
     <div class="lesson-head">
-      <div class="crumb">LESSON 02 / 08</div>
+      <div class="crumb">オセロ LESSON 01 / 07</div>
       <h1>盤面を作ろう</h1>
       <p class="lead">オセロ盤は8×8の64マス。「リストのリスト」という考え方で、コンピュータの中に盤面を作ります。今日からあなたのオセロ開発が本格スタートです。</p>
     </div>
@@ -33,12 +33,16 @@
       </ul>
     </div>
 
+    <div class="note">
+      <p><strong>前提:</strong> このコースは「<a href="basics-01.html">Pythonのきほん</a>」(全4レッスン)を終えている前提で進みます。変数・リスト・for・if・関数があやしい人は、先にそちらをどうぞ。</p>
+    </div>
+
     <div class="static-board"
          data-rows="........|........|........|...○●...|...●○...|........|........|........"
          data-caption="今日の完成形 — 中央に4つの石が並んだ、オセロの初期盤面"></div>
 
     <h2><span class="step">STEP 1</span>「リストのリスト」= 盤面</h2>
-    <p>前回、盤面の「1行」をリストで表しました。では8行分は? 答えはシンプルで、<strong>行のリストをさらにリストに入れる</strong>だけです。まずは小さく3×3で感覚をつかみましょう。</p>
+    <p>きほんコースで、盤面の「1行」をリストで表しました。では8行分は? 答えはシンプルで、<strong>行のリストをさらにリストに入れる</strong>だけです。まずは小さく3×3で感覚をつかみましょう。</p>
 
     <div class="pyrunner" data-name="mini_board.py">
 <script type="text/x-python">

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>きほん Lesson 2: リストとくり返し — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="basics-02">
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">きほん LESSON 02 / 04</div>
+      <h1>リストとくり返し</h1>
+      <p class="lead">オセロ盤も、碁盤も、コネクトフォーの盤も、正体は「データの並び」= <strong>リスト</strong>です。リストと、それを一気に処理する<strong>forループ</strong>——この2つがゲーム作りの土台になります。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>リストを番号(インデックス)で読み書きし、内包表記などで新しく作れる</li>
+        <li><code>len</code> / <code>count</code> / <code>join</code> / <code>append</code> などリストの道具を使える</li>
+        <li><code>for</code>(回数が決まったくり返し)と <code>while</code>(条件が続く間のくり返し)が書ける</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>リスト — データを並べて持つ</h2>
+    <p>ゲーム盤の1行は「マスの並び」です。こういう「並んだデータ」を扱うのがリスト。この道場全体で一番大事な道具です。</p>
+
+    <div class="pyrunner" data-name="list_basics.py">
+<script type="text/x-python">
+# ゲーム盤の1行を、リストで表してみます
+# "." = 空きマス、"●" = 黒石、"○" = 白石
+row = [".", ".", ".", "○", "●", ".", ".", "."]
+
+print(row)          # リスト全体
+print(row[3])       # 4番目のマス(番号は0から数える!)
+print(row[0])       # 1番目のマス
+print(len(row))     # マスの数
+</script>
+    </div>
+
+    <div class="warn">
+      <p><strong>超重要:</strong> リストの番号(インデックス)は <strong>0から</strong> 始まります。<code>row[3]</code> は「先頭から数えて4番目」。ゲーム盤の座標も0始まりで扱うので、この感覚に慣れておきましょう。</p>
+    </div>
+
+    <h2><span class="step">STEP 2</span>リストは書き換えられる</h2>
+    <p>「石を置く」「石をひっくり返す」は、プログラム的には<strong>リストの中身の書き換え</strong>です。もう体験してしまいましょう。</p>
+
+    <div class="pyrunner" data-name="list_update.py">
+<script type="text/x-python">
+row = [".", ".", ".", "○", "●", ".", ".", "."]
+print("最初:", " ".join(row))
+
+# 2番のマスに黒石を「置く」
+row[2] = "●"
+print("置いた:", " ".join(row))
+
+# 3番の白石を黒に「ひっくり返す」
+row[3] = "●"
+print("返した:", " ".join(row))
+
+# 便利ワザ: count で数を数える
+print("黒石の数:", row.count("●"))
+</script>
+    </div>
+
+    <p><code>" ".join(row)</code> は「リストの中身をスペースでつないで1つの文字列にする」テクニックです。盤面をきれいに表示するのに使います。<code>row.count("●")</code> のような「リストに聞く」書き方も、石数のカウントで大活躍します。</p>
+
+    <h2><span class="step">STEP 3</span>くり返し — forループ</h2>
+    <p>8マス、8行、64マス…ゲームは「同じ処理のくり返し」だらけです。同じ命令を64回も手で書くのは大変。そこで使うのが <code>for</code> ループ。<strong>リストの中身を1個ずつ取り出して、同じ処理をくり返す</strong>しくみです。</p>
+
+    <p>まずは「形」を覚えましょう。<code>for</code> の基本形はこうです。</p>
+    <div class="codeblock"><pre>for 変数 in リスト:
+    くり返したい処理     # ← 行の頭をスペース4つ字下げする</pre></div>
+    <p>読み方は「<strong>リストの中身を1つずつ <code>変数</code> に入れながら、字下げした処理を上から順にくり返す</strong>」。言葉で言うより、動かして見るのが早いです。</p>
+
+    <div class="pyrunner" data-name="loop_each.py">
+<script type="text/x-python">
+row = ["●", "●", "○"]
+
+for cell in row:
+    print("いまのマスは", cell)
+
+print("ループが終わりました")
+</script>
+    </div>
+
+    <p>ここで <code>cell</code> が<strong>ループ変数</strong>です。リストの中身が1個ずつ順番に <code>cell</code> に入り、リストを使い切ると自動的にループが終わります。頭の中では、こう動いています。</p>
+    <div class="codeblock"><pre>1周目: cell = "●"  →  print  →  いまのマスは ●
+2周目: cell = "●"  →  print  →  いまのマスは ●
+3周目: cell = "○"  →  print  →  いまのマスは ○
+        （リストの終わり。ループ終了）</pre></div>
+    <p>くり返しの回数を自分で数える必要はありません。<strong>リストの長さぶんだけ、Pythonが勝手にくり返してくれる</strong>——これが <code>for</code> の便利さです。</p>
+
+    <h3>range() で「番号」をくり返す</h3>
+    <p>もう1つ、よく使う形があります。<strong>中身ではなく「番号」がほしい</strong>とき。<code>range(8)</code> は <code>0, 1, 2, …, 7</code> という連番を順に生み出します(8個ぶん、<strong>0から始まって8は含まない</strong>のがポイント)。</p>
+
+    <div class="pyrunner" data-name="loop_range.py">
+<script type="text/x-python">
+row = ["●", "●", "○", ".", "○", "○", "○", "."]
+
+for i in range(8):
+    print(f"{i}番のマスは {row[i]}")
+</script>
+    </div>
+
+    <p>今度はループ変数 <code>i</code> に <code>0 → 1 → 2 → … → 7</code> が順に入るので、<code>row[i]</code> で全マスを番号つきで読めます。使い分けはシンプルです。</p>
+    <ul>
+      <li><strong>中身がほしいだけ</strong> → <code>for cell in row:</code></li>
+      <li><strong>番号(何番目か)も使いたい</strong> → <code>for i in range(len(row)):</code></li>
+    </ul>
+
+    <div class="warn">
+      <p><strong>コロンとインデントを忘れずに:</strong> <code>for</code> の行末には <code>:</code>(コロン)、くり返したい処理は<strong>スペース4つで字下げ</strong>します。<strong>字下げした行だけ</strong>がくり返しの中身です。逆に字下げを戻せば「ループの外」に出たことになります(上の例の <code>print("ループが終わりました")</code> は字下げしていないので、くり返されず最後に1回だけ実行されます)。コロンと字下げは、Pythonで最初につまずく定番ポイント。指に覚えさせましょう。</p>
+    </div>
+
+    <h2><span class="step">STEP 4</span>ループで計算する</h2>
+    <p>ループの中で変数を育てていくのも定番の型です。「合計を求める」で練習しましょう。</p>
+
+    <div class="pyrunner" data-name="loop_sum.py">
+<script type="text/x-python">
+# 5回の対戦で取った石の数
+scores = [34, 41, 28, 55, 33]
+
+total = 0
+for s in scores:
+    total = total + s     # total += s とも書けます
+
+print(f"合計 {total} 個、平均 {total / len(scores)} 個")
+</script>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:一番いいスコアは?</h3>
+      <p>上のコードに、いちばん大きいスコアを表示する処理を追加してみましょう。ヒント: Pythonには <code>max(scores)</code> という関数があります。ループで求める方法も考えてみてください(むずかしければ解答例を見てOK)。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>print("最高スコア:", max(scores))
+
+# ループで求めるなら:
+best = 0
+for s in scores:
+    if s > best:      # if(条件分岐)は次のレッスンで詳しく!
+        best = s
+print("最高スコア:", best)</pre></div>
+          <p>ループ版に出てきた <code>if</code> は「もし〜なら」の条件分岐。次のレッスンの主役です。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>リストを作る・育てる</h2>
+    <p>ここまではすでにあるリストを使ってきました。最後に、<strong>リストを一から作る</strong>方法を覚えましょう。ゲーム盤を用意するのに欠かせない道具です。</p>
+
+    <p>まず、同じ値を並べただけのリストは <code>*</code>(かけ算)で一気に作れます。そして空のリストに <code>append</code> で1個ずつ足して育てられます。</p>
+    <div class="pyrunner" data-name="list_make.py">
+<script type="text/x-python">
+row = ["."] * 8            # "." を8個ならべたリスト
+print(row)
+
+# 空のリスト [] から、1個ずつ後ろに足していく
+counts = []
+for i in range(3):
+    counts.append(i * 10)   # append = 末尾に追加
+print(counts)               # [0, 10, 20]
+</script>
+    </div>
+    <p><code>["."] * 8</code> は「<code>"."</code> を8個ぶん並べたリスト」。<code>リスト.append(値)</code> は「リストの<strong>末尾に値を1つ足す</strong>」命令です。<strong>空リスト <code>[]</code> から始めて <code>append</code> で育てる</strong>——これはこの先ずっと使う型です。</p>
+
+    <p>では、ゲーム盤のような<strong>「リストのリスト」(2次元)</strong>はどう作るか。「1行」を必要な数だけ積み重ねます。</p>
+    <div class="pyrunner" data-name="board_make.py">
+<script type="text/x-python">
+# 「.が8個の行」を8行ぶん積み重ねて、8×8の盤面を作る
+board = []
+for y in range(8):
+    board.append(["."] * 8)   # 空き行を1行ずつ追加
+
+for row in board:
+    print(" ".join(row))
+</script>
+    </div>
+
+    <p>この「空き行を8回作って積む」処理は、じつは<strong>1行でも書けます</strong>。次の書き方は<strong>リスト内包表記</strong>と呼ばれ、この道場のあらゆる盤面づくりで登場する定番です。</p>
+    <div class="pyrunner" data-name="comprehension.py">
+<script type="text/x-python">
+# 上の for ループと、まったく同じ盤面を1行で作る
+board = [["."] * 8 for _ in range(8)]
+
+print("行数:", len(board))
+print("1行の長さ:", len(board[0]))
+</script>
+    </div>
+    <p><code>[ ["."]*8 &nbsp;for _ in range(8) ]</code> は「<code>["."]*8</code>(=.が8個の行)を <code>range(8)</code> のぶん(8回)くり返し作って、1つのリストにまとめる」という意味です。ここで <code>_</code>(アンダースコア)は「<strong>使わない変数</strong>」の慣習的な名前。<code>for i in range(8)</code> の <code>i</code> を本体で使わないときに、<code>_</code> にして「この番号は使いません」と示します。</p>
+    <div class="note">
+      <p>内包表記は最初こそ読みにくく感じますが、<strong>「for を後ろに回した書き方」</strong>と思えば大丈夫。この先の各レッスンで <code>make_board</code> という関数の中に必ず出てくるので、形だけでも見慣れておきましょう。</p>
+    </div>
+
+    <h2><span class="step">STEP 6</span>回数が決まらないくり返し — while</h2>
+    <p><code>for</code> は「リストのぶん」「<code>range</code> のぶん」と<strong>回数が決まった</strong>くり返しでした。もう1つ、<strong>「ある条件が成り立つ間ずっと」</strong>くり返す <code>while</code> があります。何回で終わるか事前に分からないときに使います。</p>
+    <div class="pyrunner" data-name="while_basics.py">
+<script type="text/x-python">
+# 残りの石が5個以上ある間、3個ずつ減らしていく
+stones = 12
+while stones >= 5:
+    print(f"残り {stones} 個")
+    stones = stones - 3
+
+print("5個未満になったので終了:", stones)
+</script>
+    </div>
+    <p><code>while 条件:</code> は「<strong>条件が成り立つ間、中身をくり返す</strong>」。1周ごとに条件をチェックし、成り立たなくなった瞬間に抜けます。上の例なら <code>stones</code> が5個未満になった時点で止まります。コツは、<strong>ループの中で条件に関わる変数(ここでは <code>stones</code>)を必ず変化させる</strong>こと。変化させ忘れると条件がずっと成り立ったままで、終わらない「無限ループ」になってしまいます。</p>
+    <div class="note">
+      <p>ゲームでは「盤の端に着くまで1マスずつ進む」「勝敗が決まるまで手を打ち続ける」のように、<strong>終わりが状況しだい</strong>の場面で <code>while</code> が活躍します。とくに各種目の<strong>「石の並びを数える」処理</strong>で必ず登場するので、しっかり押さえておきましょう。</p>
+    </div>
+
+    <h2><span class="step">STEP 7</span>まとめ</h2>
+    <ul>
+      <li>リストは <code>[番号]</code> で読み書きできる。番号は <strong>0始まり</strong></li>
+      <li><code>len</code>(長さ)/ <code>count</code>(数える)/ <code>join</code>(つなぐ)/ <code>max</code>(最大)</li>
+      <li><code>for cell in row:</code> と <code>for i in range(8):</code> の2つの形。<strong>コロンとインデント</strong>を忘れずに</li>
+      <li>リスト作り: <code>["."] * 8</code>(並べる)/ <code>append</code>(末尾に足す)/ <code>[[...] * 8 for _ in range(8)]</code>(2次元を1行で)</li>
+      <li><code>while 条件:</code> は回数が決まらないくり返し。変数の変化を忘れず(無限ループ注意)</li>
+    </ul>
+    <p>次のレッスンは<strong>条件分岐(if)</strong>。「勝ったのはどっち?」「そのマスは盤の中?」——ゲームの判断はぜんぶ if でできています。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

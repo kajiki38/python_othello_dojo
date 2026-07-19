@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コネクトフォー Lesson 4: ゲームを完成させる — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="connect4-04" data-board-theme="connect4">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+def drop(board, col, color):
+    y = next_row(board, col)
+    if y is None:
+        return None
+    board[y][col] = color
+    return col, y
+
+def valid_columns(board):
+    return [x for x in range(WIDTH) if board[0][x] == EMPTY]
+
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < WIDTH and 0 <= ny < HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 4:
+            return True
+    return False
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">コネクトフォー LESSON 04 / 06</div>
+      <h1>ゲームを完成させる</h1>
+      <p class="lead">部品が出そろいました。列を選んで落とす、判定する、交代する——このくり返しでゲームループを組み、1局を最後まで走らせます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>ゲーム全体の流れ(ゲームループ)を設計できる</li>
+        <li>盤面が満杯になったときの引き分け処理を実装する</li>
+        <li>1局を自動対局させて、勝敗を発表する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ゲームの流れを言葉で書く</h2>
+    <div class="codeblock"><pre>1. 盤面を初期化。手番は黒から
+2. くり返し:
+     a. 落とせる列の一覧を作る
+     b. 一覧が空なら → 引き分けで終了(満杯)
+     c. どこかの列に石を落とす
+     d. 落とした場所を起点に4つ並びをチェック → 並んでいれば勝者決定で終了
+     e. 手番を交代
+</pre></div>
+    <p>五目並べとほぼ同じ形ですが、「空きマスの一覧」の代わりに「落とせる列の一覧」を使う点が違いです。</p>
+
+    <h2><span class="step">STEP 2</span>ゲームループを組む</h2>
+    <p>今回も「落とせる列からランダムに選ぶ」対局にします。<code>drop</code>が返す<code>(x, y)</code>をそのまま<code>check_win</code>に渡せるのが、これまでの設計の効いてくるところです。</p>
+
+    <div class="pyrunner" data-name="game_loop.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def play_game(show_moves=False):
+    """ランダム同士で1局対戦し、(盤面, 勝者) を返す。引き分けなら勝者はNone"""
+    board = make_board()
+    turn = BLACK
+    move_no = 0
+
+    while True:
+        cols = valid_columns(board)
+        if not cols:
+            return board, None                # 満杯 → 引き分け
+
+        col = random.choice(cols)
+        x, y = drop(board, col, turn)
+        move_no += 1
+        if show_moves:
+            print(f"{move_no}手目: {turn} → {col}列目")
+
+        if check_win(board, x, y, turn):
+            return board, turn                # 勝者決定
+        turn = opponent(turn)
+
+# --- 1局、様子を見ながら実行 ---
+board, winner = play_game(show_moves=True)
+print()
+print_board(board)
+print()
+print("勝者:", winner if winner else "引き分け")
+</script>
+    </div>
+
+    <p>コネクトフォーは全マスが埋まる(42マス)までに決着がつかないと引き分けです。4つ並べるには最低7手かかるので、ランダム同士だと、だいたい15〜30手くらいで決着することが多いはずです。</p>
+
+    <div class="note">
+      <p><code>drop</code>が <code>(x, y)</code> のタプルを返す設計にしておいたおかげで、<code>check_win(board, x, y, turn)</code> にそのまま渡せています。関数の戻り値を次の関数にそのまま渡せるように設計しておくと、ゲームループがすっきり書けます。</p>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:100局トーナメント</h3>
+      <p>ランダム同士で黒・白・引き分けの割合を調べてみましょう。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>black_wins = white_wins = draws = 0
+
+for i in range(100):
+    board, winner = play_game()
+    if winner == BLACK:
+        black_wins += 1
+    elif winner == WHITE:
+        white_wins += 1
+    else:
+        draws += 1
+
+print(f"黒 {black_wins} 勝 / 白 {white_wins} 勝 / 引き分け {draws}")</pre></div>
+          <p>五目並べと同じく、先に打てる黒がわずかに有利な傾向が出やすいはずです。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 3</span>まとめ</h2>
+    <ul>
+      <li>コネクトフォーのゲームループは「落とせる列を選ぶ→落とす→判定→交代」のくり返し</li>
+      <li>落とせる列がなくなったら引き分け</li>
+      <li><code>drop</code>の戻り値をそのまま<code>check_win</code>に渡せる設計が効いてくる</li>
+    </ul>
+    <p>ゲームは完成。最終レッスンでは、ランダムより賢く打つAIを作ります。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

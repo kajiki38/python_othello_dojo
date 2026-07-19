@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Python×オセロ道場 — ブラウザで学ぶゲームプログラミング</title>
-<meta name="description" content="インストール不要。ブラウザ上でPythonを書きながら、オセロ(リバーシ)を1から作って学ぶハンズオン教材。">
+<meta name="description" content="インストール不要。ブラウザ上でPythonを書きながら、オセロ・五目並べ・コネクトフォーを1から作って学ぶハンズオン教材。ルール実装から対戦AIまで。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -18,10 +18,11 @@
   <section class="hero">
     <div class="inner">
       <div>
-        <h1>Pythonで<span class="grad">オセロ</span>を作りながら、<br>プログラミングを身につけよう</h1>
+        <h1>Pythonで<span class="grad">ボードゲーム</span>を作りながら、<br>プログラミングを身につけよう</h1>
         <p class="lead">
           インストールも環境構築も不要。ブラウザの中でPythonコードを書いて、その場で実行。
-          8つのレッスンを進めるだけで、ルール実装から対戦AIまで、動くゲームがあなたの手で完成します。
+          オセロ・五目並べ・コネクトフォー、3つの定番ゲームをそれぞれ最初から作り上げながら、
+          ルール実装から対戦AIまで学べます。
         </p>
         <div class="badges">
           <span class="badge">環境構築ゼロ</span>
@@ -30,7 +31,7 @@
           <span class="badge">AI対戦つき</span>
         </div>
         <div style="display:flex; gap:14px; flex-wrap:wrap;">
-          <a class="btn btn-primary" href="lessons/lesson01.html">レッスンを始める →</a>
+          <a class="btn btn-primary" href="lessons/basics-01.html">レッスンを始める →</a>
           <a class="btn btn-ghost" href="playground.html">🎮 まず遊んでみる</a>
         </div>
       </div>
@@ -50,7 +51,7 @@
       <div class="feature">
         <div class="icon">🧩</div>
         <h3>1つのゲームを完成させる</h3>
-        <p>バラバラの文法練習ではなく、「オセロを作る」というゴールに向かって一直線。変数もループも関数も、必要になった瞬間に学ぶから頭に残ります。</p>
+        <p>バラバラの文法練習ではなく、「ゲームを作る」というゴールに向かって一直線。変数もループも関数も、必要になった瞬間に学ぶから頭に残ります。</p>
       </div>
       <div class="feature">
         <div class="icon">🤖</div>
@@ -62,19 +63,21 @@
 
   <section class="section" id="lessons">
     <h2><span class="accent-bar"></span>カリキュラム</h2>
-    <p class="sub">上から順番に進めるのがおすすめ。1レッスン20〜40分。進捗はこのブラウザに自動保存されます。</p>
+    <p class="sub">まずは共通の「Pythonのきほん」で文法をひと通り。そのあとの3種目(オセロ・五目並べ・コネクトフォー)は互いに独立した<strong>並列コース</strong>なので、好きな種目から・好きな順番で進められます。1レッスン15〜40分、進捗はこのブラウザに自動保存されます。</p>
     <div class="progress-wrap">
-      <span class="progress-label">進捗 0 / 8 レッスン</span>
+      <span class="progress-label">全体の進捗 0 / 18 レッスン</span>
       <div class="progress-track"><div class="progress-fill"></div></div>
     </div>
-    <div class="lesson-grid" data-auto></div>
+    <div class="tracks" data-auto-tracks></div>
   </section>
 
   <section class="section">
     <h2><span class="accent-bar"></span>卒業制作:プレイグラウンド</h2>
-    <p class="sub">レッスンで作ったゲームの完成形がここに。クリックで対戦したり、自作AIのコードを書いて戦わせたりできます。</p>
+    <p class="sub">レッスンで作ったゲームの完成形がここに。3種目それぞれ、クリックで対戦したり、自作AIのコードを書いて戦わせたりできます。</p>
     <div style="display:flex; gap:14px; flex-wrap:wrap;">
-      <a class="btn btn-primary" href="playground.html">🎮 プレイグラウンドを開く</a>
+      <a class="btn btn-primary" href="playground.html">🟩 オセロで遊ぶ</a>
+      <a class="btn btn-primary" href="playground-gomoku.html">🟫 五目並べで遊ぶ</a>
+      <a class="btn btn-primary" href="playground-connect4.html">🟦 コネクトフォーで遊ぶ</a>
     </div>
   </section>
 </main>

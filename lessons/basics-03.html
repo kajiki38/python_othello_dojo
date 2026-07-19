@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>きほん Lesson 3: 条件分岐 — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="basics-03">
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">きほん LESSON 03 / 04</div>
+      <h1>条件分岐</h1>
+      <p class="lead">「黒のほうが多ければ黒の勝ち」「そのマスが空いていれば置ける」「盤の外なら調べない」——ゲームの判断は、すべて<strong>if(条件分岐)</strong>でできています。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li><code>if</code> / <code>elif</code> / <code>else</code> で処理を分けられる</li>
+        <li>比較演算子(<code>==</code> <code>!=</code> <code>&gt;</code> <code>&lt;=</code> など)と <code>and</code> / <code>or</code> が使える</li>
+        <li><code>for</code> と <code>if</code> を組み合わせて「条件に合うものを数える」が書ける</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>if と else — もし〜なら</h2>
+    <p>まずは勝敗判定から。石の数を比べて、メッセージを出し分けます。</p>
+
+    <div class="pyrunner" data-name="if_else.py">
+<script type="text/x-python">
+black = 34
+white = 30
+
+if black > white:
+    print("黒の勝ち!")
+else:
+    print("白の勝ち!")
+
+print(f"最終スコア {black} - {white}")
+</script>
+    </div>
+
+    <p><code>if 条件:</code> の条件が成り立てばインデントの中が実行され、成り立たなければ <code>else:</code> の中が実行されます。<code>for</code> と同じく、<strong>コロンとインデント</strong>がセットです。</p>
+
+    <h2><span class="step">STEP 2</span>elif — 3つ以上に分ける</h2>
+    <p>ところで、引き分けを忘れていませんか? 「勝ち・負け・引き分け」のように3つ以上に分けるときは <code>elif</code>(else if の略)を挟みます。</p>
+
+    <div class="pyrunner" data-name="elif.py">
+<script type="text/x-python">
+black = 32
+white = 32
+
+if black > white:
+    print("黒の勝ち!")
+elif white > black:
+    print("白の勝ち!")
+else:
+    print("引き分け!")
+</script>
+    </div>
+
+    <div class="note">
+      <p><strong>比較演算子まとめ:</strong> <code>==</code> 等しい / <code>!=</code> 等しくない / <code>&gt;</code> <code>&lt;</code> より大きい・小さい / <code>&gt;=</code> <code>&lt;=</code> 以上・以下。<strong>「等しい」は <code>=</code> ではなく <code>==</code></strong>(<code>=</code> は変数への代入)——ここは間違えやすいので要注意!</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>and / or — 条件を組み合わせる</h2>
+    <p>ゲーム作りで何百回も書くことになる、超重要な判定があります。「<strong>その座標は盤の中?</strong>」です。x も y も範囲内、という2つの条件を <code>and</code> でつなぎます。</p>
+
+    <div class="pyrunner" data-name="inside.py">
+<script type="text/x-python">
+# 8×8の盤なら、座標は 0〜7 が「盤の中」
+x = 5
+y = 9
+
+if 0 <= x < 8 and 0 <= y < 8:
+    print(f"({x}, {y}) は盤の中です")
+else:
+    print(f"({x}, {y}) は盤の外です!")
+
+# 文字列も == で比べられる
+cell = "."
+if cell == ".":
+    print("このマスは空いているので置けます")
+</script>
+    </div>
+
+    <p><code>0 &lt;= x &lt; 8</code> は「0以上かつ8未満」を1つの式で書けるPythonの便利な記法です。盤の外を調べようとするとプログラムが壊れるので、この「盤内チェック」はオセロでも五目並べでもコネクトフォーでも必ず登場します。</p>
+
+    <h3>or — どちらか一方でも成り立てば</h3>
+    <p><code>and</code> が「<strong>両方とも</strong>成り立てばTrue」なのに対して、<code>or</code> は「<strong>どちらか一方でも</strong>成り立てばTrue」です。たとえば「そのマスに石があるか?」は、黒(●)か白(○)の<strong>どちらか</strong>ならYES、という判定になります。</p>
+
+    <div class="pyrunner" data-name="or_example.py">
+<script type="text/x-python">
+cell = "○"
+
+# 「●」または「○」なら、石が置かれている
+if cell == "●" or cell == "○":
+    print("このマスには石があります")
+else:
+    print("このマスは空きです")
+
+# and と or は ( ) でまとめて組み合わせられる
+# 例: 角(4すみ)の座標か? → x が端 かつ y が端
+x, y = 0, 7
+if (x == 0 or x == 7) and (y == 0 or y == 7):
+    print(f"({x}, {y}) は角のマスです")
+</script>
+    </div>
+
+    <p><code>and</code> は日本語の「かつ」、<code>or</code> は「または」とそのまま対応します。複雑な条件は <code>( )</code> でグループにまとめると、意図が読みやすくなります(上の例の「x が端<strong>かつ</strong>y が端 = 角」のように)。オセロで「角は特別扱い」といった判定に、この形がそのまま出てきます。</p>
+
+    <h2><span class="step">STEP 4</span>for + if — 条件に合うものを数える</h2>
+    <p>リストとループとifを組み合わせると、「盤面から黒石を数える」というゲームの実処理が書けるようになります。</p>
+
+    <div class="pyrunner" data-name="count_stones.py">
+<script type="text/x-python">
+row = ["●", "●", "○", ".", "○", "○", "○", "."]
+
+black_count = 0
+for i in range(8):
+    if row[i] == "●":
+        black_count = black_count + 1
+
+print(f"この行に黒石は {black_count} 個あります")
+</script>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:白石と空きマスも数えよう</h3>
+      <p>上のコードに、白石(<code>"○"</code>)の数を数えて表示する処理を追加してください。さらに余裕があれば、空きマス(<code>"."</code>)の数も。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>white_count = 0
+empty_count = 0
+for i in range(8):
+    if row[i] == "○":
+        white_count = white_count + 1
+    if row[i] == ".":
+        empty_count = empty_count + 1
+
+print(f"白石は {white_count} 個、空きマスは {empty_count} 個")</pre></div>
+          <p>前のレッスンで出てきた <code>row.count("○")</code> を使えば1行で書けますが、「forとifで自力で数える」型はこの先ずっと使うので、両方できるようにしておきましょう。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li><code>if</code> / <code>elif</code> / <code>else</code> で処理を分ける。条件のあとはコロンとインデント</li>
+      <li>「等しい」は <code>==</code>。<code>=</code>(代入)と間違えない</li>
+      <li><code>0 &lt;= x &lt; 8 and 0 &lt;= y &lt; 8</code> — 盤内チェックは全種目共通の必修ワザ</li>
+      <li><code>for</code> + <code>if</code> = 「条件に合うものを探す・数える」の基本形</li>
+    </ul>
+    <p>最終レッスンは<strong>関数</strong>。ここまでの道具をまとめて「ゲームの部品」を作れるようになれば、きほんコースは卒業です。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

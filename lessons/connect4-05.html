@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コネクトフォー Lesson 5: 対戦AIを作る — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="connect4-05" data-board-theme="connect4">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+def drop(board, col, color):
+    y = next_row(board, col)
+    if y is None:
+        return None
+    board[y][col] = color
+    return col, y
+
+def valid_columns(board):
+    return [x for x in range(WIDTH) if board[0][x] == EMPTY]
+
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < WIDTH and 0 <= ny < HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 4:
+            return True
+    return False
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">コネクトフォー LESSON 05 / 06</div>
+      <h1>対戦AIを作る</h1>
+      <p class="lead">コネクトフォー道場、最終レッスンです。五目並べで学んだ「勝てる手を逃さず、負けそうな手を防ぐ」という考え方を、列を選ぶAIとして実装します。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>「試しに落としてみて判定し、元に戻す」テクニックを列バージョンで使う</li>
+        <li>勝ち・防御を読む <code>ai_block</code> を作る</li>
+        <li>ランダムAIと対戦させて強さを実験する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ランダムAI(基準点)</h2>
+
+    <div class="pyrunner" data-name="ai_random.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def ai_random(board, color, cols):
+    """落とせる列から適当に選ぶAI"""
+    return random.choice(cols)
+
+board = make_board()
+cols = valid_columns(board)
+print("ランダムAIの選択:", ai_random(board, BLACK, cols))
+</script>
+    </div>
+
+    <h2><span class="step">STEP 2</span>「試しに落としてみる」— 列バージョン</h2>
+    <p>五目並べでは座標に直接置いて調べましたが、コネクトフォーは<code>drop</code>を使って「試しに落として」から調べます。<code>next_row</code>で落ちる場所(<code>y</code>)を先に確認しておくのがポイントです。</p>
+
+    <div class="pyrunner" data-name="find_winning_col.py" data-preamble="pre">
+<script type="text/x-python">
+def find_winning_col(board, color, cols):
+    """colsの中に「落としたら即勝ち」の列があれば返す。なければNone"""
+    for col in cols:
+        y = next_row(board, col)
+        if y is None:                    # 満杯の列はスキップ
+            continue
+        board[y][col] = color            # 試しに落とす
+        win = check_win(board, col, y, color)
+        board[y][col] = EMPTY            # 必ず元に戻す
+        if win:
+            return col
+    return None
+
+board = make_board()
+for col in [1, 2, 3]:
+    drop(board, col, BLACK)
+print_board(board)
+
+cols = valid_columns(board)
+print("黒の勝ち列:", find_winning_col(board, BLACK, cols))
+</script>
+    </div>
+
+    <h2><span class="step">STEP 3</span>勝ち + 防御 — ai_block</h2>
+    <p>五目並べの<code>ai_block</code>と同じ組み立てです。まず自分の勝ち手、なければ相手の勝ち手(=防ぐべき手)、それもなければランダム。</p>
+
+    <div class="pyrunner" data-name="ai_block.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def find_winning_col(board, color, cols):
+    for col in cols:
+        y = next_row(board, col)
+        if y is None:            # 満杯の列はスキップ
+            continue
+        board[y][col] = color
+        win = check_win(board, col, y, color)
+        board[y][col] = EMPTY
+        if win:
+            return col
+    return None
+
+def ai_block(board, color, cols):
+    """勝てるならその列、相手が次に勝てるなら防ぐ、それ以外はランダム"""
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    return random.choice(cols)
+
+# 白があと1手で勝てる局面を作る
+board = make_board()
+for col in [1, 2, 3]:
+    drop(board, col, WHITE)
+print_board(board)
+
+cols = valid_columns(board)
+print("黒番のai_blockの選択:", ai_block(board, BLACK, cols))   # 0か4列目で防ぐはず
+</script>
+    </div>
+
+    <div class="warn">
+      <p><code>win_col is not None</code> の書き方に注目してください。列の番号は<code>0</code>もあり得るので、<code>if win_col:</code> と書くと<strong>0列目が「勝てる手なし」と誤判定される</strong>バグになります。「値があるかどうか」を調べるときは<code>is not None</code>を使う——地味ですが重要な習慣です。</p>
+    </div>
+
+    <h2><span class="step">STEP 4</span>実験:防御AI vs ランダムAI</h2>
+
+    <div class="pyrunner" data-name="experiment.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def find_winning_col(board, color, cols):
+    for col in cols:
+        y = next_row(board, col)
+        if y is None:            # 満杯の列はスキップ
+            continue
+        board[y][col] = color
+        win = check_win(board, col, y, color)
+        board[y][col] = EMPTY
+        if win:
+            return col
+    return None
+
+def ai_random(board, color, cols):
+    return random.choice(cols)
+
+def ai_block(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    return random.choice(cols)
+
+def play_match(ai_black, ai_white):
+    """2つのAIを対戦させ、勝者を返す(引き分けはNone)"""
+    board = make_board()
+    turn = BLACK
+    while True:
+        cols = valid_columns(board)
+        if not cols:
+            return None
+        ai = ai_black if turn == BLACK else ai_white
+        col = ai(board, turn, cols)
+        x, y = drop(board, col, turn)
+        if check_win(board, x, y, turn):
+            return turn
+        turn = opponent(turn)
+
+# 防御AI(黒) vs ランダムAI(白) を50局! ※数秒かかります
+wins = losses = draws = 0
+for i in range(50):
+    winner = play_match(ai_block, ai_random)
+    if winner == BLACK:
+        wins += 1
+    elif winner == WHITE:
+        losses += 1
+    else:
+        draws += 1
+
+print(f"防御AIの成績: {wins}勝 {losses}敗 {draws}分")
+print(f"勝率: {wins / 50 * 100:.0f}%")
+</script>
+    </div>
+
+    <div class="note">
+      <p><strong>関数を「渡す」:</strong> <code>play_match(ai_block, ai_random)</code> は、<code>ai_block()</code> と<strong>実行する</strong>のではなく、<code>ai_block</code> という<strong>関数そのものを引数として渡して</strong>います。<code>play_match</code> の中では受け取った関数を <code>ai = ai_black if turn == BLACK else ai_white</code> で手番に応じて選び、<code>ai(board, turn, cols)</code> の形で呼び出します。Pythonでは<strong>関数も値の一種</strong>なので、こうして「どのAIで戦わせるか」を差し替えられるのです。次のレッスンで作る強いAIも、同じ <code>play_match</code> にそのまま渡して試せます。</p>
+    </div>
+
+    <p>「勝ち」と「防御」の2つのルールだけで、ランダムAIに大きく差をつけられるはずです。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:中央列を優先するAI</h3>
+      <p>コネクトフォーの定石は「中央の列(3列目)ほど多くの4つ並びに関われるので価値が高い」。<code>ai_block</code>を改造して、勝ち・防御がなければ中央に近い列を優先するAIを作ってみましょう。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def ai_center(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    center = WIDTH // 2
+    return min(cols, key=lambda c: abs(c - center))
+
+wins = losses = draws = 0
+for i in range(50):
+    winner = play_match(ai_center, ai_random)
+    if winner == BLACK: wins += 1
+    elif winner == WHITE: losses += 1
+    else: draws += 1
+print(f"中央志向AI: {wins}勝 {losses}敗 {draws}分")</pre></div>
+          <p><code>key=lambda c: abs(c - center)</code> は「各列 <code>c</code> を<strong>『中央からの距離』に変換してから</strong>比べる」指定です(<code>abs</code> は絶対値=符号を取った距離)。<code>min</code> がその<strong>いちばん小さい=中央にいちばん近い</strong>列を選びます。<code>lambda</code> は「その場で作る名前のない小さな関数」で、今は『各要素を点数に変える式』と読めればOK。「まず勝ち手を探す→防御→評価値で選ぶ」という<strong>AI設計の型そのものは、ゲームが変わっても使い回せる</strong>——これがオセロ道場3種目を通じて一番伝えたかったことです。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>列を扱うAIでも「試しに落とす→判定→元に戻す」の考え方は同じ</li>
+      <li><code>is not None</code>で「0」と「なし」を正しく区別する</li>
+      <li>強さは大量対局の勝率で測る</li>
+    </ul>
+    <p>ところで——この <code>ai_block</code>、実は「底辺に3つ並べる」だけで人間に負けてしまいます。次の最終レッスンでその弱点を暴いて、1手先を読む強化AIに育てましょう。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五目並べ Lesson 1: 盤面を作ろう — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="gomoku-01" data-board-theme="gomoku">
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">五目並べ LESSON 01 / 06</div>
+      <h1>盤面を作ろう</h1>
+      <p class="lead">五目並べコースへようこそ。まずは盤面づくりから。きほんコースで学んだ「リスト」を積み重ねた、「2次元リスト」という考え方が主役です。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>五目並べのルールをおさらいする</li>
+        <li>9×9の盤面を2次元リストで表現できる</li>
+        <li>盤面を作る <code>make_board</code> と表示する <code>print_board</code> を完成させる</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <p><strong>前提:</strong> このコースは「<a href="basics-01.html">Pythonのきほん</a>」(全4レッスン)を終えている前提で進みます。変数・リスト・for・if・関数があやしい人は、先にそちらをどうぞ。</p>
+    </div>
+
+    <div class="note">
+      <p><strong>五目並べのルール:</strong> 交互に石を置き、縦・横・斜めのいずれかに<strong>自分の色の石を5つ連続で並べたら勝ち</strong>。オセロと違って石をひっくり返す処理がない分、盤面ロジックはシンプルです。</p>
+    </div>
+
+    <h2><span class="step">STEP 1</span>盤面のサイズを決める</h2>
+    <p>本物の五目並べ盤は15×15ですが、この教材では見やすさを優先して<strong>9×9</strong>を使います。ルールも作り方もまったく同じなので、慣れてきたらサイズを変えて遊んでみてください(実行結果の下に出る盤面ビジュアルの自動表示は15×15まで対応しています)。</p>
+
+    <div class="pyrunner" data-name="board_size.py">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9   # 盤面の一辺のマス数
+
+print(f"{SIZE}×{SIZE} の盤面 = 全部で {SIZE * SIZE} マス")
+</script>
+    </div>
+
+    <h2><span class="step">STEP 2</span>2次元リストで盤面を作る</h2>
+    <p>考え方はシンプル。<strong>行のリストを、盤面のリストに積み重ねる</strong>だけです。</p>
+
+    <div class="pyrunner" data-name="make_board.py">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    """SIZE×SIZE の空っぽの盤面を作って返す"""
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+board = make_board()
+for row in board:
+    print(" ".join(row))
+</script>
+    </div>
+
+    <div class="warn">
+      <p><strong>オセロとの違い:</strong> 五目並べは初期配置がありません(盤面は全部空っぽからスタート)。だから <code>make_board</code> は <code>[EMPTY] * SIZE</code> を並べるだけで、中央に石を置く処理は不要です。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>座標つきで表示する</h2>
+    <p><code>print_board</code> は、行番号・列番号つきで見やすく表示するのがこの道場の流儀。どの種目でも同じ書き方が通用します。</p>
+
+    <div class="pyrunner" data-name="print_board.py">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    """盤面を座標つきで表示する"""
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+
+board = make_board()
+print_board(board)
+</script>
+    </div>
+
+    <div class="note">
+      <p>実行結果の下に、自動で<strong>五目並べ盤のビジュアル</strong>が表示されたはずです。マスを塗るのではなく<strong>交点に石を置く</strong>碁盤スタイルになっています。中身のデータ(<code>.</code> <code>●</code> <code>○</code> のリスト)はどの種目でも同じ仕組みで、見た目だけがゲームに合わせて変わります。</p>
+    </div>
+
+    <h2><span class="step">STEP 4</span>試しに石を置いてみる</h2>
+    <p>まだ「置く関数」は作っていませんが、<code>board[y][x] = 石</code> で直接書き込むことはもうできます。中央付近に何個か置いて、盤面ビジュアルで確認してみましょう。</p>
+
+    <div class="pyrunner" data-name="try_stones.py">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+
+board = make_board()
+board[4][4] = BLACK   # 中央
+board[4][5] = WHITE
+board[3][4] = BLACK
+print_board(board)
+</script>
+    </div>
+
+    <div class="static-board"
+         data-theme="gomoku" data-cell="26px"
+         data-rows=".........|.........|.........|....●....|....●○...|.........|.........|.........|........."
+         data-caption="9×9の五目盤(交点表示)。次のレッスンで、この石を「関数を使って」置けるようにします"></div>
+
+    <div class="challenge">
+      <h3>やってみよう</h3>
+      <p><code>try_stones.py</code> を書き換えて、自分の好きな場所に黒石・白石をあわせて5個くらい置いてみましょう。盤面ビジュアルがどう変わるか確認してください。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>board = make_board()
+board[2][2] = BLACK
+board[3][3] = BLACK
+board[4][4] = BLACK
+board[5][5] = WHITE
+board[2][6] = WHITE
+print_board(board)</pre></div>
+          <p>斜めに黒石を3つ並べてみました。次のレッスン以降で作る「5つ並び判定」が完成すれば、これがあと2つで勝ちの形だと自動で見抜けるようになります。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>五目並べの盤面もオセロと同じ「2次元リスト」で表現できる</li>
+      <li>初期配置がない分、<code>make_board</code> はシンプル</li>
+      <li>盤面ビジュアルは自動で碁盤スタイルに切り替わる(中身のデータ構造は共通)</li>
+    </ul>
+    <p>次のレッスンでは、座標と手番を管理しながら石を置く <code>place</code> 関数を作ります。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

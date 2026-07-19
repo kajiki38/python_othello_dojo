@@ -418,6 +418,86 @@ code:not(.cm-s-material-darker code) {
 }
 .progress-label { font-size: 13.5px; font-weight: 700; color: var(--text-soft); white-space: nowrap; }
 
+/* ---------- 種目別トラック(index.html カリキュラム) ---------- */
+.tracks { display: flex; flex-direction: column; gap: 44px; }
+/* 3種目はタブで選んで分岐(基礎コースだけ常時表示) */
+.track-switch-label {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+.track-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.track-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 11px 22px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: background .15s, color .15s, border-color .15s, transform .12s;
+}
+.track-tab:hover { background: var(--surface-2); color: var(--text); transform: translateY(-1px); }
+.track-tab.active {
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent));
+  border-color: transparent;
+  color: #fff;
+}
+.track-tab .ti { font-size: 15px; }
+.track-tab-count {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-soft);
+}
+.track-tab.active .track-tab-count { background: rgba(255, 255, 255, .22); color: #fff; }
+.track-pane { display: none; }
+.track-pane.active { display: block; animation: pane-in .25s ease; }
+@keyframes pane-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.track-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.track-head h3 {
+  margin: 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.track-icon { font-size: 18px; }
+.track-desc { color: var(--text-soft); margin: 0 0 18px; font-size: 14px; }
+.track-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+}
+/* バー本体は共通の .progress-track / .progress-fill / .progress-label を使い、ここではサイズだけ上書きする */
+.track-progress-track {
+  flex: none;
+  width: 120px;
+  height: 7px;
+}
+.track-progress-label { font-size: 12.5px; }
+
 /* ---------- lesson layout ---------- */
 .layout {
   max-width: 1200px;
@@ -476,6 +556,14 @@ code:not(.cm-s-material-darker code) {
 .sidebar a.done .ln { background: var(--accent); color: #fff; }
 .sidebar a.done .ln::before { content: "✓"; }
 .sidebar a.done .ln span { display: none; }
+
+/* 見出し・リンクの基本スタイルは .sidebar h4 / .sidebar a がそのまま当たる */
+.sidebar-tracks {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.sidebar-tracks .ti { font-size: 15px; }
 
 /* lesson article */
 article.lesson { min-width: 0; }
@@ -674,7 +762,6 @@ details.solution > .body { padding: 4px 18px 16px; border-top: 1px solid var(--b
 
 .pyrunner .CodeMirror {
   height: auto;
-  max-height: 560px;
   background: var(--code-bg);
   font-family: var(--font-mono);
   font-size: 13.8px;
@@ -684,6 +771,9 @@ details.solution > .body { padding: 4px 18px 16px; border-top: 1px solid var(--b
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "calt" 0;
 }
+/* 長いコードは切り捨てず、上限を超えたらエディタ内部でスクロールさせる
+   (wrapper側の max-height だと overflow:hidden で下が見切れてしまう) */
+.pyrunner .CodeMirror-scroll { max-height: 560px; }
 .pyrunner .CodeMirror-gutters { background: var(--code-bg); border-right: 1px solid rgba(255,255,255,.06); }
 .pyrunner .CodeMirror-linenumber { color: #44584e; }
 
@@ -763,6 +853,65 @@ details.solution > .body { padding: 4px 18px 16px; border-top: 1px solid var(--b
   text-shadow: 0 1px 3px rgba(0,0,0,.5);
 }
 
+/* ---------- 盤面テーマ: コネクトフォー(色違いの塗りつぶし) ---------- */
+.sb.sb-connect4 {
+  background: linear-gradient(160deg, #1e46b8, #0f2d78);
+}
+.sb.sb-connect4 .c {
+  background: transparent;
+}
+.sb.sb-connect4 .c::before {
+  content: "";
+  position: absolute;
+  inset: 7%;
+  border-radius: 50%;
+  background: color-mix(in srgb, #0f2d78 55%, black);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .6);
+}
+.sb.sb-connect4 .d {
+  position: relative;
+  z-index: 1;
+}
+/* ディスクの配色。集計ラベル(.cnt-b/.cnt-w)も同じ変数を参照して石と色を揃える */
+.sb.sb-connect4,
+body[data-board-theme="connect4"] {
+  --c4-b-hi: #ff8a6b; --c4-b-lo: #c8331f;
+  --c4-w-hi: #fff2ad; --c4-w-lo: #f2b705;
+}
+.sb.sb-connect4 .d.B { background: radial-gradient(circle at 32% 28%, var(--c4-b-hi), var(--c4-b-lo) 78%); box-shadow: 0 2px 4px rgba(0,0,0,.4); }
+.sb.sb-connect4 .d.W { background: radial-gradient(circle at 32% 28%, var(--c4-w-hi), var(--c4-w-lo) 80%); box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+.sb.sb-connect4 .c.hint::after { border-color: rgba(255, 255, 255, .55); }
+
+/* ---------- 盤面テーマ: 五目並べ(交点表示の碁盤スタイル) ---------- */
+.sb.sb-gomoku {
+  background: #d9a86c;
+  gap: 0;
+  padding: 15px;
+}
+.sb.sb-gomoku .c {
+  background: transparent;
+  border-radius: 0;
+}
+.sb.sb-gomoku .gl {
+  position: absolute;
+  background: rgba(90, 58, 22, .75);
+  pointer-events: none;
+}
+.sb.sb-gomoku .gl-h { left: 0; right: 0; top: 50%; height: 1.5px; transform: translateY(-50%); }
+.sb.sb-gomoku .gl-v { top: 0; bottom: 0; left: 50%; width: 1.5px; transform: translateX(-50%); }
+.sb.sb-gomoku .c.edge-l .gl-h { left: 50%; }
+.sb.sb-gomoku .c.edge-r .gl-h { right: 50%; }
+.sb.sb-gomoku .c.edge-t .gl-v { top: 50%; }
+.sb.sb-gomoku .c.edge-b .gl-v { bottom: 50%; }
+.sb.sb-gomoku .d {
+  width: 82%; height: 82%;
+  position: relative;
+  z-index: 1;
+}
+.sb.sb-gomoku .d.B { background: radial-gradient(circle at 32% 28%, #4d4d4d, #0a0a0a 75%); box-shadow: 0 2px 4px rgba(0,0,0,.5); }
+.sb.sb-gomoku .d.W { background: radial-gradient(circle at 32% 28%, #ffffff, #d6d6d6 78%); box-shadow: 0 2px 4px rgba(0,0,0,.3); }
+.sb.sb-gomoku .c.hint::after { border-color: rgba(90, 58, 22, .6); }
+
 /* レッスン本文に置く静的図解 */
 .static-board {
   margin: 26px auto;
@@ -801,6 +950,9 @@ details.solution > .body { padding: 4px 18px 16px; border-top: 1px solid var(--b
   align-items: baseline;
 }
 .viz-item .viz-label .vn { color: #b9d3c6; font-weight: 700; font-size: 12.5px; }
+/* コネクトフォーでは盤上の石が赤/黄になるので、集計ラベルの●○も同じ色に合わせる */
+body[data-board-theme="connect4"] .viz-label .cnt-b { color: var(--c4-b-hi); }
+body[data-board-theme="connect4"] .viz-label .cnt-w { color: var(--c4-w-lo); }
 
 /* static code block (non-runnable) */
 .codeblock {
@@ -1249,4 +1401,119 @@ details.solution > .body { padding: 4px 18px 16px; border-top: 1px solid var(--b
   .lab-grid { grid-template-columns: 1fr; }
   .lab-results { position: static; }
   .nav-links a:not(.keep) { display: none; }
+}
+
+/* ============================================================
+   プレイグラウンド: 種目切替 & 五目並べ/コネクトフォーの対話盤
+   ============================================================ */
+.pg-games {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.pg-games a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--text-soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 16px;
+  transition: background .15s, color .15s;
+}
+.pg-games a:hover { background: var(--surface-2); color: var(--text); }
+.pg-games a.active {
+  background: linear-gradient(120deg, var(--accent-strong), var(--accent));
+  border-color: transparent;
+  color: #fff;
+}
+
+/* sbテーマを流用した対話盤(五目並べ/コネクトフォーのプレイグラウンド) */
+.pg-main-board { --sb-cell: 47px; }
+.pg-lab-board { --sb-cell: 33px; }
+/* 五目並べは本格の15路盤。マスを詰めてフレームに収める */
+.sb-gomoku.pg-main-board { --sb-cell: 33px; }
+.sb-gomoku.pg-lab-board { --sb-cell: 20px; }
+.board-frame .sb,
+.lab-board-frame .sb { margin: 0 auto; width: fit-content; }
+@media (max-width: 620px) {
+  .pg-main-board { --sb-cell: 36px; }
+  .pg-lab-board { --sb-cell: 27px; }
+  .sb-gomoku.pg-main-board { --sb-cell: 20px; }
+  .sb-gomoku.pg-lab-board { --sb-cell: 16px; }
+}
+.sb.sb-play .c.can { cursor: pointer; }
+.sb.sb-play .c.last .d { box-shadow: 0 0 0 3px rgba(255, 214, 90, .9), 0 2px 5px rgba(0, 0, 0, .45); }
+.sb .c.win .d { box-shadow: 0 0 0 3px #ffd65a, 0 0 14px rgba(255, 214, 90, .8); }
+.sb .d.pop { animation: place-in .3s cubic-bezier(.2, .9, .4, 1.3) backwards; }
+
+/* 五目並べ: 空き交点のホバーで着手プレビュー */
+.sb.sb-gomoku.sb-play .c.can:hover::after {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: rgba(20, 12, 4, .28);
+  z-index: 1;
+}
+
+/* コネクトフォー: 列ホバーで穴をハイライト + 落下アニメ */
+.sb.sb-connect4.sb-play .c.hot::before {
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .6), inset 0 0 0 3px rgba(255, 255, 255, .3);
+}
+.sb.sb-connect4 .d.dropin { animation: c4-drop .4s cubic-bezier(.5, 0, .75, .5) backwards; }
+@keyframes c4-drop {
+  0% { transform: translateY(var(--drop-from, -320px)); }
+  78% { transform: translateY(0); }
+  89% { transform: translateY(calc(var(--sb-cell, 47px) * -0.1)); }
+  100% { transform: translateY(0); }
+}
+
+/* AI工房エディタの全画面編集モード */
+.pyrunner.lab-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  margin: 0;
+  border-radius: 0;
+  background: var(--code-bg);
+  display: flex;
+  flex-direction: column;
+}
+.pyrunner.lab-fullscreen .bar { flex: none; }
+.pyrunner.lab-fullscreen #lab-editor { flex: 1; min-height: 0; }
+.pyrunner.lab-fullscreen #lab-editor .CodeMirror { height: 100%; }
+.pyrunner.lab-fullscreen #lab-editor .CodeMirror-scroll { max-height: none; }
+body.lab-fs-open { overflow: hidden; }
+
+/* エンジンのコード表示(読み取り専用CodeMirror)。CDN読込前は中の .codeblock がフォールバック表示 */
+.source-cm .CodeMirror {
+  height: 640px;
+  border-radius: 14px;
+  background: var(--code-bg);
+  font-family: var(--font-mono);
+  font-size: 13.8px;
+  line-height: 1.75;
+  padding: 10px 4px;
+  box-shadow: var(--shadow);
+}
+.source-cm .CodeMirror-gutters { background: var(--code-bg); border-right: 1px solid rgba(255, 255, 255, .06); }
+.source-cm .CodeMirror-linenumber { color: #44584e; }
+/* 手元で遊べる完全版: 上限を超えたらエディタ内部でスクロール */
+#standalone-host .CodeMirror { height: auto; }
+#standalone-host .CodeMirror-scroll { max-height: 460px; }
+
+/* コネクトフォーページのスコア表示は石の黒白ではなく赤黄に揃える */
+body[data-board-theme="connect4"] .mini-disc.B {
+  background: radial-gradient(circle at 32% 28%, var(--c4-b-hi), var(--c4-b-lo) 78%) !important;
+  border: none !important;
+}
+body[data-board-theme="connect4"] .mini-disc.W {
+  background: radial-gradient(circle at 32% 28%, var(--c4-w-hi), var(--c4-w-lo) 80%) !important;
+  border: none !important;
 }
