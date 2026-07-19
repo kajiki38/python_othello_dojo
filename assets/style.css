@@ -1446,6 +1446,17 @@ body[data-board-theme="connect4"] .viz-label .cnt-w { color: var(--c4-w-lo); }
   .pg-lab-board { --sb-cell: 27px; }
   .sb-gomoku.pg-main-board { --sb-cell: 20px; }
   .sb-gomoku.pg-lab-board { --sb-cell: 16px; }
+  /* ヘッダーとタブを1行に収める(360px幅まで。それ未満は自然折り返しに任せる) */
+  .site-header .inner { padding: 0 12px; gap: 8px; }
+  .brand { font-size: 13.5px; gap: 5px; }
+  .brand .logo { width: 26px; height: 26px; padding: 4px; }
+  .nav-links a { font-size: 12px; padding: 7px 7px; }
+  .pg-tabs { width: 100%; gap: 6px; }
+  .pg-tabs button { flex: auto; font-size: 12.5px; padding: 8px 6px; }
+}
+/* 五目並べの15路盤は390px級でギリギリのため、それ未満はさらにマスを詰める */
+@media (max-width: 400px) {
+  .sb-gomoku.pg-main-board { --sb-cell: 17px; }
 }
 .sb.sb-play .c.can { cursor: pointer; }
 .sb.sb-play .c.last .d { box-shadow: 0 0 0 3px rgba(255, 214, 90, .9), 0 2px 5px rgba(0, 0, 0, .45); }
