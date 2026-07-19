@@ -1462,6 +1462,11 @@ body[data-board-theme="connect4"] .viz-label .cnt-w { color: var(--c4-w-lo); }
   .sb-gomoku.pg-main-board { --sb-cell: 17px; }
 }
 
+/* キーボード操作: 盤のフォーカスリングとセルカーソル */
+.board:focus-visible, .sb.sb-play:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.board .sq.kb { box-shadow: inset 0 0 0 3px var(--accent); }
+.sb.sb-play .c.kb { box-shadow: inset 0 0 0 3px var(--accent); border-radius: 6px; z-index: 1; }
+
 /* OSの「視差効果を減らす」設定ではアニメーションを実質無効化する */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

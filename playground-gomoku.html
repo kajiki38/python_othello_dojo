@@ -1014,6 +1014,28 @@ def my_ai(board, color, moves):
 
   const squares = buildGoban(boardEl, onCellClick);
 
+  /* ---------- キーボード操作(矢印キーで移動、Enter/Spaceで着手) ---------- */
+  let kbX = Math.floor(SIZE / 2), kbY = Math.floor(SIZE / 2);
+  boardEl.tabIndex = 0;
+  boardEl.setAttribute("aria-label", (boardEl.getAttribute("aria-label") || "盤") + "(矢印キーで移動、EnterかSpaceで着手)");
+  function kbPaint(show) {
+    squares.forEach((sq) => sq.classList.toggle("kb", show && +sq.dataset.x === kbX && +sq.dataset.y === kbY));
+  }
+  boardEl.addEventListener("focus", () => kbPaint(true));
+  boardEl.addEventListener("blur", () => kbPaint(false));
+  boardEl.addEventListener("keydown", (e) => {
+    switch (e.key) {
+      case "ArrowLeft": kbX = Math.max(0, kbX - 1); break;
+      case "ArrowRight": kbX = Math.min(SIZE - 1, kbX + 1); break;
+      case "ArrowUp": kbY = Math.max(0, kbY - 1); break;
+      case "ArrowDown": kbY = Math.min(SIZE - 1, kbY + 1); break;
+      case "Enter": case " ": onCellClick(kbX, kbY); break;
+      default: return;
+    }
+    e.preventDefault();
+    kbPaint(true);
+  });
+
   function render() {
     if (!st) return;
     const humanTurn = !st.over && st.turn === st.human && !busy;

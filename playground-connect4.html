@@ -958,6 +958,23 @@ def my_ai(board, color, cols):
   });
   boardEl.addEventListener("mouseleave", () => setHot(-1));
 
+  /* ---------- キーボード操作(←→で列を選び、Enter/Space/↓で落とす) ---------- */
+  let kbCol = 3;
+  boardEl.tabIndex = 0;
+  boardEl.setAttribute("aria-label", (boardEl.getAttribute("aria-label") || "盤") + "(←→で列を選び、EnterかSpaceで落とす)");
+  boardEl.addEventListener("focus", () => setHot(kbCol));
+  boardEl.addEventListener("blur", () => setHot(-1));
+  boardEl.addEventListener("keydown", (e) => {
+    switch (e.key) {
+      case "ArrowLeft": kbCol = Math.max(0, kbCol - 1); break;
+      case "ArrowRight": kbCol = Math.min(W - 1, kbCol + 1); break;
+      case "Enter": case " ": case "ArrowDown": e.preventDefault(); onColClick(kbCol); return;
+      default: return;
+    }
+    e.preventDefault();
+    setHot(kbCol);
+  });
+
   function render() {
     if (!st) return;
     const humanTurn = !st.over && st.turn === st.human && !busy;
