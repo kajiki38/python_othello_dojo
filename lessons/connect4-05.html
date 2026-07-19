@@ -235,6 +235,8 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
 </script>
     </div>
 
+    <p><code>{wins / 50 * 100:.0f}</code> の <code>:.0f</code> はf-stringの<strong>書式指定</strong>で、「小数点以下は表示しない(四捨五入)」という意味。<code>92.0%</code> ではなく <code>92%</code> とすっきり表示できます。</p>
+
     <div class="note">
       <p><strong>関数を「渡す」:</strong> <code>play_match(ai_block, ai_random)</code> は、<code>ai_block()</code> と<strong>実行する</strong>のではなく、<code>ai_block</code> という<strong>関数そのものを引数として渡して</strong>います。<code>play_match</code> の中では受け取った関数を <code>ai = ai_black if turn == BLACK else ai_white</code> で手番に応じて選び、<code>ai(board, turn, cols)</code> の形で呼び出します。Pythonでは<strong>関数も値の一種</strong>なので、こうして「どのAIで戦わせるか」を差し替えられるのです。次のレッスンで作る強いAIも、同じ <code>play_match</code> にそのまま渡して試せます。</p>
     </div>
