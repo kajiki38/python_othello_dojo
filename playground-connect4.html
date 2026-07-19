@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>コネクトフォー・プレイグラウンド — Python×オセロ道場</title>
+<title>コネクトフォー・プレイグラウンド — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -125,10 +125,39 @@ def _winning_cols(board, color):
         board[y][col] = EMPTY
     return wins
 
+def _threat_spots(board, color):
+    # 「そこに color の石が入れば4連が完成する」空きマスの一覧(=脅威、将来のリーチの種)
+    spots = []
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            if board[y][x] == EMPTY:
+                board[y][x] = color
+                if check_win(board, x, y, color):
+                    spots.append((x, y))
+                board[y][x] = EMPTY
+    return spots
+
+def _position_score(board, color):
+    # 手を打ったあとの盤面を「勝ち筋の多さ」で点数化する。
+    #   リーチ(いますぐの勝ち列)×3
+    # + 良い段の脅威の差×2 …… 定石「先手(●)は下から奇数段目、後手(○)は偶数段目の
+    #                            脅威が強い」(埋め合いの終盤、順番の関係で最後に刺さる)
+    # + 脅威の総数の差×1
+    opp = opponent(color)
+    my_parity = 1 if color == BLACK else 0     # 下から数えた段(1始まり)の偶奇
+    mine = _threat_spots(board, color)
+    theirs = _threat_spots(board, opp)
+    good = sum(1 for (x, y) in mine if (HEIGHT - y) % 2 == my_parity)
+    bad = sum(1 for (x, y) in theirs if (HEIGHT - y) % 2 == (1 - my_parity))
+    reach = len(_winning_cols(board, color))
+    return reach * 3 + (good - bad) * 2 + (len(mine) - len(theirs))
+
 def ai_strong(board, color, cols):
-    # 「つよい」= Lesson 5の勝ち手・防御に、1手ぶんの先読みを足した強化版。
+    # 「つよい」= Lesson 5の勝ち手・防御に、先読みを足した強化版。
     #  A. 落とした直後にその上へ相手の即勝ちを許す列は避ける(安全な列だけ選ぶ)
     #  B. 勝ち列を同時に2つ作る「ダブルリーチ」を自分は狙い、相手には先回りして塞ぐ
+    #  C. 残りは「リーチを作る手」と「良い段の脅威を増やす手」(奇偶の定石)で点数づけして攻める
+    #     —— 受け身どうしだと引き分けだらけになるので、常に将来の勝ち筋を仕込み続ける
     opp = opponent(color)
     win_col = find_winning_col(board, color, cols)
     if win_col is not None:
@@ -137,7 +166,8 @@ def ai_strong(board, color, cols):
     if block_col is not None:
         return block_col
     center = WIDTH // 2
-    ordered = sorted(cols, key=lambda c: abs(c - center))
+    # 中央寄り優先。同率の列はランダムにして、毎回同じ展開になるのを防ぐ
+    ordered = sorted(cols, key=lambda c: (abs(c - center), random.random()))
     safe = []
     for col in ordered:
         y = next_row(board, col)
@@ -160,8 +190,16 @@ def ai_strong(board, color, cols):
         board[y][col] = EMPTY
         if threats >= 2:
             return col
-    if safe:
-        return safe[0]                   # 中央寄りの安全な列
+    best_col, best_score = None, None
+    for col in safe:                     # リーチ+奇偶の定石で「一番勝ち筋が増える手」を選ぶ
+        y = next_row(board, col)
+        board[y][col] = color
+        score = _position_score(board, color)
+        board[y][col] = EMPTY
+        if best_score is None or score > best_score:
+            best_col, best_score = col, score
+    if best_col is not None:
+        return best_col
     return ai_center(board, color, cols) # どこも危険なら中央志向で開き直る
 
 def builtin_ai(level, board, color, cols):
@@ -327,7 +365,7 @@ def play_one_replay(level, my_is_black=True, opening=2):
 <!-- ============ 手元で遊べる完全版(print_board + 対戦ループ入り) ============ -->
 <script type="text/x-python" id="standalone-code">
 # ==================================================================
-#  Python×オセロ道場 — コネクトフォー「手元で遊べる完全版」
+#  Python×ボドゲ道場 — コネクトフォー「手元で遊べる完全版」
 #  使い方: このコードを connect4.py として保存して、ターミナルで
 #          python connect4.py
 #  ※ ブラウザの青い盤はページのJavaScriptが描いています。
@@ -485,12 +523,13 @@ def my_ai(board, color, cols):
 
 # 改造アイデア:
 #  - 「そこに落とすと、相手がその上に落として勝てる列」は避ける(1手深い読み)
-#  - 落とした後の盤面を数値で評価して、一番高い列を選ぶ(オセロ道場の評価関数と同じ発想)
+#  - 落とした後の盤面を数値で評価して、一番高い列を選ぶ(オセロコースの評価関数と同じ発想)
 </script>
 
 <script type="text/x-python" id="preset-strong">
-# 【お手本: 対戦相手「つよい」の正体(Lesson 6の先読みAI)】
-# 勝ち → 防御 → うっかり列を避ける → 自分のダブルリーチを狙う → 相手のは先回り → 中央寄り。
+# 【お手本: 対戦相手「つよい」の正体(Lesson 6の先読みAI+引き分け対策の改造)】
+# 勝ち → 防御 → うっかり列を避ける → ダブルリーチを狙う/塞ぐ → 勝ち筋が一番増える手で攻める。
+# 最後の「勝ち筋の点数」は リーチ×3+良い段の脅威の差×2+脅威の総数差(奇偶の定石)。
 # 「_」で始まる関数はエンジン内部の部品です(📖 エンジンのコードに定義があります)。
 import random
 
@@ -509,7 +548,8 @@ def my_ai(board, color, cols):
         if not _winning_cols(board, opponent(color)):
             safe.append(col)
         board[y][col] = EMPTY
-    cand = sorted(safe if safe else cols, key=lambda c: abs(c - center))
+    # 中央寄り優先。同率はランダムにして毎回ちがう展開に
+    cand = sorted(safe if safe else cols, key=lambda c: (abs(c - center), random.random()))
     for target in (color, opponent(color)):                # ④ 自分のダブルリーチを狙い、⑤ 相手のは先回り
         for col in cand:
             y = next_row(board, col)
@@ -518,11 +558,19 @@ def my_ai(board, color, cols):
             board[y][col] = EMPTY
             if n >= 2:
                 return col
-    return cand[0]                                         # ⑥ 中央寄りの安全な列
+    best, best_score = None, None                          # ⑥ 「勝ち筋が一番増える手」で攻める
+    for col in cand:                                       #    (受け身どうしだと引き分けだらけになる)
+        y = next_row(board, col)
+        board[y][col] = color
+        s = _position_score(board, color)
+        board[y][col] = EMPTY
+        if best_score is None or s > best_score:
+            best, best_score = col, s
+    return best if best is not None else cand[0]
 
 # 改造アイデア:
-#  - ⑥を「リーチ(勝ち列1つ)を作れる列を優先」にして攻め続ける(Lesson 6 チャレンジ)
-#  - 落とした後の盤面を点数化して一番高い列を選ぶ(評価関数の発想)
+#  - _position_score の重み(×3, ×2, ×1)を変えて、もっと攻撃的/守備的にしてみる
+#  - 相手の応手まで読んでから点数化する(2手先読み=ミニマックスの入り口)
 </script>
 
 <script type="text/x-python" id="preset-random">
@@ -611,7 +659,7 @@ def my_ai(board, color, cols):
           <button class="btn btn-primary" id="btn-new" style="justify-content: center;">▶ 新しいゲーム</button>
         </div>
         <div class="pg-controls" style="display: block; font-size: 13.5px; color: var(--text-soft); line-height: 1.8;">
-          💡 「やさしい」「ふつう」はコネクトフォーLesson 5で作った <code>ai_random</code> / <code>ai_block</code>、「つよい」はLesson 6で作る先読みAI <code>ai_strong</code> そのものです。先に4つ並べたほうの勝ち!
+          💡 「やさしい」「ふつう」はコネクトフォーLesson 5で作った <code>ai_random</code> / <code>ai_block</code>、「つよい」はLesson 6で作る先読みAI <code>ai_strong</code> に「リーチを作って攻める」チャレンジ改造を足したものです。先に4つ並べたほうの勝ち!
         </div>
       </div>
     </div>
@@ -709,7 +757,7 @@ def my_ai(board, color, cols):
               <tr><td>count_line(board, x, y, dx, dy, color)</td><td>(x, y) の隣から (dx, dy) 方向に続く自分のディスクを数える → Lesson 3</td></tr>
               <tr><td>opponent(color)</td><td>相手の色を返す → Lesson 2</td></tr>
               <tr><td>WIDTH / HEIGHT / DIRECTIONS4</td><td>盤の幅 <code>7</code>・高さ <code>6</code>・4方向のリスト</td></tr>
-              <tr><td>ai_random / ai_block / ai_center / ai_strong</td><td>内蔵AI。部品として呼び出せる(引数は my_ai と同じ)。<code>ai_strong</code> はダブルリーチを先読みする強化版 → Lesson 6</td></tr>
+              <tr><td>ai_random / ai_block / ai_center / ai_strong</td><td>内蔵AI。部品として呼び出せる(引数は my_ai と同じ)。<code>ai_strong</code> はダブルリーチ先読み+リーチで攻める強化版 → Lesson 6</td></tr>
             </table>
             <p style="font-size: 14px;"><strong>⚠️ 0列目のワナ</strong> — 列番号は <code>0</code> もあり得るので、<code>find_winning_col</code> の結果は <code>if win_col:</code> ではなく <code>if win_col is not None:</code> で判定しましょう(Lesson 5で学んだ重要ポイント)。</p>
             <p style="font-size: 14px;"><strong>対戦のルール</strong> — 「50局」モードでは公平のため先手・後手を1局ごとに交代。「1局観戦」モードの手番は「あなたのAIの手番」で選べます(ランダムも可)。さらに、ランダム要素のないAIどうしだと毎回まったく同じ棋譜になってしまうため、<strong>各対局の最初の2手は自動的にランダムな列へ落とされます</strong>(そこから先が実力勝負)。<code>cols</code> にない列を返したり、エラーが起きると対戦は中断されます(ログにエラー内容が出ます)。</p>
