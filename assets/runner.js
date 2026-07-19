@@ -160,7 +160,22 @@
       if (/\b(string|comment)\b/.test(tok.type || "")) return;
       c.showHint();
     });
+    cm.addOverlay(PY_ESCAPE_OVERLAY);   // ついでに \n \t などのエスケープを色分け
   }
+
+  /* \n \t \\ \x41 あ などのエスケープシーケンスに "escape" トークンを重ねるオーバーレイ。
+   * 基底モードのクラスと合成されるため、CSS側で .cm-string.cm-escape に限定すると
+   * 「文字列の中のときだけ」色が変わる(コメント内の \n は対象外)。 */
+  const PY_ESCAPE_RE = /^\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|N\{[^}]*\}|[0-7]{1,3}|['"abfnrtv\\])/;
+  const PY_ESCAPE_OVERLAY = {
+    token: (stream) => {
+      if (stream.match(PY_ESCAPE_RE)) return "escape";
+      while (stream.next() != null) {
+        if (stream.peek() === "\\") break;
+      }
+      return null;
+    },
+  };
 
   function buildWidget(el, index) {
     const srcEl = el.querySelector('script[type="text/x-python"]');

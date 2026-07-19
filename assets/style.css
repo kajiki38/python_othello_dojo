@@ -1462,6 +1462,9 @@ body[data-board-theme="connect4"] .viz-label .cnt-w { color: var(--c4-w-lo); }
   .sb-gomoku.pg-main-board { --sb-cell: 17px; }
 }
 
+/* 文字列内のエスケープシーケンス(\n, \t など)を強調(runner.jsのオーバーレイが付与) */
+.CodeMirror .cm-string.cm-escape { color: #f78c6c; font-weight: 600; }
+
 /* コード補完ポップアップ(エディタは常にダークなので配色を合わせる)
    要素名付きセレクタでCDNのshow-hint.cssより詳細度を上げている */
 ul.CodeMirror-hints {
