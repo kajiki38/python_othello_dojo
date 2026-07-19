@@ -49,6 +49,7 @@
           loadJs(`${CM_BASE}/mode/python/python.min.js`),
           loadJs(`${CM_BASE}/addon/edit/matchbrackets.min.js`),
           loadJs(`${CM_BASE}/addon/edit/closebrackets.min.js`),
+          loadJs(`${CM_BASE}/addon/comment/comment.min.js`),
         ]);
       })();
     }
@@ -145,6 +146,8 @@
       viewportMargin: Infinity,
       extraKeys: {
         "Ctrl-Enter": () => runBtn.click(),
+        "Ctrl-/": "toggleComment",
+        "Cmd-/": "toggleComment",
         Tab: (cm) => {
           if (cm.somethingSelected()) cm.indentSelection("add");
           else cm.replaceSelection("    ", "end");

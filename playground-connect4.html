@@ -1058,6 +1058,7 @@ def my_ai(board, color, cols):
       matchBrackets: true,
       autoCloseBrackets: true,
       viewportMargin: Infinity,
+      extraKeys: { "Ctrl-/": "toggleComment", "Cmd-/": "toggleComment" },
     });
     labSnapshot = labCm.getValue();
     // AI工房タブが既に開いている場合(?tab=lab など)は、生成直後に再描画して確実に表示
