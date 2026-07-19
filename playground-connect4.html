@@ -803,10 +803,18 @@ def my_ai(board, color, cols):
   let srcCm = null;   // エンジンのコード表示(読み取り専用CodeMirror)
 
   /* ---------- tabs ---------- */
+  // 種目切替リンク(pg-games)へ現在のタブを引き継ぐ(例: AI工房を開いたままオセロへ移ってもAI工房が開く)
+  function syncGameLinks(pane) {
+    document.querySelectorAll(".pg-games a").forEach((a) => {
+      const base = a.getAttribute("href").split("?")[0];
+      a.setAttribute("href", pane === "play" ? base : base + "?tab=" + pane);
+    });
+  }
   document.querySelectorAll(".pg-tabs button").forEach((b) => {
     b.addEventListener("click", () => {
       document.querySelectorAll(".pg-tabs button").forEach((x) => x.classList.toggle("active", x === b));
       document.querySelectorAll(".pg-pane").forEach((p) => p.classList.toggle("active", p.id === "pane-" + b.dataset.pane));
+      syncGameLinks(b.dataset.pane);
       // 非表示中に生成されたCodeMirrorは寸法を測れず空表示になるので、表示時に再描画する
       if (b.dataset.pane === "lab" && labCm) requestAnimationFrame(() => labCm.refresh());
       if (b.dataset.pane === "source" && srcCm) requestAnimationFrame(() => srcCm.refresh());
