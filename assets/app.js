@@ -20,7 +20,7 @@
       key: "othello",
       label: "オセロ",
       icon: "🟩",
-      desc: "全7レッスンでオセロを一から実装。ルール実装からAI開発まで、オセロ道場の看板コース。",
+      desc: "全7レッスンでオセロを一から実装。ルール実装からAI開発まで、ボドゲ道場の看板コース。",
       graduation: { href: "../playground.html?tab=lab", dir: "卒業制作 →", ttl: "AI工房で自作AIを試そう" },
       lessons: [
         { id: "lesson02", title: "盤面を作ろう", desc: "2次元リストと二重ループで8×8のオセロ盤を表現する", level: 1, time: "25分" },
@@ -112,7 +112,7 @@
       <div class="inner">
         <a class="brand" href="${root}index.html">
           <span class="logo"><i></i><i></i><i></i><i></i></span>
-          <span>Python×オセロ道場</span>
+          <span>Python×ボドゲ道場</span>
         </a>
         <nav class="nav-links">
           <a href="${root}index.html" data-page="home">ホーム</a>
@@ -138,7 +138,7 @@
     const f = document.createElement("footer");
     f.className = "site-footer";
     f.innerHTML = `
-      <div class="brand-mini">Python×オセロ道場</div>
+      <div class="brand-mini">Python×ボドゲ道場</div>
       <div>ブラウザだけで学べる、ゲームプログラミング入門。コードはすべてあなたの手で動かせます。</div>`;
     document.body.append(f);
   }

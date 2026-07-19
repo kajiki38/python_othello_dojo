@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>コネクトフォー Lesson 6: AIをもっと強く — Python×オセロ道場</title>
+<title>コネクトフォー Lesson 6: AIをもっと強く — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -452,6 +452,129 @@ if "ai_strong2" in globals():
     _t("うっかり手回避: 赤の3連が眠る局面でも 0・4列目(相手の台)は選ばない",
        ai_strong2(_b, WHITE, valid_columns(_b)) not in (0, 4),
        "リーチ探しも safe_columns で絞った cand の中から選ぼう")
+
+    # --- バルク検証: ランダム局面で「勝ち→防御→安全→リーチ」の性質を確かめる ---
+    def _ref_next(_bd, _c):
+        for _yy in range(HEIGHT - 1, -1, -1):
+            if _bd[_yy][_c] == EMPTY:
+                return _yy
+        return None
+
+    def _ref_win(_bd, _x, _y, _color):
+        for _dx, _dy in ((1, 0), (0, 1), (1, 1), (1, -1)):
+            _n = 1
+            for _s in (1, -1):
+                _nx, _ny = _x + _dx * _s, _y + _dy * _s
+                while 0 <= _nx < WIDTH and 0 <= _ny < HEIGHT and _bd[_ny][_nx] == _color:
+                    _n += 1
+                    _nx += _dx * _s
+                    _ny += _dy * _s
+            if _n >= 4:
+                return True
+        return False
+
+    def _ref_wincols(_bd, _color):
+        # いま _color が落とせば即勝ちになる列ぜんぶ(試しに落として調べ、必ず戻す)
+        _ws = []
+        for _c in range(WIDTH):
+            _yy = _ref_next(_bd, _c)
+            if _yy is None:
+                continue
+            _bd[_yy][_c] = _color
+            if _ref_win(_bd, _c, _yy, _color):
+                _ws.append(_c)
+            _bd[_yy][_c] = EMPTY
+        return _ws
+
+    def _rand_board():
+        # 空盤にランダムな列へ交互に0〜30回落とす(4つ並んでしまう手は取り消し、満杯列はスキップ)
+        _bd = make_board()
+        _turn = BLACK
+        for _ in range(random.randrange(0, 31)):
+            _cands = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+            random.shuffle(_cands)
+            _placed = False
+            for _c in _cands:
+                _yy = _ref_next(_bd, _c)
+                _bd[_yy][_c] = _turn
+                if _ref_win(_bd, _c, _yy, _turn):
+                    _bd[_yy][_c] = EMPTY
+                    continue
+                _placed = True
+                break
+            if not _placed:
+                break
+            _turn = WHITE if _turn == BLACK else BLACK
+        return _bd
+
+    _ok = True
+    _msg = ""
+    for _i in range(30):
+        _bd = _rand_board()
+        _color = random.choice((BLACK, WHITE))
+        _oppc = WHITE if _color == BLACK else BLACK
+        _cols = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+        if not _cols:
+            continue
+        _mine = _ref_wincols(_bd, _color)
+        _theirs = _ref_wincols(_bd, _oppc)
+        # 勝ちも防御もない局面のための分析: 安全な列 / リーチ・ダブルリーチを作れる列
+        _safe = []
+        for _c in _cols:
+            _yy = _ref_next(_bd, _c)
+            _bd[_yy][_c] = _color
+            if not _ref_wincols(_bd, _oppc):
+                _safe.append(_c)
+            _bd[_yy][_c] = EMPTY
+        _cand = _safe if _safe else list(_cols)
+        _reach = []
+        _dbl_mine = []
+        _dbl_opp = []
+        for _c in _cand:
+            _yy = _ref_next(_bd, _c)
+            _bd[_yy][_c] = _color
+            _n = len(_ref_wincols(_bd, _color))
+            _bd[_yy][_c] = EMPTY
+            if _n >= 1:
+                _reach.append(_c)
+            if _n >= 2:
+                _dbl_mine.append(_c)
+            _bd[_yy][_c] = _oppc
+            _n2 = len(_ref_wincols(_bd, _oppc))
+            _bd[_yy][_c] = EMPTY
+            if _n2 >= 2:
+                _dbl_opp.append(_c)
+        _view = "|".join("".join(_r) for _r in _bd)
+        try:
+            _got = ai_strong2([_r[:] for _r in _bd], _color, list(_cols))
+        except Exception as _e:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番)で例外 {_e!r}"
+            break
+        if _got not in _cols:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番) → 落とせる列 {_cols} にない {_got!r} を返した"
+            break
+        if _mine:
+            if _got not in _mine:
+                _ok = False
+                _msg = f"盤面 {_view}({_color}番) → 勝てる列 {_mine} があるのに {_got} を選んだ"
+                break
+        elif len(_theirs) == 1:
+            if _got != _theirs[0]:
+                _ok = False
+                _msg = f"盤面 {_view}({_color}番) → 相手の勝ち列 {_theirs[0]} を防がず {_got} を選んだ"
+                break
+        elif not _theirs:
+            if _safe and _got not in _safe:
+                _ok = False
+                _msg = f"盤面 {_view}({_color}番) → 安全な列 {_safe} があるのに、うっかり手 {_got} を選んだ"
+                break
+            if not _dbl_mine and not _dbl_opp and _reach and _got not in _reach:
+                _ok = False
+                _msg = f"盤面 {_view}({_color}番) → リーチを作れる列 {_reach} があるのに {_got} を選んだ"
+                break
+    _t("ランダムな局面30個でも 勝ち→防御→安全→リーチ の優先順位を守る", _ok, _msg)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

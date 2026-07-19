@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五目並べ Lesson 4: ゲームを完成させる — Python×オセロ道場</title>
+<title>五目並べ Lesson 4: ゲームを完成させる — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -197,6 +197,22 @@ if "count_results" in globals():
     _t("0局なら (0, 0, 0)(境界ケース)",
        count_results([]) == (0, 0, 0),
        "空のリストでも動くように")
+
+    # ---- バルク検証: ランダムな勝者リストで参照実装と比較 ----
+    import random as _random
+    _fail = ""
+    try:
+        for _i in range(30):
+            _lst = [_random.choice([BLACK, WHITE, None]) for _k in range(_random.randrange(0, 61))]
+            _exp = (_lst.count(BLACK), _lst.count(WHITE), _lst.count(None))
+            _got = count_results(_lst)
+            if _got != _exp:
+                _sum = "".join("●" if _w == BLACK else ("○" if _w == WHITE else "-") for _w in _lst)
+                _fail = f"勝者リスト [{_sum}]({len(_lst)}局分・引き分けは-)で期待 {_exp} / 実際 {_got}"
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}"
+    _t("ランダムな勝者リスト30本(0〜60局分)でも集計が正しい", _fail == "", _fail)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

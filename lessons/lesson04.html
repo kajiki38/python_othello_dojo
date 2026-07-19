@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ Lesson 3: 石をひっくり返す — Python×オセロ道場</title>
+<title>オセロ Lesson 3: 石をひっくり返す — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -251,6 +251,67 @@ if "play_moves" in globals():
     _t("途中で置けない並び: 1 が返り、それ以降の手は打たれない",
        _n3 == 1 and sum(_r.count(BLACK) for _r in _b3) == 4,
        f"返り値: {_n3} / 黒 {sum(_r.count(BLACK) for _r in _b3)} 個(中断したら後の (3, 2) は打たないで)")
+    import random as _random
+    def _ref_flips(_bd, _x, _y, _c):
+        if _bd[_y][_x] != EMPTY:
+            return []
+        _fl = []
+        for _dx, _dy in DIRECTIONS:
+            _line = []
+            _nx, _ny = _x + _dx, _y + _dy
+            while 0 <= _nx < 8 and 0 <= _ny < 8 and _bd[_ny][_nx] == opponent(_c):
+                _line.append((_nx, _ny))
+                _nx, _ny = _nx + _dx, _ny + _dy
+            if _line and 0 <= _nx < 8 and 0 <= _ny < 8 and _bd[_ny][_nx] == _c:
+                _fl += _line
+        return _fl
+    def _ref_place(_bd, _x, _y, _c):
+        _fl = _ref_flips(_bd, _x, _y, _c)
+        if not _fl:
+            return False
+        _bd[_y][_x] = _c
+        for _fx, _fy in _fl:
+            _bd[_fy][_fx] = _c
+        return True
+    def _ref_play(_bd, _mv):
+        _turn = BLACK
+        _cnt = 0
+        for _mx, _my in _mv:
+            if not _ref_place(_bd, _mx, _my, _turn):
+                break
+            _cnt += 1
+            _turn = opponent(_turn)
+        return _cnt
+    _ng = None
+    for _i in range(25):
+        _mv = []
+        _sim = make_board()
+        _turn = BLACK
+        for _k in range(_random.randint(1, 6)):
+            _legal = [(_px, _py) for _px in range(8) for _py in range(8)
+                      if _ref_flips(_sim, _px, _py, _turn)]
+            if _legal and _random.random() < 0.7:
+                _m = _random.choice(_legal)
+            else:
+                _m = (_random.randint(0, 7), _random.randint(0, 7))
+            _mv.append(_m)
+            if _ref_place(_sim, _m[0], _m[1], _turn):
+                _turn = opponent(_turn)
+        _b_exp = make_board()
+        _exp = _ref_play(_b_exp, _mv)
+        _b_got = make_board()
+        try:
+            _got = play_moves(_b_got, _mv)
+        except Exception as _e:
+            _ng = f"play_moves(初期盤面, {_mv}) がエラーに: {_e}"
+            break
+        if _got != _exp:
+            _ng = f"play_moves(初期盤面, {_mv}) の期待 {_exp} に対して {_got}"
+            break
+        if _b_got != _b_exp:
+            _ng = f"play_moves(初期盤面, {_mv}) の返り値 {_got} は正しいが、最終盤面が期待と一致しない"
+            break
+    _t("ランダムな手順25件でも返り値と盤面が正しい", _ng is None, _ng or "")
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

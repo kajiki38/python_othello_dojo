@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五目並べ Lesson 2: 石を置くしくみ — Python×オセロ道場</title>
+<title>五目並べ Lesson 2: 石を置くしくみ — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -154,6 +154,76 @@ if "opponent" in globals():
     _t("opponent が黒⇔白を入れ替える",
        opponent(BLACK) == WHITE and opponent(WHITE) == BLACK,
        "BLACK なら WHITE を、WHITE なら BLACK を返そう")
+
+# ---- バルク検証: ランダムな盤面・棋譜で参照実装と比較 ----
+import random as _random
+
+def _ref_place(_b, _x, _y, _c):
+    if _b[_y][_x] != EMPTY:
+        return False
+    _b[_y][_x] = _c
+    return True
+
+def _copy_b(_b):
+    return [_r[:] for _r in _b]
+
+def _bsum(_b):
+    return "/".join("".join(_r) for _r in _b)
+
+if "place" in globals():
+    _fail = ""
+    try:
+        for _i in range(30):
+            _b = make_board()
+            _turn = BLACK
+            for _k in range(_random.randrange(0, 31)):
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                if _ref_place(_b, _rx, _ry, _turn):
+                    _turn = WHITE if _turn == BLACK else BLACK
+            _stones = [(_x, _y) for _y in range(SIZE) for _x in range(SIZE) if _b[_y][_x] != EMPTY]
+            _empties = [(_x, _y) for _y in range(SIZE) for _x in range(SIZE) if _b[_y][_x] == EMPTY]
+            if _i % 2 == 0 and _stones:
+                _tx, _ty = _random.choice(_stones)
+            else:
+                _tx, _ty = _random.choice(_empties)
+            _c = _random.choice([BLACK, WHITE])
+            _b1, _b2 = _copy_b(_b), _copy_b(_b)
+            _got = place(_b1, _tx, _ty, _c)
+            _exp = _ref_place(_b2, _tx, _ty, _c)
+            if bool(_got) != _exp or _b1 != _b2:
+                _fail = (f"盤面 {_bsum(_b)} への place(board, {_tx}, {_ty}, {_c}) で "
+                         f"期待(返り値 {_exp} / 盤面 {_bsum(_b2)}) 実際(返り値 {_got} / 盤面 {_bsum(_b1)})")
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}"
+    _t("ランダムな盤面30個でも place が正しい(返り値と盤面変化)", _fail == "", _fail)
+
+if "place" in globals() and "opponent" in globals():
+    _fail = ""
+    try:
+        for _i in range(20):
+            _b1, _b2 = make_board(), make_board()
+            _t1 = _t2 = BLACK
+            for _k in range(15):
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                _r1 = place(_b1, _rx, _ry, _t1)
+                _r2 = _ref_place(_b2, _rx, _ry, _t2)
+                if bool(_r1) != _r2 or _b1 != _b2:
+                    _fail = (f"{_k + 1}手目 ({_rx}, {_ry}) 手番{_t2} で "
+                             f"期待(返り値 {_r2} / 盤面 {_bsum(_b2)}) 実際(返り値 {_r1} / 盤面 {_bsum(_b1)})")
+                    break
+                if _r2:
+                    _old = _t2
+                    _t1 = opponent(_t1)
+                    _t2 = WHITE if _t2 == BLACK else BLACK
+                    if _t1 != _t2:
+                        _fail = f"opponent({_old}) の期待 {_t2} / 実際 {_t1}"
+                        break
+            if _fail:
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}"
+    _t("ランダムな棋譜20局(各15手)でも place と opponent で正しく進行する", _fail == "", _fail)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

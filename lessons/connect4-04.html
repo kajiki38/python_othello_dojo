@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>コネクトフォー Lesson 4: ゲームを完成させる — Python×オセロ道場</title>
+<title>コネクトフォー Lesson 4: ゲームを完成させる — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -188,6 +188,26 @@ if "tally" in globals():
     _t("空のリスト(0局)なら (0, 0, 0)",
        tally([]) == (0, 0, 0),
        f"結果: {tally([])}(1局もなければすべて0のまま返る作りに)")
+
+    # --- バルク検証: ランダムな勝者リストを大量に作って照合する ---
+    import random as _random
+    _ok = True
+    _msg = ""
+    for _i in range(30):
+        _ws = [_random.choice((BLACK, WHITE, None)) for _ in range(_random.randrange(0, 41))]
+        _exp = (_ws.count(BLACK), _ws.count(WHITE), _ws.count(None))
+        _view = "".join("黒" if _w == BLACK else "白" if _w == WHITE else "分" for _w in _ws) or "(空)"
+        try:
+            _got = tally(list(_ws))
+        except Exception as _e:
+            _ok = False
+            _msg = f"リスト {_view} で例外 {_e!r}"
+            break
+        if _got != _exp:
+            _ok = False
+            _msg = f"リスト {_view}({len(_ws)}局) → 期待 {_exp} / 実際 {_got!r}(タプルで返そう)"
+            break
+    _t("ランダムな勝者リスト30本でも正しい", _ok, _msg)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

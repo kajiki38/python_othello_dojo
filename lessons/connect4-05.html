@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>コネクトフォー Lesson 5: 対戦AIを作る — Python×オセロ道場</title>
+<title>コネクトフォー Lesson 5: 対戦AIを作る — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -304,6 +304,102 @@ if "ai_center" in globals():
     _t("中央の3列目が満杯 → その隣(2か4)を選ぶ",
        ai_center(_b, BLACK, valid_columns(_b)) in (2, 4),
        "cols(落とせる列の一覧)の中から選べば、満杯の列は自然と避けられる")
+
+    # --- バルク検証: ランダム局面で「勝ち→防御→中央」の性質を確かめる ---
+    import random as _random
+
+    def _ref_next(_bd, _c):
+        for _yy in range(HEIGHT - 1, -1, -1):
+            if _bd[_yy][_c] == EMPTY:
+                return _yy
+        return None
+
+    def _ref_win(_bd, _x, _y, _color):
+        for _dx, _dy in ((1, 0), (0, 1), (1, 1), (1, -1)):
+            _n = 1
+            for _s in (1, -1):
+                _nx, _ny = _x + _dx * _s, _y + _dy * _s
+                while 0 <= _nx < WIDTH and 0 <= _ny < HEIGHT and _bd[_ny][_nx] == _color:
+                    _n += 1
+                    _nx += _dx * _s
+                    _ny += _dy * _s
+            if _n >= 4:
+                return True
+        return False
+
+    def _ref_wincols(_bd, _color):
+        # いま _color が落とせば即勝ちになる列ぜんぶ(試しに落として調べ、必ず戻す)
+        _ws = []
+        for _c in range(WIDTH):
+            _yy = _ref_next(_bd, _c)
+            if _yy is None:
+                continue
+            _bd[_yy][_c] = _color
+            if _ref_win(_bd, _c, _yy, _color):
+                _ws.append(_c)
+            _bd[_yy][_c] = EMPTY
+        return _ws
+
+    def _rand_board():
+        # 空盤にランダムな列へ交互に0〜30回落とす(4つ並んでしまう手は取り消し、満杯列はスキップ)
+        _bd = make_board()
+        _turn = BLACK
+        for _ in range(_random.randrange(0, 31)):
+            _cands = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+            _random.shuffle(_cands)
+            _placed = False
+            for _c in _cands:
+                _yy = _ref_next(_bd, _c)
+                _bd[_yy][_c] = _turn
+                if _ref_win(_bd, _c, _yy, _turn):
+                    _bd[_yy][_c] = EMPTY
+                    continue
+                _placed = True
+                break
+            if not _placed:
+                break
+            _turn = WHITE if _turn == BLACK else BLACK
+        return _bd
+
+    _ok = True
+    _msg = ""
+    for _i in range(30):
+        _bd = _rand_board()
+        _color = _random.choice((BLACK, WHITE))
+        _oppc = WHITE if _color == BLACK else BLACK
+        _cols = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+        if not _cols:
+            continue
+        _mine = _ref_wincols(_bd, _color)
+        _theirs = _ref_wincols(_bd, _oppc)
+        _view = "|".join("".join(_r) for _r in _bd)
+        try:
+            _got = ai_center([_r[:] for _r in _bd], _color, list(_cols))
+        except Exception as _e:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番)で例外 {_e!r}"
+            break
+        if _got not in _cols:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番) → 落とせる列 {_cols} にない {_got!r} を返した"
+            break
+        if _mine:
+            if _got not in _mine:
+                _ok = False
+                _msg = f"盤面 {_view}({_color}番) → 勝てる列 {_mine} があるのに {_got} を選んだ"
+                break
+        elif len(_theirs) == 1:
+            if _got != _theirs[0]:
+                _ok = False
+                _msg = f"盤面 {_view}({_color}番) → 相手の勝ち列 {_theirs[0]} を防がず {_got} を選んだ"
+                break
+        elif not _theirs:
+            _best = min(abs(_c - WIDTH // 2) for _c in _cols)
+            if abs(_got - WIDTH // 2) != _best:
+                _ok = False
+                _msg = f"盤面 {_view}({_color}番) → 中央にいちばん近い列(中央から距離{_best})でなく {_got} を選んだ"
+                break
+    _t("ランダムな局面30個でも 勝ち→防御→中央 の優先順位を守る", _ok, _msg)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>
@@ -332,7 +428,7 @@ def ai_center(board, color, cols):
 
 board = make_board()
 print("ai_centerの選択:", ai_center(board, BLACK, valid_columns(board)))</pre></div>
-          <p><code>key=lambda c: abs(c - center)</code> は「各列 <code>c</code> を<strong>『中央からの距離』に変換してから</strong>比べる」指定です(<code>abs</code> は絶対値=符号を取った距離)。<code>min</code> がその<strong>いちばん小さい=中央にいちばん近い</strong>列を選びます。<code>lambda</code> は「その場で作る名前のない小さな関数」で、今は『各要素を点数に変える式』と読めればOK。できたら STEP 4 の <code>play_match(ai_center, ai_random)</code> で勝率も測ってみましょう。「まず勝ち手を探す→防御→評価値で選ぶ」という<strong>AI設計の型そのものは、ゲームが変わっても使い回せる</strong>——これがオセロ道場3種目を通じて一番伝えたかったことです。</p>
+          <p><code>key=lambda c: abs(c - center)</code> は「各列 <code>c</code> を<strong>『中央からの距離』に変換してから</strong>比べる」指定です(<code>abs</code> は絶対値=符号を取った距離)。<code>min</code> がその<strong>いちばん小さい=中央にいちばん近い</strong>列を選びます。<code>lambda</code> は「その場で作る名前のない小さな関数」で、今は『各要素を点数に変える式』と読めればOK。できたら STEP 4 の <code>play_match(ai_center, ai_random)</code> で勝率も測ってみましょう。「まず勝ち手を探す→防御→評価値で選ぶ」という<strong>AI設計の型そのものは、ゲームが変わっても使い回せる</strong>——これがボドゲ道場3種目を通じて一番伝えたかったことです。</p>
         </div>
       </details>
     </div>

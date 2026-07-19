@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ Lesson 5: ゲームを完成させる — Python×オセロ道場</title>
+<title>オセロ Lesson 5: ゲームを完成させる — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -272,6 +272,30 @@ if "tally" in globals():
     _t("0局でも壊れない: tally([]) が (0, 0, 0)",
        tally([]) == (0, 0, 0),
        f"結果: {tally([])}")
+    # ---- バルク検証: ランダムな対戦データで参照集計と突き合わせる ----
+    import random
+    _pgi_fail = ""
+    for _k in range(30):
+        _data = []
+        for _j in range(random.randint(0, 30)):
+            if random.random() < 0.2:
+                _s = random.randint(0, 32)
+                _data.append((_s, _s))
+            else:
+                _data.append((random.randint(0, 64), random.randint(0, 64)))
+        _eb = sum(1 for _bw in _data if _bw[0] > _bw[1])
+        _ew = sum(1 for _bw in _data if _bw[1] > _bw[0])
+        _exp = (_eb, _ew, len(_data) - _eb - _ew)
+        try:
+            _got = tally(list(_data))
+        except Exception as _e:
+            _pgi_fail = f"入力 {_data[:6]}{'…' if len(_data) > 6 else ''}(全{len(_data)}局)で例外: {_e}"
+            break
+        if _got != _exp:
+            _pgi_fail = (f"入力 {_data[:6]}{'…' if len(_data) > 6 else ''}(全{len(_data)}局): "
+                         f"期待 {_exp} / 実際 {_got}")
+            break
+    _t("ランダムな対戦結果30セット(引き分け混じり)でも正しい", not _pgi_fail, _pgi_fail)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

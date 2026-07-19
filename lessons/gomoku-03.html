@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五目並べ Lesson 3: 5つ並びの判定 — Python×オセロ道場</title>
+<title>五目並べ Lesson 3: 5つ並びの判定 — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -210,6 +210,82 @@ if "check_win" in globals():
     _t("4つ並びではまだ False",
        check_win(_board, 5, 4, BLACK) == False,
        "合計が5未満なら True にしてはいけないよ")
+
+# ---- バルク検証: ランダムな盤面で参照実装と比較 ----
+import random as _random
+
+def _ref_check_win(_b, _x, _y, _c):
+    for _dx, _dy in [(1, 0), (0, 1), (1, 1), (1, -1)]:
+        _n = 1
+        for _s in (1, -1):
+            _nx, _ny = _x + _dx * _s, _y + _dy * _s
+            while 0 <= _nx < SIZE and 0 <= _ny < SIZE and _b[_ny][_nx] == _c:
+                _n += 1
+                _nx += _dx * _s
+                _ny += _dy * _s
+        if _n >= 5:
+            return True
+    return False
+
+def _bsum(_b):
+    return "/".join("".join(_r) for _r in _b)
+
+def _rand_start(_d, _ln):
+    if _d == 1:
+        return _random.randrange(0, SIZE - _ln + 1)
+    if _d == -1:
+        return _random.randrange(_ln - 1, SIZE)
+    return _random.randrange(SIZE)
+
+if "check_win" in globals():
+    _fail = ""
+    try:
+        for _i in range(30):
+            _b = make_board()
+            _turn = BLACK
+            for _k in range(_random.randrange(0, 13)):
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                if _b[_ry][_rx] == EMPTY:
+                    _b[_ry][_rx] = _turn
+                    _turn = opponent(_turn)
+            _c = _random.choice([BLACK, WHITE])
+            _dx, _dy = _random.choice([(1, 0), (0, 1), (1, 1), (1, -1)])
+            _ln = _random.choice([5, 6])
+            _sx, _sy = _rand_start(_dx, _ln), _rand_start(_dy, _ln)
+            _line = [(_sx + _dx * _k, _sy + _dy * _k) for _k in range(_ln)]
+            for _lx, _ly in _line:
+                _b[_ly][_lx] = _c
+            _px, _py = _random.choice(_line)
+            _got = check_win(_b, _px, _py, _c)
+            if _got != True:
+                _fail = (f"盤面 {_bsum(_b)} に{_c}の{_ln}連(軸 ({_dx}, {_dy}))を仕込み、"
+                         f"線上の ({_px}, {_py}) で判定 → 期待 True / 実際 {_got}")
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}"
+    _t("勝ちラインを仕込んだランダム盤面30個すべてで True", _fail == "", _fail)
+
+    _fail = ""
+    try:
+        for _i in range(30):
+            _b = make_board()
+            _turn = BLACK
+            _pts = []
+            for _k in range(_random.randrange(1, 31)):
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                if _b[_ry][_rx] == EMPTY:
+                    _b[_ry][_rx] = _turn
+                    _pts.append((_rx, _ry, _turn))
+                    _turn = opponent(_turn)
+            _px, _py, _pc = _random.choice(_pts)
+            _exp = _ref_check_win(_b, _px, _py, _pc)
+            _got = check_win(_b, _px, _py, _pc)
+            if _got != _exp:
+                _fail = f"盤面 {_bsum(_b)} の ({_px}, {_py}) {_pc} で期待 {_exp} / 実際 {_got}"
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}"
+    _t("ランダムな盤面30個で参照実装と判定が一致する", _fail == "", _fail)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

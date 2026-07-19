@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ Lesson 6: 対戦AIを作る — Python×オセロ道場</title>
+<title>オセロ Lesson 6: 対戦AIを作る — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -317,6 +317,64 @@ if "ai_corner" in globals():
     _t("初期盤面でも合法手を返す",
        ai_corner(_b4, BLACK, _mv4) in _mv4,
        f"結果: {ai_corner(_b4, BLACK, _mv4)}")
+    # ---- バルク検証: ランダムな盤面で「角優先→最多裏返し」の性質を確かめる ----
+    import random
+    _pgi_corners = [(0, 0), (7, 0), (0, 7), (7, 7)]
+    def _pgi_bstr(_bd):
+        return "/".join("".join(_r) for _r in _bd)
+    def _pgi_rand_board():
+        if random.random() < 0.5:
+            _bd = make_board()
+            _turn = BLACK
+            for _k in range(random.randint(0, 12)):
+                _ms = valid_moves(_bd, _turn)
+                if not _ms:
+                    _turn = opponent(_turn)
+                    continue
+                _x, _y = random.choice(_ms)
+                place(_bd, _x, _y, _turn)
+                _turn = opponent(_turn)
+            return _bd
+        _dens = random.uniform(0.3, 0.9)
+        _pb = random.uniform(0.2, 0.8)
+        return [[(BLACK if random.random() < _pb else WHITE) if random.random() < _dens else EMPTY
+                 for _x in range(8)] for _y in range(8)]
+    _pgi_fail = ""
+    _pgi_done = 0
+    for _k in range(150):
+        if _pgi_done >= 30 or _pgi_fail:
+            break
+        _bd = _pgi_rand_board()
+        _c = random.choice((BLACK, WHITE))
+        if _pgi_done % 2 == 0:   # 半分は角が確実に打てる盤面に細工する
+            _cx, _cy = random.choice(_pgi_corners)
+            _dx = 1 if _cx == 0 else -1
+            _dy = 1 if _cy == 0 else -1
+            _bd[_cy][_cx] = EMPTY
+            _bd[_cy + _dy][_cx + _dx] = opponent(_c)
+            _bd[_cy + 2 * _dy][_cx + 2 * _dx] = _c
+        _ms = valid_moves(_bd, _c)
+        if not _ms:
+            continue
+        random.shuffle(_ms)
+        try:
+            _got = ai_corner([_r[:] for _r in _bd], _c, list(_ms))
+        except Exception as _e:
+            _pgi_fail = f"盤面 {_pgi_bstr(_bd)} / 手番 {_c} で例外: {_e}"
+            break
+        _cs = [_m for _m in _ms if _m in _pgi_corners]
+        _mx = max(len(stones_to_flip(_bd, _m[0], _m[1], _c)) for _m in _ms)
+        if _got not in _ms:
+            _pgi_fail = f"盤面 {_pgi_bstr(_bd)} / 手番 {_c}: {_got} は moves にない手"
+        elif _cs and _got not in _cs:
+            _pgi_fail = f"盤面 {_pgi_bstr(_bd)} / 手番 {_c}: 角 {_cs} が打てるのに {_got} を選んだ"
+        elif not _cs and len(stones_to_flip(_bd, _got[0], _got[1], _c)) != _mx:
+            _pgi_fail = (f"盤面 {_pgi_bstr(_bd)} / 手番 {_c}: 最多 {_mx} 個裏返せる手があるのに "
+                         f"{_got}({len(stones_to_flip(_bd, _got[0], _got[1], _c))} 個)を選んだ")
+        _pgi_done += 1
+    _t("ランダムな盤面30個でも「角優先→最多裏返し」を守る",
+       not _pgi_fail and _pgi_done >= 30,
+       _pgi_fail or (f"検証できた盤面が {_pgi_done} 個" if _pgi_done < 30 else ""))
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

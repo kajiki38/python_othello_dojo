@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ Lesson 2: 石を置くしくみ — Python×オセロ道場</title>
+<title>オセロ Lesson 2: 石を置くしくみ — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -187,6 +187,30 @@ if "walk" in globals():
     _t("端からはみ出す方向: walk(0, 0, -1, 0) は空リスト",
        walk(0, 0, -1, 0) == [],
        f"結果: {walk(0, 0, -1, 0)}(盤の外に出ないチェックを忘れずに)")
+    import random as _random
+    def _ref_walk(_x, _y, _dx, _dy):
+        _cells = []
+        _nx, _ny = _x + _dx, _y + _dy
+        while 0 <= _nx < 8 and 0 <= _ny < 8:
+            _cells.append((_nx, _ny))
+            _nx, _ny = _nx + _dx, _ny + _dy
+        return _cells
+    _dirs = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+    _ng = None
+    for _i in range(30):
+        _rx = _random.randint(0, 7)
+        _ry = _random.randint(0, 7)
+        _rdx, _rdy = _random.choice(_dirs)
+        _exp = _ref_walk(_rx, _ry, _rdx, _rdy)
+        try:
+            _got = walk(_rx, _ry, _rdx, _rdy)
+        except Exception as _e:
+            _ng = f"walk({_rx}, {_ry}, {_rdx}, {_rdy}) がエラーに: {_e}"
+            break
+        if _got != _exp:
+            _ng = f"walk({_rx}, {_ry}, {_rdx}, {_rdy}) の期待 {_exp} に対して {_got}"
+            break
+    _t("ランダムな入力30件でも正しい", _ng is None, _ng or "")
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

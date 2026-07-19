@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ Lesson 4: 打てる場所を探す — Python×オセロ道場</title>
+<title>オセロ Lesson 4: 打てる場所を探す — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -262,6 +262,51 @@ if "mobility" in globals():
     _t("「黒のほうが自由!」と表示している",
        "黒のほうが自由" in _output,
        "3手進めた局面は黒 6 か所・白 2 か所。比較して表示するコードも実行したかな?")
+    # ---- バルク検証: ランダムな盤面で参照実装と突き合わせる ----
+    import random
+    def _pgi_bstr(_bd):
+        return "/".join("".join(_r) for _r in _bd)
+    def _pgi_rand_board():
+        if random.random() < 0.5:
+            _bd = make_board()
+            _turn = BLACK
+            for _k in range(random.randint(0, 12)):
+                _ms = [(_x, _y) for _y in range(8) for _x in range(8)
+                       if stones_to_flip(_bd, _x, _y, _turn)]
+                if not _ms:
+                    _turn = opponent(_turn)
+                    continue
+                _x, _y = random.choice(_ms)
+                place(_bd, _x, _y, _turn)
+                _turn = opponent(_turn)
+            return _bd
+        _dens = random.uniform(0.2, 0.9)
+        _pb = random.uniform(0.2, 0.8)
+        return [[(BLACK if random.random() < _pb else WHITE) if random.random() < _dens else EMPTY
+                 for _x in range(8)] for _y in range(8)]
+    def _pgi_ref_mobility(_bd, _c):
+        _n = 0
+        for _y in range(8):
+            for _x in range(8):
+                if stones_to_flip(_bd, _x, _y, _c):
+                    _n += 1
+        return _n
+    _pgi_fail = ""
+    for _k in range(30):
+        _bd = _pgi_rand_board()
+        for _c in (BLACK, WHITE):
+            _exp = _pgi_ref_mobility(_bd, _c)
+            try:
+                _got = mobility([_r[:] for _r in _bd], _c)
+            except Exception as _e:
+                _pgi_fail = f"盤面 {_pgi_bstr(_bd)} / 手番 {_c} で例外: {_e}"
+                break
+            if _got != _exp:
+                _pgi_fail = f"盤面 {_pgi_bstr(_bd)} / 手番 {_c}: 期待 {_exp} / 実際 {_got}"
+                break
+        if _pgi_fail:
+            break
+    _t("ランダムな盤面30個(黒白あわせて60回)でも正しい", not _pgi_fail, _pgi_fail)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

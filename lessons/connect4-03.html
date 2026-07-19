@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>コネクトフォー Lesson 3: 4つ並びの判定 — Python×オセロ道場</title>
+<title>コネクトフォー Lesson 3: 4つ並びの判定 — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -225,6 +225,86 @@ if "drop_and_check" in globals():
     _t("満杯の列に落とそうとすると False",
        drop_and_check(_b, 2, WHITE) == False,
        "drop が None を返したら、check_win せずに False を返そう")
+
+    # --- バルク検証: ランダム盤面への1手を参照実装と照合する ---
+    import random as _random
+
+    def _ref_next(_bd, _c):
+        for _yy in range(HEIGHT - 1, -1, -1):
+            if _bd[_yy][_c] == EMPTY:
+                return _yy
+        return None
+
+    def _ref_win(_bd, _x, _y, _color):
+        for _dx, _dy in ((1, 0), (0, 1), (1, 1), (1, -1)):
+            _n = 1
+            for _s in (1, -1):
+                _nx, _ny = _x + _dx * _s, _y + _dy * _s
+                while 0 <= _nx < WIDTH and 0 <= _ny < HEIGHT and _bd[_ny][_nx] == _color:
+                    _n += 1
+                    _nx += _dx * _s
+                    _ny += _dy * _s
+            if _n >= 4:
+                return True
+        return False
+
+    def _rand_board():
+        # 空盤にランダムな列へ交互に0〜30回落とす(4つ並んでしまう手は取り消し、満杯列はスキップ)
+        _bd = make_board()
+        _turn = BLACK
+        for _ in range(_random.randrange(0, 31)):
+            _cands = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+            _random.shuffle(_cands)
+            _placed = False
+            for _c in _cands:
+                _yy = _ref_next(_bd, _c)
+                _bd[_yy][_c] = _turn
+                if _ref_win(_bd, _c, _yy, _turn):
+                    _bd[_yy][_c] = EMPTY
+                    continue
+                _placed = True
+                break
+            if not _placed:
+                break
+            _turn = WHITE if _turn == BLACK else BLACK
+        return _bd
+
+    _ok = True
+    _msg = ""
+    for _i in range(30):
+        _bd = _rand_board()
+        _color = _random.choice((BLACK, WHITE))
+        _col = _random.randrange(WIDTH)
+        if _i % 5 == 4:
+            # ときどき満杯の列への1手も混ぜる(縦は交互に詰めるので4連にはならない)
+            _fill = BLACK
+            while _ref_next(_bd, _col) is not None:
+                _bd[_ref_next(_bd, _col)][_col] = _fill
+                _fill = WHITE if _fill == BLACK else BLACK
+        _view = "|".join("".join(_r) for _r in _bd)
+        _exp_bd = [_r[:] for _r in _bd]
+        _in_bd = [_r[:] for _r in _bd]
+        _yy = _ref_next(_exp_bd, _col)
+        if _yy is None:
+            _exp = False
+        else:
+            _exp_bd[_yy][_col] = _color
+            _exp = _ref_win(_exp_bd, _col, _yy, _color)
+        try:
+            _got = drop_and_check(_in_bd, _col, _color)
+        except Exception as _e:
+            _ok = False
+            _msg = f"盤面 {_view} の {_col} 列に {_color} で例外 {_e!r}"
+            break
+        if _got != _exp:
+            _ok = False
+            _msg = f"盤面 {_view} の {_col} 列に {_color} → 期待 {_exp} / 実際 {_got!r}"
+            break
+        if _in_bd != _exp_bd:
+            _ok = False
+            _msg = f"盤面 {_view} の {_col} 列に {_color} を落とした後の盤面が違う(石は置いたまま・満杯なら盤面そのまま)"
+            break
+    _t("ランダムな盤面30個(縦横斜め・満杯込み)でも正しい", _ok, _msg)
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>
