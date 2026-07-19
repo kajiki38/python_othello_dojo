@@ -31,11 +31,11 @@ npx serve .
 | `lessons/lesson08.html` | オセロ 7 — AIをもっと強く(評価関数・重みテーブル) |
 | `lessons/gomoku-01.html` 〜 `gomoku-06.html` | 五目並べ — 盤面(9×9)/ 石を置く / 5つ並び判定 / ゲームループ / 対戦AI / AI強化(先読み) |
 | `lessons/connect4-01.html` 〜 `connect4-06.html` | コネクトフォー — 盤面(7×6)/ 重力で落とす / 4つ並び判定 / ゲームループ / 対戦AI / AI強化(先読み) |
+| `playground.html` | 🎮 クリック対戦 / 🔬 自作AI工房 / 📖 エンジン全ソース(オセロ) |
+| `playground-gomoku.html` | 同上の五目並べ版(本格の15路盤で対戦・AI工房。レッスンは学習用に9×9) |
+| `playground-connect4.html` | 同上のコネクトフォー版(列クリックで落下・AI工房) |
 
 ※ オセロのファイル名 `lesson02.html`〜`lesson08.html` は歴史的経緯で表示番号と1つズレています(基礎パートを独立コースに切り出したため)。
-| `playground.html` | 🎮 クリック対戦 / 🔬 自作AI工房 / 📖 エンジン全ソース(オセロ) |
-| `playground-gomoku.html` | 同上の五目並べ版(9×9の碁盤で対戦・AI工房) |
-| `playground-connect4.html` | 同上のコネクトフォー版(列クリックで落下・AI工房) |
 
 ## 特徴
 

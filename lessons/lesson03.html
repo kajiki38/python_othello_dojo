@@ -127,7 +127,7 @@ for dx, dy in DIRECTIONS:
 </script>
     </div>
 
-    <p><code>for dx, dy in DIRECTIONS:</code> のように、ペア(タプル)を2つの変数に同時に受け取れるのがPythonの便利なところです。</p>
+    <p><code>for dx, dy in DIRECTIONS:</code> のように、ペア(タプル)を2つの変数に同時に受け取れるのがPythonの便利なところです。もうひとつ、f-stringの <code>{dx:>2}</code> という書き方は<strong>書式指定</strong>といって、<code>:</code> のうしろの <code>>2</code> が「右寄せ・2文字幅」の意味。<code>-1</code> と <code>1</code> の縦がそろって、表がぐっと読みやすくなります。</p>
 
     <h2><span class="step">STEP 4</span>1方向にまっすぐ歩く</h2>
     <p>次に「ある方向に、盤の端まで1マスずつ進む」を書きます。これができれば、挟み判定まであと一歩。<strong>盤の外に出ないためのチェック</strong>がポイントです。</p>

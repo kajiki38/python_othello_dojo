@@ -655,7 +655,7 @@ def my_ai(board, color, moves):
               <span><span class="cnt" id="cnt-white">0</span><br><span class="who" id="who-white">AI</span></span>
             </div>
           </div>
-          <div class="pg-msg" id="pg-msg">「新しいゲーム」を押してスタート!</div>
+          <div class="pg-msg" id="pg-msg" role="status" aria-live="polite">「新しいゲーム」を押してスタート!</div>
         </div>
         <div class="pg-controls">
           <div>
@@ -719,7 +719,7 @@ def my_ai(board, color, moves):
           <label for="lab-saved" style="margin-left: 6px;">保存したAI:</label>
           <select id="lab-saved"><option value="">(まだありません)</option></select>
           <button class="lab-mini-btn" id="lab-load" title="エディタに開く">📂 開く</button>
-          <button class="lab-mini-btn" id="lab-delete" title="削除">🗑</button>
+          <button class="lab-mini-btn" id="lab-delete" title="削除" aria-label="保存したAIを削除">🗑</button>
         </div>
         <div class="tip" id="save-hint" style="margin: 0 0 14px; display: none;">保存すると「🎮 対戦する」タブの<strong>対戦相手</strong>に「あなたのAI」として並びます。自分の作ったAIと勝負できます!</div>
         <div class="pyrunner" data-manual style="margin-top: 0;">
@@ -784,17 +784,17 @@ def my_ai(board, color, moves):
       </div>
       <div class="lab-results">
         <h3>🏟️ 対戦結果</h3>
-        <div style="font-size: 13.5px; color: var(--text-soft);" id="lab-summary">まだ対戦していません。左のコードはそのまま動くので、まずは「⚔️ 対戦開始」を押してみましょう!</div>
+        <div style="font-size: 13.5px; color: var(--text-soft);" id="lab-summary" aria-live="polite">まだ対戦していません。左のコードはそのまま動くので、まずは「⚔️ 対戦開始」を押してみましょう!</div>
 
         <!-- 1局じっくり観戦ビュー -->
         <div id="lab-single" style="display: none;">
           <div class="lab-board-frame"><div class="sb sb-gomoku pg-lab-board" id="lab-board" aria-label="観戦盤"></div></div>
           <div class="playback">
-            <button id="lab-to-start" title="最初の手へ">⏮</button>
-            <button id="lab-step-back" title="1手戻る">◀</button>
+            <button id="lab-to-start" title="最初の手へ" aria-label="最初の手へ">⏮</button>
+            <button id="lab-step-back" title="1手戻る" aria-label="1手戻る">◀</button>
             <button id="lab-play" class="play" title="再生 / 一時停止">▶ 再生</button>
-            <button id="lab-step-fwd" title="1手進む">▶</button>
-            <button id="lab-to-end" title="最後の手へ">⏭</button>
+            <button id="lab-step-fwd" title="1手進む" aria-label="1手進む">▶</button>
+            <button id="lab-to-end" title="最後の手へ" aria-label="最後の手へ">⏭</button>
             <select id="lab-speed" title="再生速度">
               <option value="0.22">ゆっくり</option>
               <option value="0.6" selected>ふつう</option>
@@ -805,6 +805,7 @@ def my_ai(board, color, moves):
           <div class="scrub-row">
             <input type="range" id="lab-scrub" min="0" max="0" value="0" title="手数をドラッグで移動">
             <span id="lab-progress">0 / 0</span>
+            <button class="lab-mini-btn" id="lab-copy-kifu" title="観戦した対局の棋譜をテキストでコピー" disabled>📋 棋譜</button>
           </div>
           <div class="lab-score">
             <div class="lab-score-item" id="lab-sc-my"><span class="mini-disc B"></span>あなたのAI<span class="n">0</span></div>
@@ -868,10 +869,18 @@ def my_ai(board, color, moves):
   let srcCm = null;   // エンジンのコード表示(読み取り専用CodeMirror)
 
   /* ---------- tabs ---------- */
+  // 種目切替リンク(pg-games)へ現在のタブを引き継ぐ(例: AI工房を開いたままオセロへ移ってもAI工房が開く)
+  function syncGameLinks(pane) {
+    document.querySelectorAll(".pg-games a").forEach((a) => {
+      const base = a.getAttribute("href").split("?")[0];
+      a.setAttribute("href", pane === "play" ? base : base + "?tab=" + pane);
+    });
+  }
   document.querySelectorAll(".pg-tabs button").forEach((b) => {
     b.addEventListener("click", () => {
       document.querySelectorAll(".pg-tabs button").forEach((x) => x.classList.toggle("active", x === b));
       document.querySelectorAll(".pg-pane").forEach((p) => p.classList.toggle("active", p.id === "pane-" + b.dataset.pane));
+      syncGameLinks(b.dataset.pane);
       // 非表示中に生成されたCodeMirrorは寸法を測れず空表示になるので、表示時に再描画する
       if (b.dataset.pane === "lab" && labCm) requestAnimationFrame(() => labCm.refresh());
       if (b.dataset.pane === "source" && srcCm) requestAnimationFrame(() => srcCm.refresh());
@@ -1005,6 +1014,28 @@ def my_ai(board, color, moves):
 
   const squares = buildGoban(boardEl, onCellClick);
 
+  /* ---------- キーボード操作(矢印キーで移動、Enter/Spaceで着手) ---------- */
+  let kbX = Math.floor(SIZE / 2), kbY = Math.floor(SIZE / 2);
+  boardEl.tabIndex = 0;
+  boardEl.setAttribute("aria-label", (boardEl.getAttribute("aria-label") || "盤") + "(矢印キーで移動、EnterかSpaceで着手)");
+  function kbPaint(show) {
+    squares.forEach((sq) => sq.classList.toggle("kb", show && +sq.dataset.x === kbX && +sq.dataset.y === kbY));
+  }
+  boardEl.addEventListener("focus", () => kbPaint(true));
+  boardEl.addEventListener("blur", () => kbPaint(false));
+  boardEl.addEventListener("keydown", (e) => {
+    switch (e.key) {
+      case "ArrowLeft": kbX = Math.max(0, kbX - 1); break;
+      case "ArrowRight": kbX = Math.min(SIZE - 1, kbX + 1); break;
+      case "ArrowUp": kbY = Math.max(0, kbY - 1); break;
+      case "ArrowDown": kbY = Math.min(SIZE - 1, kbY + 1); break;
+      case "Enter": case " ": onCellClick(kbX, kbY); break;
+      default: return;
+    }
+    e.preventDefault();
+    kbPaint(true);
+  });
+
   function render() {
     if (!st) return;
     const humanTurn = !st.over && st.turn === st.human && !busy;
@@ -1112,6 +1143,7 @@ def my_ai(board, color, moves):
       matchBrackets: true,
       autoCloseBrackets: true,
       viewportMargin: Infinity,
+      extraKeys: { "Ctrl-/": "toggleComment", "Cmd-/": "toggleComment" },
     });
     labSnapshot = labCm.getValue();
     // AI工房タブが既に開いている場合(?tab=lab など)は、生成直後に再描画して確実に表示
@@ -1329,6 +1361,7 @@ def my_ai(board, color, moves):
     if (atEnd) showLabResult();
   }
   function updateLabControls() {
+    $("#lab-copy-kifu").disabled = !labFrames;
     if (!labFrames) return;
     const atStart = labIdx <= 0, atEnd = labIdx >= labFrames.length - 1;
     $("#lab-play").textContent = labPlaying ? "⏸ 停止" : (atEnd ? "↻ もう一度" : "▶ 再生");
@@ -1379,6 +1412,25 @@ def my_ai(board, color, moves):
   $("#lab-to-start").addEventListener("click", () => { pauseLab(); stepTo(0, false); });
   $("#lab-to-end").addEventListener("click", () => { pauseLab(); stepTo(labFrames.length - 1, false); });
   $("#lab-scrub").addEventListener("input", (e) => { const v = +e.target.value; pauseLab(); stepTo(v, false); });
+  $("#lab-copy-kifu").addEventListener("click", async () => {
+    if (!labFrames) return;
+    const my = labMyIsBlack ? "黒(先手)" : "白(後手)";
+    const lines = [`【五目並べ 棋譜】あなたのAI=${my} vs ${labLevelName}AI`];
+    for (let i = 1; i < labFrames.length; i++) {
+      const t = describeMove(labFrames[i], labLevelName, i);
+      if (t) lines.push(t);
+    }
+    if (labResult) {
+      const outcome = labResult.result === "my" ? "あなたのAIの勝ち" : labResult.result === "op" ? "あなたのAIの負け" : "引き分け";
+      lines.push(`結果: ${labResult.moves}手で${outcome}`);
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      logLine("📋 棋譜をコピーしました。メモ帳などに貼り付けて振り返れます");
+    } catch (e) {
+      logLine("⚠ コピーできませんでした。ブラウザの権限設定をご確認ください");
+    }
+  });
 
   async function runSingle(py, level, levelName) {
     buildLabBoard();
