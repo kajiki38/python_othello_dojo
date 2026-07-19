@@ -739,6 +739,7 @@ def my_ai(board, color, cols):
           <div class="scrub-row">
             <input type="range" id="lab-scrub" min="0" max="0" value="0" title="手数をドラッグで移動">
             <span id="lab-progress">0 / 0</span>
+            <button class="lab-mini-btn" id="lab-copy-kifu" title="観戦した対局の棋譜をテキストでコピー" disabled>📋 棋譜</button>
           </div>
           <div class="lab-score">
             <div class="lab-score-item" id="lab-sc-my"><span class="mini-disc B"></span>あなたのAI<span class="n">0</span></div>
@@ -1276,6 +1277,7 @@ def my_ai(board, color, cols):
     if (atEnd) showLabResult();
   }
   function updateLabControls() {
+    $("#lab-copy-kifu").disabled = !labFrames;
     if (!labFrames) return;
     const atStart = labIdx <= 0, atEnd = labIdx >= labFrames.length - 1;
     $("#lab-play").textContent = labPlaying ? "⏸ 停止" : (atEnd ? "↻ もう一度" : "▶ 再生");
@@ -1326,6 +1328,25 @@ def my_ai(board, color, cols):
   $("#lab-to-start").addEventListener("click", () => { pauseLab(); stepTo(0, false); });
   $("#lab-to-end").addEventListener("click", () => { pauseLab(); stepTo(labFrames.length - 1, false); });
   $("#lab-scrub").addEventListener("input", (e) => { const v = +e.target.value; pauseLab(); stepTo(v, false); });
+  $("#lab-copy-kifu").addEventListener("click", async () => {
+    if (!labFrames) return;
+    const my = labMyIsBlack ? "赤(先手)" : "黄(後手)";
+    const lines = [`【コネクトフォー 棋譜】あなたのAI=${my} vs ${labLevelName}AI`];
+    for (let i = 1; i < labFrames.length; i++) {
+      const t = describeMove(labFrames[i], labLevelName, i);
+      if (t) lines.push(t);
+    }
+    if (labResult) {
+      const outcome = labResult.result === "my" ? "あなたのAIの勝ち" : labResult.result === "op" ? "あなたのAIの負け" : "引き分け";
+      lines.push(`結果: ${labResult.moves}手で${outcome}`);
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      logLine("📋 棋譜をコピーしました。メモ帳などに貼り付けて振り返れます");
+    } catch (e) {
+      logLine("⚠ コピーできませんでした。ブラウザの権限設定をご確認ください");
+    }
+  });
 
   async function runSingle(py, level, levelName) {
     buildLabBoard();

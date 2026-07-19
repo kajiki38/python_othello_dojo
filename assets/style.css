@@ -736,6 +736,7 @@ details.solution > .body { padding: 4px 18px 16px; border-top: 1px solid var(--b
   font-size: 12.5px;
   color: #9fb3a8;
   flex: 1;
+  min-width: 0;   /* flexの自動min-width(=文字列幅)を無効化。ないとバーが縮めず狭い画面ではみ出す */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1338,6 +1339,7 @@ body[data-board-theme="connect4"] .viz-label .cnt-w { color: var(--c4-w-lo); }
   gap: 30px;
   align-items: start;
 }
+.lab-grid > * { min-width: 0; }   /* grid子のmin-content膨張ではみ出すのを防ぐ */
 .lab-results {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1453,6 +1455,7 @@ body[data-board-theme="connect4"] .viz-label .cnt-w { color: var(--c4-w-lo); }
   .nav-links a { font-size: 12px; padding: 7px 7px; }
   .pg-tabs { width: 100%; gap: 6px; }
   .pg-tabs button { flex: auto; font-size: 12.5px; padding: 8px 6px; }
+  .pyrunner .bar { flex-wrap: wrap; }   /* ボタンが多いAI工房のバーは折り返し許可 */
 }
 /* 五目並べの15路盤は390px級でギリギリのため、それ未満はさらにマスを詰める */
 @media (max-width: 400px) {
