@@ -59,18 +59,18 @@ print(len(row))     # マスの数
     <div class="pyrunner" data-name="list_update.py">
 <script type="text/x-python">
 row = [".", ".", ".", "○", "●", ".", ".", "."]
-print(f"{'最初':<4}:", " ".join(row))   # :<4 は「4文字幅で左寄せ」— 表示がそろう
+print(f"{'最初':　<4}:", " ".join(row))   # :　<4 = 全角スペースで埋めて4文字幅(半角だと全角文字とずれる)
 
 # 2番のマスに黒石を「置く」
 row[2] = "●"
-print(f"{'置いた':<4}:", " ".join(row))
+print(f"{'置いた':　<4}:", " ".join(row))
 
 # 3番の白石を黒に「ひっくり返す」
 row[3] = "●"
-print(f"{'返した':<4}:", " ".join(row))
+print(f"{'返した':　<4}:", " ".join(row))
 
 # 便利ワザ: count で数を数える
-print(f"{'黒石の数':<4}:", row.count("●"))
+print(f"{'黒石の数':　<4}:", row.count("●"))
 </script>
     </div>
 
