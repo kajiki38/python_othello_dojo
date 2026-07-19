@@ -1064,6 +1064,7 @@ def my_ai(board, color, moves):
       viewportMargin: Infinity,
       extraKeys: { "Ctrl-/": "toggleComment", "Cmd-/": "toggleComment" },
     });
+    window.PGI.enablePythonHints(labCm, () => ENGINE);   // 補完候補にエンジンの関数名も含める
     labSnapshot = labCm.getValue();
     // AI工房タブが既に開いている場合(?tab=lab など)は、生成直後に再描画して確実に表示
     if (document.getElementById("pane-lab").classList.contains("active")) {

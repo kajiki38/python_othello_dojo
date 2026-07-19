@@ -1462,6 +1462,20 @@ body[data-board-theme="connect4"] .viz-label .cnt-w { color: var(--c4-w-lo); }
   .sb-gomoku.pg-main-board { --sb-cell: 17px; }
 }
 
+/* コード補完ポップアップ(エディタは常にダークなので配色を合わせる)
+   要素名付きセレクタでCDNのshow-hint.cssより詳細度を上げている */
+ul.CodeMirror-hints {
+  z-index: 2100;   /* AI工房の全画面編集(z-index:2000)より手前 */
+  background: #1f272b;
+  border: 1px solid #3a464d;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+ul.CodeMirror-hints li.CodeMirror-hint { color: #d7e0db; padding: 3px 10px; }
+ul.CodeMirror-hints li.CodeMirror-hint-active { background: #0e9f6e; color: #fff; }
+
 /* キーボード操作: 盤のフォーカスリングとセルカーソル */
 .board:focus-visible, .sb.sb-play:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .board .sq.kb { box-shadow: inset 0 0 0 3px var(--accent); }
