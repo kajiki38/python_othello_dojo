@@ -151,15 +151,77 @@ print_board(board)
 
     <div class="challenge">
       <h3>チャレンジ:盤面を改造してみよう</h3>
-      <p>上のコードの「使ってみる」部分に、次の一手を追加して表示を確かめましょう。</p>
+      <p>STEP 4で作った関数はもう下の専用エディタに用意してあります。「ここに石を置くコードを書こう」の場所に、次の一手を書き足しましょう。実行すると自動でチェックされます。</p>
       <ol>
         <li>座標 <code>x=2, y=3</code> に黒石を置く(ヒント: yが先!)</li>
         <li>左上の角 <code>x=0, y=0</code> と右下の角 <code>x=7, y=7</code> に白石を置く</li>
       </ol>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    """初期配置ずみのオセロ盤を作って返す"""
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    """盤面を座標つきでキレイに表示する"""
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+board = make_board()
+# ← ここに石を置くコードを書こう(board[y][x] = 石)
+
+print_board(board)
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("盤面 board が作られている",
+   "board" in globals() and len(board) == 8 and len(board[0]) == 8)
+if "board" in globals() and len(board) == 8:
+    _t("x=2, y=3 に黒石が置けている", board[3][2] == "●",
+       "x=2, y=3 は board[3][2]。[y][x] の順!")
+    _t("x と y を逆にしていない", board[2][3] == ".",
+       "board[2][3](x=3, y=2)に置いてしまったかも。[y][x] の順をもう一度確認!")
+    _t("左上の角 (0, 0) に白石が置けている", board[0][0] == "○",
+       "board[0][0] = WHITE と書こう")
+    _t("右下の角 (7, 7) に白石が置けている", board[7][7] == "○",
+       "board[7][7] = WHITE と書こう")
+    _t("初期配置の4つの石はそのまま",
+       board[3][3] == "○" and board[4][4] == "○" and board[3][4] == "●" and board[4][3] == "●",
+       "中央の4つの石を消したり動かしたりしていないかな?")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>board = make_board()
+          <div class="codeblock"><pre>EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    """初期配置ずみのオセロ盤を作って返す"""
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    """盤面を座標つきでキレイに表示する"""
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+board = make_board()
 board[3][2] = BLACK   # x=2, y=3 → board[3][2]
 board[0][0] = WHITE   # 左上の角
 board[7][7] = WHITE   # 右下の角

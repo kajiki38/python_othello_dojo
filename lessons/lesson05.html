@@ -208,26 +208,89 @@ else:
 
     <div class="challenge">
       <h3>チャレンジ:どちらが「自由」か?</h3>
-      <p>「打てる場所の数」は強さに直結する重要な指標です(<strong>着手可能数</strong>と呼びます)。初期盤面から黒が(2,3)、白が(2,2)、黒が(3,2)と進めた局面で、黒と白の打てる場所の数を比べて、多い方を「◯◯のほうが自由!」と表示するプログラムを書いてみましょう。</p>
-      <details class="solution">
-        <summary>解答例を見る</summary>
-        <div class="body">
-          <div class="codeblock"><pre>board = make_board()
+      <p>「打てる場所の数」は強さに直結する重要な指標です(<strong>着手可能数</strong>と呼びます)。それを数える関数 <code>mobility(board, color)</code> を、下の専用エディタで完成させましょう。作り方は STEP 1 の <code>valid_moves</code> とほぼ同じ——リストに集める代わりに<strong>数を数える</strong>だけです。実行するといろいろな盤面で自動チェックされ、3手進めた局面で黒と白どちらが「自由」かも表示されます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def mobility(board, color):
+    """color が打てる場所の数(着手可能数)を返す"""
+    count = 0
+    # ← 64マスをループして「置ける?」を数えよう(STEP 1 がヒント)
+    return count
+
+# 局面を進めて、黒と白の「自由さ」を比べる(そのまま使ってOK)
+board = make_board()
 place(board, 2, 3, BLACK)
 place(board, 2, 2, WHITE)
 place(board, 3, 2, BLACK)
 print_board(board)
 
-b = len(valid_moves(board, BLACK))
-w = len(valid_moves(board, WHITE))
+b = mobility(board, BLACK)
+w = mobility(board, WHITE)
 print(f"黒: {b} か所 / 白: {w} か所")
 if b > w:
     print("黒のほうが自由!")
 elif w > b:
     print("白のほうが自由!")
 else:
+    print("互角!")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("mobility 関数が定義されている", "mobility" in globals())
+if "mobility" in globals():
+    _b = make_board()
+    _t("初期盤面: 黒も白も 4 か所",
+       mobility(_b, BLACK) == 4 and mobility(_b, WHITE) == 4,
+       f"結果: 黒 {mobility(_b, BLACK)} / 白 {mobility(_b, WHITE)}(stones_to_flip が空でないマスを数えよう)")
+    place(_b, 2, 3, BLACK)
+    _t("黒が (2, 3) に打った後: 白は 3 か所",
+       mobility(_b, WHITE) == 3,
+       f"結果: {mobility(_b, WHITE)}")
+    _b2 = make_board()
+    place(_b2, 2, 3, BLACK)
+    place(_b2, 2, 2, WHITE)
+    place(_b2, 3, 2, BLACK)
+    _t("3手進めた局面: 黒 6 か所・白 2 か所",
+       mobility(_b2, BLACK) == 6 and mobility(_b2, WHITE) == 2,
+       f"結果: 黒 {mobility(_b2, BLACK)} / 白 {mobility(_b2, WHITE)}")
+    _b3 = [[EMPTY] * 8 for _ in range(8)]
+    _b3[0][0] = BLACK
+    _b3[0][1] = BLACK
+    _t("黒石だけの盤面: 白は 0 か所(パス判定にもそのまま使える)",
+       mobility(_b3, WHITE) == 0,
+       f"結果: {mobility(_b3, WHITE)}")
+    _t("「黒のほうが自由!」と表示している",
+       "黒のほうが自由" in _output,
+       "3手進めた局面は黒 6 か所・白 2 か所。比較して表示するコードも実行したかな?")
+</script>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def mobility(board, color):
+    """color が打てる場所の数(着手可能数)を返す"""
+    count = 0
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                count += 1
+    return count
+
+board = make_board()
+place(board, 2, 3, BLACK)
+place(board, 2, 2, WHITE)
+place(board, 3, 2, BLACK)
+print_board(board)
+
+b = mobility(board, BLACK)
+w = mobility(board, WHITE)
+print(f"黒: {b} か所 / 白: {w} か所")
+if b &gt; w:
+    print("黒のほうが自由!")
+elif w &gt; b:
+    print("白のほうが自由!")
+else:
     print("互角!")</pre></div>
-          <p><code>len(リスト)</code> でリストの長さが取れます。この「着手可能数」、最終レッスンのAI強化で再登場します。</p>
+          <p><code>len(valid_moves(board, color))</code> と書いても同じ結果になります(<code>len(リスト)</code> でリストの長さが取れます)。この「着手可能数」、最終レッスンのAI強化で再登場します。</p>
         </div>
       </details>
     </div>

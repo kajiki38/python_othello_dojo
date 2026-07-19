@@ -216,28 +216,106 @@ else:
     <p><strong>これで、あなたはオセロを1本作り上げました。</strong> <code>make_board</code> から始まった部品たちが、1つのゲームとして動いています。</p>
 
     <div class="challenge">
-      <h3>チャレンジ:100局トーナメント</h3>
-      <p>ランダム同士だと黒と白、どちらが勝ちやすいのでしょう? <code>play_game()</code> を100回くり返して、黒勝ち・白勝ち・引き分けの回数を集計してみましょう(数秒かかります)。</p>
+      <h3>チャレンジ:トーナメントの集計係</h3>
+      <p>ランダム同士だと黒と白、どちらが勝ちやすいのでしょう? それを調べるには、何局も対戦させて<strong>勝敗を集計する係</strong>が必要です。対戦結果 <code>(黒の石数, 白の石数)</code> のリストを受け取って、<code>(黒勝ち, 白勝ち, 引き分け)</code> の回数を返す関数 <code>tally(results)</code> を、下の専用エディタで完成させましょう。実行すると手作りの対戦データで自動チェックされ、おまけに本物の10局トーナメントも回ります。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+import random
+
+# STEP 4 で完成させた対戦関数(そのまま使ってOK)
+def play_game():
+    """ランダム同士で1局対戦し、(黒の石数, 白の石数) を返す"""
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            x, y = random.choice(moves)
+            place(board, x, y, turn)
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+
+def tally(results):
+    """(黒の石数, 白の石数) のリストを集計して (黒勝ち, 白勝ち, 引き分け) を返す"""
+    black_wins = 0
+    white_wins = 0
+    draws = 0
+    # ← ここで results をループして、石数を比べながら数えよう
+    return black_wins, white_wins, draws
+
+# 10局トーナメントを開催して集計(実行するたびに結果が変わります)
+results = []
+for i in range(10):
+    results.append(play_game())
+
+b, w, d = tally(results)
+print("対戦結果:", results)
+print(f"黒 {b} 勝 / 白 {w} 勝 / 引き分け {d}")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("tally 関数が定義されている", "tally" in globals())
+if "tally" in globals():
+    _t("3局分: tally([(40, 24), (20, 44), (33, 31)]) が (2, 1, 0)",
+       tally([(40, 24), (20, 44), (33, 31)]) == (2, 1, 0),
+       f"結果: {tally([(40, 24), (20, 44), (33, 31)])}(黒勝ち2回・白勝ち1回のはず)")
+    _t("引き分け入り: tally([(32, 32), (0, 64), (64, 0), (32, 32)]) が (1, 1, 2)",
+       tally([(32, 32), (0, 64), (64, 0), (32, 32)]) == (1, 1, 2),
+       f"結果: {tally([(32, 32), (0, 64), (64, 0), (32, 32)])}(同数なら引き分けに数えよう)")
+    _t("1局だけ: tally([(2, 62)]) が (0, 1, 0)",
+       tally([(2, 62)]) == (0, 1, 0),
+       f"結果: {tally([(2, 62)])}")
+    _t("0局でも壊れない: tally([]) が (0, 0, 0)",
+       tally([]) == (0, 0, 0),
+       f"結果: {tally([])}")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>black_wins = 0
-white_wins = 0
-draws = 0
+          <div class="codeblock"><pre>import random
 
-for i in range(100):
-    board = play_game()
-    b = count_stones(board, BLACK)
-    w = count_stones(board, WHITE)
-    if b > w:
-        black_wins += 1
-    elif w > b:
-        white_wins += 1
-    else:
-        draws += 1
+def play_game():
+    """ランダム同士で1局対戦し、(黒の石数, 白の石数) を返す"""
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes &lt; 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            x, y = random.choice(moves)
+            place(board, x, y, turn)
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
 
-print(f"黒 {black_wins} 勝 / 白 {white_wins} 勝 / 引き分け {draws}")</pre></div>
-          <p>何度か実行すると、毎回結果が揺れつつも大きくは偏らないことが分かります。この「大量対局で実力を測る」手法は、次回のAI開発でフル活用します。</p>
+def tally(results):
+    """(黒の石数, 白の石数) のリストを集計して (黒勝ち, 白勝ち, 引き分け) を返す"""
+    black_wins = 0
+    white_wins = 0
+    draws = 0
+    for b, w in results:
+        if b &gt; w:
+            black_wins += 1
+        elif w &gt; b:
+            white_wins += 1
+        else:
+            draws += 1
+    return black_wins, white_wins, draws
+
+results = []
+for i in range(10):
+    results.append(play_game())
+
+b, w, d = tally(results)
+print("対戦結果:", results)
+print(f"黒 {b} 勝 / 白 {w} 勝 / 引き分け {d}")</pre></div>
+          <p><code>for i in range(10)</code> の 10 を 100 に変えれば100局トーナメントになります(数秒かかります)。何度か実行すると、毎回結果が揺れつつも大きくは偏らないことが分かります。この「大量対局で実力を測る」手法は、次回のAI開発でフル活用します。</p>
         </div>
       </details>
     </div>

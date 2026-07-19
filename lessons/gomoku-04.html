@@ -165,24 +165,57 @@ print("勝者:", winner if winner else "引き分け")
     </div>
 
     <div class="challenge">
-      <h3>チャレンジ:100局トーナメント</h3>
-      <p>ランダム同士だと黒と白、引き分け、どのくらいの割合になるでしょうか? <code>play_game()</code> を100回くり返して集計してみましょう。</p>
+      <h3>チャレンジ:100局トーナメントの集計係</h3>
+      <p>ランダム同士だと黒と白、引き分け、どのくらいの割合になるでしょうか? それを調べる集計係として、勝者を並べたリスト(例: <code>[BLACK, WHITE, BLACK, None]</code>)を受け取り、<strong>(黒の勝ち数, 白の勝ち数, 引き分け数)</strong> を返す <code>count_results</code> 関数を下の専用エディタに書きましょう。実行すると複数のテストデータで自動チェックされます。完成したら、STEP 3 の <code>play_game</code> を100回呼んだ結果を渡せば、そのまま成績発表に使えます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def count_results(winners):
+    """勝者のリスト(BLACK / WHITE / None)から
+    (黒の勝ち数, 白の勝ち数, 引き分け数) を返す"""
+    black_wins = white_wins = draws = 0
+    # ← ここで winners を for でくり返して数えよう(引き分けは None)
+    return black_wins, white_wins, draws
+
+# サンプルの対局結果で試す(黒2勝・白1勝・引き分け1になれば成功)
+sample = [BLACK, WHITE, BLACK, None]
+b, w, d = count_results(sample)
+print(f"黒 {b} 勝 / 白 {w} 勝 / 引き分け {d}")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("count_results 関数が定義されている", "count_results" in globals())
+if "count_results" in globals():
+    _t("黒2勝・白1勝・引き分け1のリストを集計できる",
+       count_results([BLACK, WHITE, BLACK, None]) == (2, 1, 1),
+       f"結果: {count_results([BLACK, WHITE, BLACK, None])}")
+    _t("白だけが勝ったリストも集計できる",
+       count_results([WHITE, WHITE, WHITE]) == (0, 3, 0),
+       f"結果: {count_results([WHITE, WHITE, WHITE])}")
+    _t("全部引き分けのリストも集計できる",
+       count_results([None, None]) == (0, 0, 2),
+       "引き分け(None)を数え忘れていないかな?")
+    _t("0局なら (0, 0, 0)(境界ケース)",
+       count_results([]) == (0, 0, 0),
+       "空のリストでも動くように")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>black_wins = white_wins = draws = 0
+          <div class="codeblock"><pre>def count_results(winners):
+    black_wins = white_wins = draws = 0
+    for winner in winners:
+        if winner == BLACK:
+            black_wins += 1
+        elif winner == WHITE:
+            white_wins += 1
+        else:
+            draws += 1
+    return black_wins, white_wins, draws
 
-for i in range(100):
-    board, winner = play_game()
-    if winner == BLACK:
-        black_wins += 1
-    elif winner == WHITE:
-        white_wins += 1
-    else:
-        draws += 1
-
-print(f"黒 {black_wins} 勝 / 白 {white_wins} 勝 / 引き分け {draws}")</pre></div>
-          <p>先に置く黒がわずかに有利な傾向が出やすいはずです。五目並べは実際に「先手必勝」が理論的に証明されているゲームとして知られています。</p>
+sample = [BLACK, WHITE, BLACK, None]
+b, w, d = count_results(sample)
+print(f"黒 {b} 勝 / 白 {w} 勝 / 引き分け {d}")</pre></div>
+          <p>本番のトーナメントは、空のリストを用意して <code>play_game()</code> を100回くり返し、返ってきた勝者を <code>append</code> でためてから <code>count_results</code> に渡すだけ。やってみると、先に置く黒がわずかに有利な傾向が出やすいはずです。五目並べは実際に「先手必勝」が理論的に証明されているゲームとして知られています。</p>
         </div>
       </details>
     </div>

@@ -252,26 +252,99 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
 
     <div class="challenge">
       <h3>チャレンジ:角が大好きなAI</h3>
-      <p>オセロの格言「<strong>角を取れ</strong>」。角(0,0)(7,0)(0,7)(7,7)は絶対に裏返されない最強のマスです。「打てる場所に角があれば必ず角に打ち、なければ欲張りAIと同じ動きをする」<code>ai_corner</code> を作って、ランダムAIと50局戦わせてみましょう。欲張りAIより強いでしょうか?</p>
+      <p>オセロの格言「<strong>角を取れ</strong>」。角(0,0)(7,0)(0,7)(7,7)は絶対に裏返されない最強のマスです。「打てる場所に角があれば必ず角に打ち、なければ欲張りAIと同じ動きをする」<code>ai_corner</code> を、下の専用エディタで完成させましょう。実行すると「角と大量取りのどちらを選ぶ?」などいろいろな盤面で自動チェックされます。合格したら、STEP 4 のエディタで <code>play_match(ai_corner, ai_random)</code> を50局試して、欲張りAIより強いか実験してみてください。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+CORNERS = [(0, 0), (7, 0), (0, 7), (7, 7)]
+
+def ai_greedy(board, color, moves):   # STEP 3 で作った欲張りAI(そのまま使ってOK)
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n > best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
+def ai_corner(board, color, moves):
+    """角に打てるなら角、そうでなければ欲張りAIと同じ手を選ぶ"""
+    return moves[0]   # ← ここを直そう(CORNERS と in が使えます)
+
+# 動作チェック(そのまま使ってOK)
+board = make_board()
+moves = valid_moves(board, BLACK)
+print("打てる場所:", moves)
+print("ai_corner の選択:", ai_corner(board, BLACK, moves))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("ai_corner 関数が定義されている", "ai_corner" in globals())
+if "ai_corner" in globals():
+    _b1 = [[EMPTY] * 8 for _ in range(8)]
+    _b1[1][1] = WHITE          # 角 (0,0) で1個だけ裏返せる
+    _b1[2][2] = BLACK
+    _b1[5][0] = BLACK          # (4,5) なら3個裏返せる
+    _b1[5][1] = WHITE
+    _b1[5][2] = WHITE
+    _b1[5][3] = WHITE
+    _mv1 = sorted(valid_moves(_b1, BLACK), reverse=True)   # わざと (4,5) を先頭にした moves
+    _t("3個取れる手より角 (0,0) を優先する",
+       ai_corner(_b1, BLACK, _mv1) == (0, 0),
+       f"結果: {ai_corner(_b1, BLACK, _mv1)}(角があれば裏返せる数は関係なし!)")
+    _b2 = [[EMPTY] * 8 for _ in range(8)]
+    _b2[5][5] = BLACK          # 角 (7,7) が打てる
+    _b2[6][6] = WHITE
+    _b2[1][5] = BLACK          # (7,1) も打てる
+    _b2[1][6] = WHITE
+    _mv2 = valid_moves(_b2, BLACK)
+    _t("別の角 (7,7) もちゃんと見つける",
+       ai_corner(_b2, BLACK, _mv2) == (7, 7),
+       f"結果: {ai_corner(_b2, BLACK, _mv2)}(CORNERS の4つ全部を調べよう)")
+    _b3 = [[EMPTY] * 8 for _ in range(8)]
+    _b3[5][0] = BLACK          # (4,5) なら3個裏返せる
+    _b3[5][1] = WHITE
+    _b3[5][2] = WHITE
+    _b3[5][3] = WHITE
+    _b3[1][5] = BLACK          # (7,1) は1個だけ
+    _b3[1][6] = WHITE
+    _mv3 = valid_moves(_b3, BLACK)
+    _t("角がない盤面では最多裏返し (4,5) を選ぶ(欲張りAIと同じ)",
+       ai_corner(_b3, BLACK, _mv3) == (4, 5),
+       f"結果: {ai_corner(_b3, BLACK, _mv3)}(角がなければ ai_greedy にバトンタッチ)")
+    _b4 = make_board()
+    _mv4 = valid_moves(_b4, BLACK)
+    _t("初期盤面でも合法手を返す",
+       ai_corner(_b4, BLACK, _mv4) in _mv4,
+       f"結果: {ai_corner(_b4, BLACK, _mv4)}")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
           <div class="codeblock"><pre>CORNERS = [(0, 0), (7, 0), (0, 7), (7, 7)]
 
+def ai_greedy(board, color, moves):
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n &gt; best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
 def ai_corner(board, color, moves):
+    """角に打てるなら角、そうでなければ欲張りAIと同じ手を選ぶ"""
     for corner in CORNERS:
         if corner in moves:      # 角に打てるなら迷わず角!
             return corner
     return ai_greedy(board, color, moves)   # それ以外は欲張り
 
-wins = losses = draws = 0
-for i in range(50):
-    b, w = play_match(ai_corner, ai_random)
-    if b > w: wins += 1
-    elif w > b: losses += 1
-    else: draws += 1
-print(f"角好きAI: {wins}勝 {losses}敗 {draws}分")</pre></div>
-          <p>すでにあるAI(<code>ai_greedy</code>)を部品として呼び出しているのがポイント。AIの改造は「部品の組み合わせ」でどんどん進化させられます。</p>
+board = make_board()
+moves = valid_moves(board, BLACK)
+print("打てる場所:", moves)
+print("ai_corner の選択:", ai_corner(board, BLACK, moves))</pre></div>
+          <p>すでにあるAI(<code>ai_greedy</code>)を部品として呼び出しているのがポイント。AIの改造は「部品の組み合わせ」でどんどん進化させられます。50局対戦させると、ランダム相手の勝率は欲張りAIをさらに上回るはずです。</p>
         </div>
       </details>
     </div>

@@ -142,23 +142,86 @@ print("勝者:", winner if winner else "引き分け")
 
     <div class="challenge">
       <h3>チャレンジ:100局トーナメント</h3>
-      <p>ランダム同士で黒・白・引き分けの割合を調べてみましょう。</p>
+      <p>ランダム同士で100局対戦させて、黒・白・引き分けの割合を調べましょう。集計係の関数 <code>tally(winners)</code> — 勝者のリスト(<code>BLACK</code>・<code>WHITE</code>・引き分けは<code>None</code>)を受け取り、<strong><code>(黒の勝ち数, 白の勝ち数, 引き分け数)</code>のタプル</strong>を返す — を下の専用エディタで完成させれば、トーナメントの集計が動き出します。実行すると複数のテストデータで自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+import random
+
+def play_game():
+    """ランダム同士で1局対戦し、勝者を返す(引き分けはNone)"""
+    board = make_board()
+    turn = BLACK
+    while True:
+        cols = valid_columns(board)
+        if not cols:
+            return None
+        col = random.choice(cols)
+        x, y = drop(board, col, turn)
+        if check_win(board, x, y, turn):
+            return turn
+        turn = opponent(turn)
+
+def tally(winners):
+    """勝者のリストから (黒の勝ち数, 白の勝ち数, 引き分け数) を数えて返す"""
+    black_wins = white_wins = draws = 0
+    # ← ここを作ろう: for と if/elif/else で winners を数え上げる
+    return black_wins, white_wins, draws
+
+# --- 100局トーナメント! ---
+winners = [play_game() for _ in range(100)]
+black, white, draws = tally(winners)
+print(f"黒 {black} 勝 / 白 {white} 勝 / 引き分け {draws}")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("tally 関数が定義されている", "tally" in globals())
+if "tally" in globals():
+    _t("黒2勝・白1勝のリストを集計できる",
+       tally([BLACK, WHITE, BLACK]) == (2, 1, 0),
+       f"結果: {tally([BLACK, WHITE, BLACK])}(期待値は (2, 1, 0) のタプル)")
+    _t("引き分け(None)も混ざったリストを集計できる",
+       tally([BLACK, None, WHITE, None, BLACK, BLACK]) == (3, 1, 2),
+       f"結果: {tally([BLACK, None, WHITE, None, BLACK, BLACK])}(期待値は (3, 1, 2)。Noneはelseで数えよう)")
+    _t("全部引き分けでも正しく数えられる",
+       tally([None, None, None]) == (0, 0, 3),
+       f"結果: {tally([None, None, None])}(期待値は (0, 0, 3))")
+    _t("空のリスト(0局)なら (0, 0, 0)",
+       tally([]) == (0, 0, 0),
+       f"結果: {tally([])}(1局もなければすべて0のまま返る作りに)")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>black_wins = white_wins = draws = 0
+          <div class="codeblock"><pre>import random
 
-for i in range(100):
-    board, winner = play_game()
-    if winner == BLACK:
-        black_wins += 1
-    elif winner == WHITE:
-        white_wins += 1
-    else:
-        draws += 1
+def play_game():
+    board = make_board()
+    turn = BLACK
+    while True:
+        cols = valid_columns(board)
+        if not cols:
+            return None
+        col = random.choice(cols)
+        x, y = drop(board, col, turn)
+        if check_win(board, x, y, turn):
+            return turn
+        turn = opponent(turn)
 
-print(f"黒 {black_wins} 勝 / 白 {white_wins} 勝 / 引き分け {draws}")</pre></div>
-          <p>五目並べと同じく、先に打てる黒がわずかに有利な傾向が出やすいはずです。</p>
+def tally(winners):
+    black_wins = white_wins = draws = 0
+    for winner in winners:
+        if winner == BLACK:
+            black_wins += 1
+        elif winner == WHITE:
+            white_wins += 1
+        else:
+            draws += 1
+    return black_wins, white_wins, draws
+
+winners = [play_game() for _ in range(100)]
+black, white, draws = tally(winners)
+print(f"黒 {black} 勝 / 白 {white} 勝 / 引き分け {draws}")</pre></div>
+          <p>五目並べと同じく、先に打てる黒がわずかに有利な傾向が出やすいはずです。「対局する関数」と「集計する関数」を分けておくと、次のレッスンでAI同士を戦わせるときも同じ<code>tally</code>がそのまま使い回せます。</p>
         </div>
       </details>
     </div>

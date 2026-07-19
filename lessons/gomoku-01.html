@@ -140,18 +140,71 @@ print_board(board)
 
     <div class="challenge">
       <h3>やってみよう</h3>
-      <p><code>try_stones.py</code> を書き換えて、自分の好きな場所に黒石・白石をあわせて5個くらい置いてみましょう。盤面ビジュアルがどう変わるか確認してください。</p>
+      <p>下の専用エディタで、盤面を作って<strong>黒石を (2, 2) (3, 3) (4, 4) の斜め</strong>に、<strong>白石を (5, 5) と (2, 6)</strong> に置き、最後に <code>print_board</code> で表示してみましょう。座標 <code>(x, y)</code> の読み書きは <code>board[y][x]</code>(<strong>yが先</strong>)でしたね。実行すると自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+
+board = make_board()
+# ← ここで石を置こう(board[y][x] = BLACK のように)
+#    黒: (2, 2) (3, 3) (4, 4) / 白: (5, 5) (2, 6)
+
+print_board(board)
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("9×9 の盤面 board が作られている",
+   "board" in globals() and isinstance(board, list) and len(board) == 9 and all(len(_row) == 9 for _row in board),
+   "board = make_board() で作ろう")
+if "board" in globals() and "BLACK" in globals():
+    _t("黒石が (2,2) (3,3) (4,4) に斜めに置かれている",
+       board[2][2] == BLACK and board[3][3] == BLACK and board[4][4] == BLACK,
+       "board[2][2] = BLACK のように3か所に書き込もう")
+    _t("白石が (5,5) に置かれている",
+       board[5][5] == WHITE,
+       "board[5][5] = WHITE と書けているかな?")
+    _t("白石が (2,6) に置かれている",
+       board[6][2] == WHITE,
+       "(x, y) = (2, 6) は board[6][2]。y が先だよ")
+    _t("print_board で盤面を表示している",
+       "0 1 2 3 4 5 6 7 8" in _output and "●" in _output,
+       "最後に print_board(board) を呼ぼう")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>board = make_board()
+          <div class="codeblock"><pre>EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+
+board = make_board()
 board[2][2] = BLACK
 board[3][3] = BLACK
 board[4][4] = BLACK
 board[5][5] = WHITE
-board[2][6] = WHITE
+board[6][2] = WHITE   # (x, y) = (2, 6) は y が先!
 print_board(board)</pre></div>
-          <p>斜めに黒石を3つ並べてみました。次のレッスン以降で作る「5つ並び判定」が完成すれば、これがあと2つで勝ちの形だと自動で見抜けるようになります。</p>
+          <p>黒石が斜めに3つ並びました。次のレッスン以降で作る「5つ並び判定」が完成すれば、これがあと2つで勝ちの形だと自動で見抜けるようになります。</p>
         </div>
       </details>
     </div>

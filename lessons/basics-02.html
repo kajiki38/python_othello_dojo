@@ -142,19 +142,38 @@ print(f"合計 {total} 個、平均 {total / len(scores)} 個")
 
     <div class="challenge">
       <h3>チャレンジ:一番いいスコアは?</h3>
-      <p>上のコードに、いちばん大きいスコアを表示する処理を追加してみましょう。ヒント: Pythonには <code>max(scores)</code> という関数があります。ループで求める方法も考えてみてください(むずかしければ解答例を見てOK)。</p>
+      <p>5回分のスコアのリストから、<strong>いちばん大きいスコア</strong>を変数 <code>best</code> に入れて表示するプログラムを、下の専用エディタに書いてみましょう。ヒント: Pythonには <code>max(scores)</code> という関数があります。STEP 4のように<strong>ループで変数を育てて</strong>求める方法もぜひ考えてみてください。実行すると自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+scores = [34, 41, 28, 55, 33]   # この5回分から最高スコアを探そう
+
+best = 0   # ← ループ(または max)で、best を最高スコアにしよう
+
+print(f"最高スコア: {best}")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("変数 best が最高スコアの 55 になっている",
+   "best" in globals() and best == 55,
+   "best = max(scores) か、ループで「best より大きければ best を更新」を書いてみよう")
+_t("最高スコアを表示している", "55" in _output,
+   'print(f"最高スコア: {best}") のように表示しよう')
+_t("リスト scores はそのまま残っている",
+   "scores" in globals() and scores == [34, 41, 28, 55, 33],
+   "scores のリストは書き換えずに、読み取るだけにしよう")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>print("最高スコア:", max(scores))
+          <div class="codeblock"><pre>scores = [34, 41, 28, 55, 33]
 
-# ループで求めるなら:
 best = 0
 for s in scores:
     if s > best:      # if(条件分岐)は次のレッスンで詳しく!
         best = s
-print("最高スコア:", best)</pre></div>
-          <p>ループ版に出てきた <code>if</code> は「もし〜なら」の条件分岐。次のレッスンの主役です。</p>
+
+print(f"最高スコア: {best}")</pre></div>
+          <p><code>best = max(scores)</code> と書けば1行で求まりますが、「ループの中で最大を探す」型もこの先ずっと使うので、両方できるようにしておきましょう。ループ版に出てきた <code>if</code> は「もし〜なら」の条件分岐。次のレッスンの主役です。</p>
         </div>
       </details>
     </div>

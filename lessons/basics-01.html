@@ -93,7 +93,23 @@ print(f"合計 {black + white} 個の石が盤上にあります")
 
     <div class="challenge">
       <h3>やってみよう</h3>
-      <p>上のコードを書き換えて、黒の石を <code>34</code> 個、白の石を <code>30</code> 個にして、「黒が4個リードしています」のような差を計算して表示する行を追加してみましょう。</p>
+      <p>黒の石の数を <code>black</code>、白の石の数を <code>white</code> という変数に入れて(黒 <code>34</code> 個・白 <code>30</code> 個)、「黒が4個リードしています」のような<strong>差を計算して</strong>表示するプログラムを、下の専用エディタに書いてみましょう。実行すると自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+# 黒34個・白30個。差を「計算して」表示しよう
+black = 0   # ← 書き換えよう
+white = 0   # ← 書き換えよう
+print("黒が ? 個リードしています")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("変数 black が 34 になっている", "black" in globals() and black == 34,
+   "black = 34 と書けているかな?")
+_t("変数 white が 30 になっている", "white" in globals() and white == 30,
+   "white = 30 と書けているかな?")
+_t("差の 4 を計算して表示している", "4 個リード" in _output or "4個リード" in _output,
+   'print(f"黒が {black - white} 個リードしています") のように書いてみよう')
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">

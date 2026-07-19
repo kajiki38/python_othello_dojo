@@ -338,11 +338,128 @@ print(f"先読みAIの成績: {wins}勝 {losses}敗 {draws}分")
 
     <div class="challenge">
       <h3>チャレンジ:攻めをさらに鋭く</h3>
-      <p>いまのAIは「ダブルリーチが作れないときは、ただ中央寄りに置く」だけ。ここを「<strong>せめてリーチ(勝ち手1つ)を作れる手を優先する</strong>」に改造してみましょう。<code>n &gt;= 2</code> のループの後に、<code>n &gt;= 1</code> のループを足すだけです。</p>
+      <p>いまのAIは「ダブルリーチが作れないときは、ただ中央寄りに置く」だけ。ここを「<strong>せめてリーチ(勝ち手1つ)を作れる手を優先する</strong>」に改造した <code>ai_strong2</code> を、下の専用エディタで完成させましょう。<code>n &gt;= 2</code> のループの後に、<code>n &gt;= 1</code> のループを足すだけです。実行すると、勝ち・防御・先回りといったこれまでの読みが壊れていないかまで、複数の盤面でまとめて自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def near_cells(board):
+    cells = set()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] != EMPTY:
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == EMPTY:
+                            cells.add((nx, ny))
+    return list(cells)
+
+def count_reaches(board, color):
+    count = 0
+    for x, y in near_cells(board):
+        board[y][x] = color
+        if check_win(board, x, y, color):
+            count += 1
+        board[y][x] = EMPTY
+    return count
+
+def ai_strong2(board, color, moves):
+    """勝ち → 防御 → ダブルリーチ → 相手のダブルリーチを先回り → 単リーチ → 中央寄り"""
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    center = SIZE // 2
+    cand = near_cells(board)
+    if not cand:
+        return (center, center)
+    cand.sort(key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+    for x, y in cand:                      # 自分のダブルリーチを狙う
+        board[y][x] = color
+        n = count_reaches(board, color)
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    for x, y in cand:                      # 相手のダブルリーチを先回りして塞ぐ
+        board[y][x] = opponent(color)
+        n = count_reaches(board, opponent(color))
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    # ← ここに「単リーチ(n >= 1)を作れる手を優先する」ループを足そう
+    return cand[0]
+
+# 左端がふさがれた黒の3連。(5, 4) か (6, 4) でリーチを作れれば成功
+board = make_board()
+place(board, 1, 4, WHITE)
+for x in [2, 3, 4]:
+    place(board, x, 4, BLACK)
+print_board(board)
+print("黒番の ai_strong2 の選択:", ai_strong2(board, BLACK, empty_cells(board)))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("ai_strong2 関数が定義されている", "ai_strong2" in globals())
+if "ai_strong2" in globals():
+    _board = make_board()
+    for _x in [2, 3, 4, 5]:
+        _board[4][_x] = BLACK
+    _move = ai_strong2(_board, BLACK, empty_cells(_board))
+    _t("勝てる盤面(黒の横4連)で勝ち手 (1,4) か (6,4) を選ぶ",
+       _move in [(1, 4), (6, 4)],
+       f"選んだ手: {_move}(勝ちのチェックを消していないかな?)")
+    _board = make_board()
+    for _i in [2, 3, 4, 5]:
+        _board[_i][_i] = WHITE
+    _move = ai_strong2(_board, BLACK, empty_cells(_board))
+    _t("白の斜め4連を (1,1) か (6,6) でブロックする",
+       _move in [(1, 1), (6, 6)],
+       f"選んだ手: {_move}(防御のチェックを消していないかな?)")
+    _board = make_board()
+    for _x in [2, 3, 4]:
+        _board[4][_x] = BLACK
+    _move = ai_strong2(_board, WHITE, empty_cells(_board))
+    _t("黒の両端の空いた3連に (1,4) か (5,4) で先回りする",
+       _move in [(1, 4), (5, 4)],
+       f"選んだ手: {_move}(相手のダブルリーチを塞ぐループは残っているかな?)")
+    _board = make_board()
+    _board[4][1] = WHITE
+    for _x in [2, 3, 4]:
+        _board[4][_x] = BLACK
+    _move = ai_strong2(_board, BLACK, empty_cells(_board))
+    _t("新機能: 単リーチを作れる手 (5,4) か (6,4) を優先する",
+       _move in [(5, 4), (6, 4)],
+       f"選んだ手: {_move}(n >= 1 のループを足したかな?)")
+    _t("空の盤面では中央 (4,4) から始める",
+       ai_strong2(make_board(), BLACK, empty_cells(make_board())) == (4, 4),
+       "cand が空のときの処理を消していないかな?")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>def ai_strong2(board, color, moves):
+          <div class="codeblock"><pre>def near_cells(board):
+    cells = set()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] != EMPTY:
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 &lt;= nx &lt; SIZE and 0 &lt;= ny &lt; SIZE and board[ny][nx] == EMPTY:
+                            cells.add((nx, ny))
+    return list(cells)
+
+def count_reaches(board, color):
+    count = 0
+    for x, y in near_cells(board):
+        board[y][x] = color
+        if check_win(board, x, y, color):
+            count += 1
+        board[y][x] = EMPTY
+    return count
+
+def ai_strong2(board, color, moves):
     win_move = find_winning_move(board, color, moves)
     if win_move:
         return win_move
@@ -368,7 +485,15 @@ print(f"先読みAIの成績: {wins}勝 {losses}敗 {draws}分")
                 board[y][x] = EMPTY
                 if n &gt;= 2:
                     return (x, y)
-    return cand[0]</pre></div>
+    return cand[0]
+
+# 左端がふさがれた黒の3連。(5, 4) でリーチを作って攻めをつなぐ
+board = make_board()
+place(board, 1, 4, WHITE)
+for x in [2, 3, 4]:
+    place(board, x, 4, BLACK)
+print_board(board)
+print("黒番の ai_strong2 の選択:", ai_strong2(board, BLACK, empty_cells(board)))</pre></div>
           <p>常にリーチを作り続けるAIは、相手に防御を強制し続けます。攻め続けている限り、相手は自分の形を作る暇がない——五目並べの「先手の理」をAIに教えたことになります。<code>ai_strong2</code> と <code>ai_strong</code> を <code>play_match</code> で戦わせて、勝率がどう変わるか確かめてみましょう。</p>
         </div>
       </details>

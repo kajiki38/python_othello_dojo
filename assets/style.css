@@ -941,6 +941,25 @@ body[data-board-theme="connect4"] {
 }
 .pyrunner .viz.show { display: flex; }
 .pyrunner .viz .sb { --sb-cell: 30px; }
+
+/* チャレンジの自動チェック結果パネル */
+.pyrunner .checks {
+  display: none;
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: #0a0f14;
+  padding: 12px 16px 14px;
+  font-size: 13.5px;
+  line-height: 1.9;
+}
+.pyrunner .checks.show { display: block; }
+.pyrunner .checks-head {
+  font-weight: 800;
+  color: #ffd479;
+  margin-bottom: 4px;
+}
+.pyrunner .checks-head.all-pass { color: #4ade80; }
+.pyrunner .check-row { color: #cdd6d0; }
+.pyrunner .check-row.ng { color: #fca5a5; }
 .viz-item .viz-label {
   font-family: var(--font-mono);
   font-size: 12px;

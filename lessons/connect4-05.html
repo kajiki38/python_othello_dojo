@@ -245,11 +245,82 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
 
     <div class="challenge">
       <h3>チャレンジ:中央列を優先するAI</h3>
-      <p>コネクトフォーの定石は「中央の列(3列目)ほど多くの4つ並びに関われるので価値が高い」。<code>ai_block</code>を改造して、勝ち・防御がなければ中央に近い列を優先するAIを作ってみましょう。</p>
+      <p>コネクトフォーの定石は「中央の列(3列目)ほど多くの4つ並びに関われるので価値が高い」。<code>ai_block</code>を改造した <code>ai_center(board, color, cols)</code> — <strong>勝てるなら勝つ → 相手の勝ちは防ぐ → それ以外は中央にいちばん近い列</strong> — を、下の専用エディタで完成させましょう。実行すると、勝ち列・防御・中央優先など複数の局面で自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+import random
+
+def find_winning_col(board, color, cols):
+    for col in cols:
+        y = next_row(board, col)
+        if y is None:            # 満杯の列はスキップ
+            continue
+        board[y][col] = color
+        win = check_win(board, col, y, color)
+        board[y][col] = EMPTY
+        if win:
+            return col
+    return None
+
+def ai_center(board, color, cols):
+    """勝ち → 防御 → 中央にいちばん近い列、の順で選ぶAI"""
+    # ← ここを作ろう: ai_block をベースに、最後の random.choice(cols) を
+    #    「中央(WIDTH // 2)にいちばん近い列」に変える(min と key=lambda が便利)
+    return random.choice(cols)
+
+# デモ: 空の盤面なら中央の3列目を選べれば成功
+board = make_board()
+print("ai_centerの選択:", ai_center(board, BLACK, valid_columns(board)))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("ai_center 関数が定義されている", "ai_center" in globals())
+if "ai_center" in globals():
+    _b = make_board()
+    for _c in [1, 2, 3]:
+        drop(_b, _c, BLACK)
+    _t("横に3連の黒番 → 勝てる列(0か4)を選ぶ",
+       ai_center(_b, BLACK, valid_columns(_b)) in (0, 4),
+       "まず find_winning_col(board, color, cols) で自分の勝ち列を探そう")
+    _b = make_board()
+    for _ in range(3):
+        drop(_b, 6, WHITE)
+    _t("6列目に縦3連の白番 → 勝てる6列目を選ぶ",
+       ai_center(_b, WHITE, valid_columns(_b)) == 6,
+       "縦の勝ち列も find_winning_col が見つけてくれるはず")
+    _b = make_board()
+    for _c in [2, 3, 4]:
+        drop(_b, _c, WHITE)
+    _t("白が3連の黒番 → 相手の勝ちを防ぐ(1か5)",
+       ai_center(_b, BLACK, valid_columns(_b)) in (1, 5),
+       "自分の勝ちがなければ find_winning_col(board, opponent(color), cols) で防ごう")
+    _b = make_board()
+    _t("空の盤面 → 中央の3列目を選ぶ",
+       ai_center(_b, BLACK, valid_columns(_b)) == 3,
+       "勝ちも防御もなければ min(cols, key=lambda c: abs(c - WIDTH // 2))")
+    _b = make_board()
+    for _y in range(6):
+        _b[_y][3] = BLACK if _y % 2 == 0 else WHITE
+    _t("中央の3列目が満杯 → その隣(2か4)を選ぶ",
+       ai_center(_b, BLACK, valid_columns(_b)) in (2, 4),
+       "cols(落とせる列の一覧)の中から選べば、満杯の列は自然と避けられる")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>def ai_center(board, color, cols):
+          <div class="codeblock"><pre>def find_winning_col(board, color, cols):
+    for col in cols:
+        y = next_row(board, col)
+        if y is None:
+            continue
+        board[y][col] = color
+        win = check_win(board, col, y, color)
+        board[y][col] = EMPTY
+        if win:
+            return col
+    return None
+
+def ai_center(board, color, cols):
     win_col = find_winning_col(board, color, cols)
     if win_col is not None:
         return win_col
@@ -259,14 +330,9 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
     center = WIDTH // 2
     return min(cols, key=lambda c: abs(c - center))
 
-wins = losses = draws = 0
-for i in range(50):
-    winner = play_match(ai_center, ai_random)
-    if winner == BLACK: wins += 1
-    elif winner == WHITE: losses += 1
-    else: draws += 1
-print(f"中央志向AI: {wins}勝 {losses}敗 {draws}分")</pre></div>
-          <p><code>key=lambda c: abs(c - center)</code> は「各列 <code>c</code> を<strong>『中央からの距離』に変換してから</strong>比べる」指定です(<code>abs</code> は絶対値=符号を取った距離)。<code>min</code> がその<strong>いちばん小さい=中央にいちばん近い</strong>列を選びます。<code>lambda</code> は「その場で作る名前のない小さな関数」で、今は『各要素を点数に変える式』と読めればOK。「まず勝ち手を探す→防御→評価値で選ぶ」という<strong>AI設計の型そのものは、ゲームが変わっても使い回せる</strong>——これがオセロ道場3種目を通じて一番伝えたかったことです。</p>
+board = make_board()
+print("ai_centerの選択:", ai_center(board, BLACK, valid_columns(board)))</pre></div>
+          <p><code>key=lambda c: abs(c - center)</code> は「各列 <code>c</code> を<strong>『中央からの距離』に変換してから</strong>比べる」指定です(<code>abs</code> は絶対値=符号を取った距離)。<code>min</code> がその<strong>いちばん小さい=中央にいちばん近い</strong>列を選びます。<code>lambda</code> は「その場で作る名前のない小さな関数」で、今は『各要素を点数に変える式』と読めればOK。できたら STEP 4 の <code>play_match(ai_center, ai_random)</code> で勝率も測ってみましょう。「まず勝ち手を探す→防御→評価値で選ぶ」という<strong>AI設計の型そのものは、ゲームが変わっても使い回せる</strong>——これがオセロ道場3種目を通じて一番伝えたかったことです。</p>
         </div>
       </details>
     </div>

@@ -235,11 +235,77 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
 
     <div class="challenge">
       <h3>チャレンジ:自分だけの改造AI</h3>
-      <p><code>ai_block</code> をベースに、「勝ち・防御どちらもなければ、盤の中心に近い手を選ぶ」ように改造してみましょう。五目並べは中心付近ほど並びを作りやすい、というのが定石です。</p>
+      <p><code>ai_block</code> をベースに、「勝ち・防御どちらもなければ、<strong>盤の中心に近い手</strong>を選ぶ」<code>ai_center</code> を、下の専用エディタで完成させましょう。五目並べは中心付近ほど並びを作りやすい、というのが定石です。ランダム要素がなくなるので、実行するといろいろな盤面で「勝ち手を逃さないか」「相手のリーチを防げるか」「中央に寄れるか」が自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
+
+def ai_center(board, color, moves):
+    """勝てるなら勝つ → 相手の勝ち手を防ぐ → 中央に一番近い手"""
+    # ← ai_block を思い出しながら書こう。最後のランダムの代わりに、
+    #    中央 center = SIZE // 2 からの距離が一番近い手を min(moves, key=...) で選ぶ
+    return moves[0]   # ← 仮の手。ここを直そう
+
+# 白がリーチの盤面で試す((1, 1) か (6, 6) で防げれば成功)
+board = make_board()
+for x, y in [(2, 2), (3, 3), (4, 4), (5, 5)]:
+    place(board, x, y, WHITE)
+print_board(board)
+print("黒番の ai_center の選択:", ai_center(board, BLACK, empty_cells(board)))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("ai_center 関数が定義されている", "ai_center" in globals())
+if "ai_center" in globals():
+    _board = make_board()
+    for _x in [2, 3, 4, 5]:
+        _board[4][_x] = BLACK
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("勝てる盤面(黒の横4連)で勝ち手 (1,4) か (6,4) を選ぶ",
+       _move in [(1, 4), (6, 4)],
+       f"選んだ手: {_move}(まず find_winning_move で自分の勝ち手を探そう)")
+    _board = make_board()
+    for _i in [2, 3, 4, 5]:
+        _board[_i][_i] = WHITE
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("相手のリーチ(白の斜め4連)を (1,1) か (6,6) でブロックする",
+       _move in [(1, 1), (6, 6)],
+       f"選んだ手: {_move}(opponent(color) の勝ち手も探そう)")
+    _board = make_board()
+    for _x in [0, 1, 2, 3]:
+        _board[1][_x] = BLACK
+    for _x in [2, 3, 4, 5]:
+        _board[7][_x] = WHITE
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("勝ちと防御が両方あるときは自分の勝ち (4,1) を優先する",
+       _move == (4, 1),
+       f"選んだ手: {_move}(防御より先に、自分の勝ち手をチェックしよう)")
+    _board = make_board()
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("勝ちも防御もない空の盤面では中央 (4,4) を選ぶ",
+       _move == (4, 4),
+       f"選んだ手: {_move}(中央からの距離が一番近い手を min で選ぼう)")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>def ai_center(board, color, moves):
+          <div class="codeblock"><pre>def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
+
+def ai_center(board, color, moves):
     win_move = find_winning_move(board, color, moves)
     if win_move:
         return win_move
@@ -250,14 +316,12 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
     # 中心からの距離が一番近い手を選ぶ
     return min(moves, key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
 
-wins = losses = draws = 0
-for i in range(50):
-    winner = play_match(ai_center, ai_random)
-    if winner == BLACK: wins += 1
-    elif winner == WHITE: losses += 1
-    else: draws += 1
-print(f"中心志向AI: {wins}勝 {losses}敗 {draws}分")</pre></div>
-          <p><code>key=lambda m: 式</code> は「各手 <code>m</code> を<strong>いったん式の値に変換してから</strong>比べる」という指定です。ここでは <code>(m[0] - center) ** 2 + (m[1] - center) ** 2</code>(中心からの距離。<code>** 2</code> は「2乗」)で各手を点数化し、<code>min</code> がその<strong>いちばん小さい=中心にいちばん近い</strong>手を選びます。<code>lambda</code> は「その場で作る、名前のない小さな関数」——今は『各要素を点数に変える式』と読めればOKです。<code>min/max</code> の <code>key</code> は、どの種目のAI作りでも使える定番テクニックなので形に慣れておきましょう。</p>
+board = make_board()
+for x, y in [(2, 2), (3, 3), (4, 4), (5, 5)]:
+    place(board, x, y, WHITE)
+print_board(board)
+print("黒番の ai_center の選択:", ai_center(board, BLACK, empty_cells(board)))</pre></div>
+          <p><code>key=lambda m: 式</code> は「各手 <code>m</code> を<strong>いったん式の値に変換してから</strong>比べる」という指定です。ここでは <code>(m[0] - center) ** 2 + (m[1] - center) ** 2</code>(中心からの距離。<code>** 2</code> は「2乗」)で各手を点数化し、<code>min</code> がその<strong>いちばん小さい=中心にいちばん近い</strong>手を選びます。<code>lambda</code> は「その場で作る、名前のない小さな関数」——今は『各要素を点数に変える式』と読めればOKです。<code>min/max</code> の <code>key</code> は、どの種目のAI作りでも使える定番テクニックなので形に慣れておきましょう。完成した <code>ai_center</code> を STEP 4 の <code>play_match</code> に渡して <code>ai_random</code> と50局戦わせれば、勝率でも強さを確かめられます。</p>
         </div>
       </details>
     </div>

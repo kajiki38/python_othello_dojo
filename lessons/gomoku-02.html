@@ -114,18 +114,66 @@ print_board(board)
     <p>黒石が斜めに3つ並んでいるのが見えるはずです。あと2つ、同じ斜め線上に置ければ五目並べの勝ちになります——その「並びを見抜く」判定を、次のレッスンで作ります。</p>
 
     <div class="challenge">
-      <h3>チャレンジ:置けないマスを確かめよう</h3>
-      <p><code>turns.py</code> の <code>moves</code> リストに、<code>(4, 4)</code> をもう一度追加してみましょう。<code>place</code> が <code>False</code> を返し、盤面が変わらないことを確認してください。</p>
+      <h3>チャレンジ:place と opponent を自分の手で</h3>
+      <p>このレッスンの主役2つ、<code>place</code> と <code>opponent</code> を、上のコードをなるべく見ずに下の専用エディタへ書けるか挑戦してみましょう。ポイントは「<strong>すでに石があるマスには置けない</strong>」——<code>False</code> が返って、盤面が変わらないことです。実行すると複数のテストデータで自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def place(board, x, y, color):
+    """(x, y) が空いていれば color を置いて True。すでに石があれば False"""
+    return False   # ← ここを直そう
+
+def opponent(color):
+    """相手の色を返す"""
+    return color   # ← ここを直そう
+
+board = make_board()
+print(place(board, 4, 4, BLACK))   # True になるはず
+print(place(board, 4, 4, WHITE))   # False になるはず(もう石がある)
+print(opponent(BLACK))             # ○ になるはず
+print_board(board)
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("place 関数が定義されている", "place" in globals())
+_t("opponent 関数が定義されている", "opponent" in globals())
+if "place" in globals():
+    _board = make_board()
+    _ok = place(_board, 4, 4, BLACK)
+    _t("空きマス (4,4) に置くと True が返り、黒石が置かれる",
+       _ok == True and _board[4][4] == BLACK,
+       "board[y][x] に color を書き込んでから True を返そう")
+    _ok2 = place(_board, 4, 4, WHITE)
+    _t("石があるマスに置くと False が返り、盤面は変わらない",
+       _ok2 == False and _board[4][4] == BLACK,
+       "board[y][x] が EMPTY でないなら、何もせず False を返そう")
+    _board2 = make_board()
+    _t("別の場所 (0, 8) にも置ける",
+       place(_board2, 0, 8, WHITE) == True and _board2[8][0] == WHITE,
+       "(x, y) = (0, 8) は board[8][0]。y が先だよ")
+if "opponent" in globals():
+    _t("opponent が黒⇔白を入れ替える",
+       opponent(BLACK) == WHITE and opponent(WHITE) == BLACK,
+       "BLACK なら WHITE を、WHITE なら BLACK を返そう")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>moves = [(4, 4), (4, 5), (3, 3), (5, 5), (2, 2), (4, 4)]
+          <div class="codeblock"><pre>def place(board, x, y, color):
+    """(x, y) が空いていれば color を置いて True。すでに石があれば False"""
+    if board[y][x] != EMPTY:
+        return False
+    board[y][x] = color
+    return True
 
-for x, y in moves:
-    ok = place(board, x, y, turn)
-    print(f"{turn} が ({x}, {y}) に着手 → {'成功' if ok else '失敗(すでに石あり)'}")
-    turn = opponent(turn)</pre></div>
-          <p>置けなかったときも <code>turn</code> は進めてしまっている点に注目。本物のゲームループでは「置けないなら別の場所を選び直す」処理が必要です。次のレッスン以降で対応します。</p>
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+board = make_board()
+print(place(board, 4, 4, BLACK))   # True
+print(place(board, 4, 4, WHITE))   # False(もう石がある)
+print(opponent(BLACK))             # ○
+print_board(board)</pre></div>
+          <p>「置けたかどうかを True / False で返す」設計のおかげで、あとで作るゲームループが「置けなければ選び直す」と自然に書けるようになります。この2つは次のレッスンから自動で読み込まれる部品になるので、自分の手で書けるようにしておきましょう。</p>
         </div>
       </details>
     </div>

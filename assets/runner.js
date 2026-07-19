@@ -184,23 +184,27 @@
 
     const name = el.dataset.name || `code${index + 1}.py`;
     const preambleId = el.dataset.preamble || null;
+    const checkId = el.dataset.check || null;
     const preambleNote = preambleId ? `<span title="これまでのレッスンで作った関数が自動で読み込まれます">📦 前回までのコード読込み済み</span>` : "";
+    const checkNote = checkId ? `<span title="実行すると複数のテストデータで自動チェックされます">🧪 自動チェックつき</span>` : "";
 
     el.innerHTML = `
       <div class="bar">
         <span class="dots"><i></i><i></i><i></i></span>
-        <span class="fname">${name} ${preambleNote}</span>
+        <span class="fname">${name} ${preambleNote} ${checkNote}</span>
         <button class="reset-btn" title="コードを最初の状態に戻す">↺ リセット</button>
         <button class="run-btn">▶ 実行</button>
       </div>
       <div class="editor-host"></div>
       <div class="out-label">OUTPUT</div>
       <div class="out"></div>
-      <div class="viz"></div>`;
+      <div class="viz"></div>
+      <div class="checks"></div>`;
 
     const host = el.querySelector(".editor-host");
     const out = el.querySelector(".out");
     const viz = el.querySelector(".viz");
+    const checks = el.querySelector(".checks");
     const outLabel = el.querySelector(".out-label");
     const runBtn = el.querySelector(".run-btn");
     const resetBtn = el.querySelector(".reset-btn");
@@ -236,6 +240,8 @@
       out.innerHTML = "";
       viz.classList.remove("show");
       viz.innerHTML = "";
+      checks.classList.remove("show");
+      checks.innerHTML = "";
     });
 
     runBtn.addEventListener("click", () => {
@@ -270,9 +276,12 @@
               out.innerHTML = `<span class="sys">(出力はありません — print() を使うとここに表示されます)</span>`;
             }
             renderBoardViz(viz, py, ns);
+            if (checkId) runChecks(py, ns, checkId, checks, text);
           } catch (err) {
             viz.classList.remove("show");
             viz.innerHTML = "";
+            checks.classList.remove("show");
+            checks.innerHTML = "";
             const doneText = chunks.join("\n");
             out.textContent = doneText ? doneText + "\n" : "";
             const errEl = document.createElement("span");
@@ -292,6 +301,55 @@
         }
       });
     });
+  }
+
+  /* ---------- チャレンジの自動チェック ----------
+   * data-check="スクリプトid" のウィジェットは、実行成功後に同じ名前空間で
+   * <script type="text/x-python" id="..."> のテストコードを流す。
+   * テスト側の書き方: _t(名前, 条件, 補足="") を複数回呼ぶ。学習者の出力は _output で参照できる。 */
+  function runChecks(py, ns, checkId, host, outputText) {
+    const checkEl = document.getElementById(checkId);
+    if (!checkEl) return;
+    host.innerHTML = "";
+    host.classList.add("show");
+    const head = document.createElement("div");
+    head.className = "checks-head";
+    host.append(head);
+    let results = null, error = null;
+    try {
+      ns.set("_output", outputText);
+      const checkCode =
+        "_pgi_results = []\n" +
+        'def _t(name, cond, detail=""):\n' +
+        "    _pgi_results.append((str(name), bool(cond), str(detail)))\n" +
+        dedent(checkEl.textContent);
+      py.runPython(checkCode, { globals: ns });
+      results = JSON.parse(py.runPython('__import__("json").dumps(_pgi_results)', { globals: ns }));
+    } catch (err) {
+      error = String(err.message || err).trim().split("\n").pop();
+    }
+    if (error || !results || !results.length) {
+      head.textContent = "🧪 チェック結果";
+      const row = document.createElement("div");
+      row.className = "check-row ng";
+      row.textContent = error
+        ? `⚠ 判定中にエラーが起きました: ${error}(お題の関数名・変数名が合っているか確認してみてください)`
+        : "⚠ テストが見つかりませんでした";
+      host.append(row);
+      return;
+    }
+    let passed = 0;
+    for (const [name, ok, detail] of results) {
+      if (ok) passed++;
+      const row = document.createElement("div");
+      row.className = "check-row " + (ok ? "ok" : "ng");
+      row.textContent = `${ok ? "✅" : "❌"} ${name}${!ok && detail ? " — " + detail : ""}`;
+      host.append(row);
+    }
+    head.textContent = passed === results.length
+      ? `🎉 チャレンジクリア!(${passed} / ${results.length} 合格)`
+      : `🔎 ${passed} / ${results.length} 合格 — あと少し!`;
+    head.classList.toggle("all-pass", passed === results.length);
   }
 
   /* 実行後の名前空間から「盤面らしいリスト」を探して、本物の盤面ビジュアルで表示する

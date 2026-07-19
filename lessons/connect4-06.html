@@ -361,11 +361,122 @@ print(f"先読みAIの成績: {wins}勝 {losses}敗 {draws}分")
 
     <div class="challenge">
       <h3>チャレンジ:攻めをさらに鋭く</h3>
-      <p>いまのAIは、ダブルリーチが作れないときは「中央寄りの安全な列」に置くだけ。「<strong>せめてリーチ(勝ち列1つ)を作れる列を優先する</strong>」ように改造して、<code>ai_strong</code> と対戦させてみましょう。</p>
+      <p>いまのAIは、ダブルリーチが作れないときは「中央寄りの安全な列」に置くだけ。「<strong>せめてリーチ(勝ち列1つ)を作れる列を優先する</strong>」よう改造した <code>ai_strong2</code> を、下の専用エディタで完成させましょう。スターターには <code>ai_strong</code> と同じ中身が入っているので、③のダブルリーチ狙いを「2つ→なければ1つ」の2段構えに育てるのが仕事です。実行すると、勝ち・防御・ダブルリーチ・リーチ作り・うっかり手回避の各局面で自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def winning_cols(board, color):
+    wins = []
+    for col in valid_columns(board):
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            wins.append(col)
+        board[y][col] = EMPTY
+    return wins
+
+def safe_columns(board, color, cols):
+    safe = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if not winning_cols(board, opponent(color)):
+            safe.append(col)
+        board[y][col] = EMPTY
+    return safe
+
+def ai_strong2(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:                # ① 勝てるなら勝つ
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:              # ② 相手の即勝ちは防ぐ
+        return block_col
+    center = WIDTH // 2
+    cand = safe_columns(board, color, cols)
+    if not cand:
+        cand = cols
+    cand = sorted(cand, key=lambda c: abs(c - center))
+    for col in cand:                       # ③ 自分のダブルリーチを狙う
+        y = next_row(board, col)
+        board[y][col] = color
+        n = len(winning_cols(board, color))
+        board[y][col] = EMPTY
+        if n >= 2:                         # ← ここを改造: ダブルリーチ(2つ)が無理なら、
+            return col                     #    せめてリーチ(1つ)を作れる列も狙いたい
+    for col in cand:                       # ④ 相手のダブルリーチは先回りして塞ぐ
+        y = next_row(board, col)
+        board[y][col] = opponent(color)
+        n = len(winning_cols(board, opponent(color)))
+        board[y][col] = EMPTY
+        if n >= 2:
+            return col
+    return cand[0]                         # ⑤ 中央寄りの安全な列
+
+# デモ: 黒が0列目に縦2連。リーチを作れる0列目を選べれば成功(改造前は中央の3列目)
+board = make_board()
+drop(board, 0, BLACK)
+drop(board, 0, BLACK)
+print("ai_strong2の選択:", ai_strong2(board, BLACK, valid_columns(board)))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("ai_strong2 関数が定義されている", "ai_strong2" in globals())
+if "ai_strong2" in globals():
+    _b = make_board()
+    for _c in [1, 2, 3]:
+        drop(_b, _c, BLACK)
+    _t("① 勝てる局面 → 即勝ちの列(0か4)",
+       ai_strong2(_b, BLACK, valid_columns(_b)) in (0, 4),
+       "最優先は find_winning_col の勝ち列のまま残そう")
+    _b = make_board()
+    for _c in [2, 3, 4]:
+        drop(_b, _c, BLACK)
+    _t("② 相手が3連の黄番 → 防御(1か5)",
+       ai_strong2(_b, WHITE, valid_columns(_b)) in (1, 5),
+       "2番目の優先は相手の即勝ちブロックのまま残そう")
+    _b = make_board()
+    drop(_b, 2, BLACK)
+    drop(_b, 3, BLACK)
+    _t("③ 黒2連の黒番 → ダブルリーチを作る列(1か4)",
+       ai_strong2(_b, BLACK, valid_columns(_b)) in (1, 4),
+       "勝ち列が2つできる手はリーチ1つの手より優先しよう")
+    _b = make_board()
+    drop(_b, 0, BLACK)
+    drop(_b, 0, BLACK)
+    _t("改造の本題: ダブルリーチが無理なら、リーチを作れる0列目を選ぶ",
+       ai_strong2(_b, BLACK, valid_columns(_b)) == 0,
+       "n >= 2 のチェックのあとに n >= 1 も調べよう(for need in (2, 1) の2段構えが便利)")
+    _b = make_board()
+    _b[5][1] = WHITE; _b[5][2] = BLACK; _b[5][3] = WHITE
+    _b[4][1] = BLACK; _b[4][2] = BLACK; _b[4][3] = BLACK
+    _t("うっかり手回避: 赤の3連が眠る局面でも 0・4列目(相手の台)は選ばない",
+       ai_strong2(_b, WHITE, valid_columns(_b)) not in (0, 4),
+       "リーチ探しも safe_columns で絞った cand の中から選ぼう")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>def ai_strong2(board, color, cols):
+          <div class="codeblock"><pre>def winning_cols(board, color):
+    wins = []
+    for col in valid_columns(board):
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            wins.append(col)
+        board[y][col] = EMPTY
+    return wins
+
+def safe_columns(board, color, cols):
+    safe = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if not winning_cols(board, opponent(color)):
+            safe.append(col)
+        board[y][col] = EMPTY
+    return safe
+
+def ai_strong2(board, color, cols):
     win_col = find_winning_col(board, color, cols)
     if win_col is not None:
         return win_col
@@ -393,8 +504,13 @@ print(f"先読みAIの成績: {wins}勝 {losses}敗 {draws}分")
                 board[y][col] = EMPTY
                 if n &gt;= 2:
                     return col
-    return cand[0]</pre></div>
-          <p>リーチを作る=相手に防御を強制する、ということ。攻め続ければ相手は自分の形を作れません。<code>play_match(ai_strong2, ai_strong)</code> で本当に強くなったか計測してみましょう(勝率で確かめる習慣、もう身についていますね)。</p>
+    return cand[0]
+
+board = make_board()
+drop(board, 0, BLACK)
+drop(board, 0, BLACK)
+print("ai_strong2の選択:", ai_strong2(board, BLACK, valid_columns(board)))</pre></div>
+          <p>リーチを作る=相手に防御を強制する、ということ。攻め続ければ相手は自分の形を作れません。テストに合格したら、プリアンブルに入っている <code>play_match(ai_strong2, ai_block)</code> や、STEP 4の <code>ai_strong</code> を貼り足しての <code>play_match(ai_strong2, ai_strong)</code> で、本当に強くなったか計測してみましょう(勝率で確かめる習慣、もう身についていますね)。</p>
         </div>
       </details>
     </div>

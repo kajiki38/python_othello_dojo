@@ -153,7 +153,41 @@ print("盤の端に到達!")
 
     <div class="challenge">
       <h3>チャレンジ:8方向ぜんぶに歩こう</h3>
-      <p>STEP 3のDIRECTIONSとSTEP 4のwhileループを組み合わせて、「(3, 3) から8方向それぞれに、端まで歩いて通過マスを表示する」プログラムを書いてみましょう。二重ループになります。</p>
+      <p>STEP 4のwhileループを<strong>関数</strong>にまとめましょう。<code>walk(x, y, dx, dy)</code> は「(x, y) から方向 (dx, dy) に端まで歩き、<strong>通過したマスの座標をリストで返す</strong>」関数です。できたら8方向ループと組み合わせて、(3, 3) からの通過マスを表示してみましょう。実行すると複数のテストデータで自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def walk(x, y, dx, dy):
+    """(x, y) から (dx, dy) 方向へ端まで歩き、通過した (nx, ny) のリストを返す"""
+    cells = []
+    # ここに STEP 4 の while ループを書こう(通過マスは cells.append((nx, ny)))
+    return cells
+
+# 8方向ぜんぶで試す(この部分はそのまま使ってOK)
+x, y = 3, 3
+for dx, dy in DIRECTIONS:
+    print(f"方向 ({dx}, {dy}) →", walk(x, y, dx, dy))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("walk 関数が定義されている", "walk" in globals())
+if "walk" in globals():
+    _t("右方向: walk(3, 3, 1, 0) が (4,3)〜(7,3) を返す",
+       walk(3, 3, 1, 0) == [(4, 3), (5, 3), (6, 3), (7, 3)],
+       f"結果: {walk(3, 3, 1, 0)}")
+    _t("左上方向: walk(3, 3, -1, -1) が (2,2)(1,1)(0,0) を返す",
+       walk(3, 3, -1, -1) == [(2, 2), (1, 1), (0, 0)],
+       f"結果: {walk(3, 3, -1, -1)}")
+    _t("別の場所から: walk(6, 1, 1, 1) が (7,2) だけを返す",
+       walk(6, 1, 1, 1) == [(7, 2)],
+       f"結果: {walk(6, 1, 1, 1)}")
+    _t("端からはみ出す方向: walk(0, 0, -1, 0) は空リスト",
+       walk(0, 0, -1, 0) == [],
+       f"結果: {walk(0, 0, -1, 0)}(盤の外に出ないチェックを忘れずに)")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
@@ -161,13 +195,18 @@ print("盤の端に到達!")
               (-1,  0),          (1,  0),
               (-1,  1), (0,  1), (1,  1)]
 
-x, y = 3, 3
-for dx, dy in DIRECTIONS:
-    print(f"--- 方向 ({dx}, {dy}) ---")
+def walk(x, y, dx, dy):
+    """(x, y) から (dx, dy) 方向へ端まで歩き、通過した (nx, ny) のリストを返す"""
+    cells = []
     nx, ny = x + dx, y + dy
     while 0 <= nx < 8 and 0 <= ny < 8:
-        print(f"  ({nx}, {ny})")
-        nx, ny = nx + dx, ny + dy</pre></div>
+        cells.append((nx, ny))
+        nx, ny = nx + dx, ny + dy
+    return cells
+
+x, y = 3, 3
+for dx, dy in DIRECTIONS:
+    print(f"方向 ({dx}, {dy}) →", walk(x, y, dx, dy))</pre></div>
           <p>この「8方向ループ+直進walk」の形、実は次回作る<strong>挟み判定そのもの</strong>です。もうオセロの心臓部に手が届いています。</p>
         </div>
       </details>

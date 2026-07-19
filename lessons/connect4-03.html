@@ -157,19 +157,108 @@ print("4つ並んだ時点:", check_win(board, x, y, BLACK))   # True
          data-caption="横に4つ並んだ勝利の形。オセロ・五目並べと同じ判定ロジックが、盤面の形が変わっても通用します"></div>
 
     <div class="challenge">
-      <h3>チャレンジ:縦に4つ並べて確認しよう</h3>
-      <p>同じ列に黒石を4回落として、縦の4つ並びで<code>check_win</code>が<code>True</code>になることを確認してみましょう。</p>
+      <h3>チャレンジ:落として、その場で勝敗判定しよう</h3>
+      <p>「落とす」と「判定」をひとつにつなげた <code>drop_and_check(board, col, color)</code> を、下の専用エディタで完成させましょう。<code>col</code>列に石を落とし、<strong>その1手で勝ったら<code>True</code></strong>、そうでなければ<code>False</code>を返します(満杯で落とせないときも<code>False</code>)。実行すると、縦・横・斜め・満杯列など複数のテストデータで自動チェックされます。同じ列に4回落とせば、<code>DIRECTIONS4</code>の<code>(0, 1)</code>(縦方向)が自動で4つ並びを見つけてくれるはずですよ。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < WIDTH and 0 <= ny < HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 4:
+            return True
+    return False
+
+def drop_and_check(board, col, color):
+    """col列に石を落とす。その1手で4つ並んだらTrue、それ以外(満杯含む)はFalse"""
+    # ← ここを作ろう: drop(board, col, color) の戻り値を check_win につなぐ
+    #    (満杯で None が返ってきたら False)
+    return False
+
+# デモ: 同じ3列目に4回落とす → 4回目だけ True になれば成功
+board = make_board()
+for i in range(4):
+    print(f"{i + 1}個目:", drop_and_check(board, 3, BLACK))
+print_board(board)
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("drop_and_check 関数が定義されている", "drop_and_check" in globals())
+if "drop_and_check" in globals():
+    _b = make_board()
+    for _ in range(3):
+        drop(_b, 5, BLACK)
+    _t("縦: 3個積んだ5列目に4個目を落とすと True",
+       drop_and_check(_b, 5, BLACK) == True,
+       "check_winに渡す座標は drop が返した (x, y) を使おう")
+    _b = make_board()
+    for _c in [1, 2, 3]:
+        drop(_b, _c, WHITE)
+    _t("横: 1〜3列に並んだ白の隣(4列目)に落とすと True",
+       drop_and_check(_b, 4, WHITE) == True,
+       "横方向 (1, 0) の4つ並びも check_win が見つけてくれるはず")
+    _b = make_board()
+    _b[5][1] = BLACK; _b[5][2] = WHITE; _b[5][3] = WHITE; _b[5][4] = WHITE
+    _b[4][2] = BLACK; _b[4][3] = WHITE; _b[4][4] = WHITE
+    _b[3][3] = BLACK; _b[3][4] = WHITE
+    _t("斜め: 右肩上がりの黒3連の先(4列目)に落とすと True",
+       drop_and_check(_b, 4, BLACK) == True,
+       "斜め方向 (1, -1) の4つ並び。落ちる先は y=2 のはず")
+    _b = make_board()
+    _r = drop_and_check(_b, 0, BLACK)
+    _t("勝ちではない1手目は False(でも石はちゃんと落ちる)",
+       _r == False and _b[5][0] == BLACK,
+       "判定だけして石を戻していないかな? drop_and_check は石を置いたままにする")
+    _b = make_board()
+    for _ in range(HEIGHT):
+        drop(_b, 2, BLACK)
+    _t("満杯の列に落とそうとすると False",
+       drop_and_check(_b, 2, WHITE) == False,
+       "drop が None を返したら、check_win せずに False を返そう")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>board = make_board()
-for i in range(3):
-    x, y = drop(board, 3, BLACK)
-print(check_win(board, x, y, BLACK))   # False (3個)
+          <div class="codeblock"><pre>DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
 
-x, y = drop(board, 3, BLACK)
-print(check_win(board, x, y, BLACK))   # True (4個)</pre></div>
-          <p><code>DIRECTIONS4</code>の<code>(0, 1)</code>(縦方向)が自動でこの並びを見つけてくれます。方向をリストで管理しているおかげで、追加のコードは一切不要でした。</p>
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 &lt;= nx &lt; WIDTH and 0 &lt;= ny &lt; HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total &gt;= 4:
+            return True
+    return False
+
+def drop_and_check(board, col, color):
+    pos = drop(board, col, color)
+    if pos is None:        # 満杯で落とせなかった
+        return False
+    x, y = pos
+    return check_win(board, x, y, color)
+
+board = make_board()
+for i in range(4):
+    print(f"{i + 1}個目:", drop_and_check(board, 3, BLACK))
+print_board(board)</pre></div>
+          <p><code>drop</code>の戻り値<code>(x, y)</code>をそのまま<code>check_win</code>に渡すだけ。<code>DIRECTIONS4</code>の<code>(0, 1)</code>(縦方向)が自動で縦の並びを見つけてくれるので、追加の判定コードは一切不要でした。この「落とす→判定」のセットが、次のレッスンで作るゲームループの1ターンそのものです。</p>
         </div>
       </details>
     </div>

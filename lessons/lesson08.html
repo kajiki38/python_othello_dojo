@@ -448,41 +448,93 @@ print(f"勝率: {wins / 30 * 100:.0f}%")
 
     <div class="challenge">
       <h3>ラスボスチャレンジ:モビリティ入りAI</h3>
-      <p>「重み + 着手可能数×3 − 相手の着手可能数×3」で評価する <code>ai_ultimate</code> を作り、<code>ai_master</code> と30局対戦させてみましょう。STEP 4のエディタに追記して、測定にはもちろん <code>play_match_varied</code> を使います(決定的AI同士の対決だからこそ!)。</p>
+      <p>「重み + 自分の着手可能数×3 − 相手の着手可能数×3」で盤面を採点する <code>evaluate2</code> と、それで手を選ぶ <code>ai_ultimate</code> を、下の専用エディタで完成させましょう(<code>ai_master</code> の形がそのままお手本になります)。実行するといろいろな盤面で自動チェックされます。合格したら STEP 4 のエディタに持ち込んで、<code>play_match_varied</code> で <code>ai_master</code> と30局対戦させてみましょう(決定的AI同士の対決だからこそ!)。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre2" data-check="challenge-check">
+<script type="text/x-python">
+def evaluate2(board, color):
+    """重みの点数に「着手可能数の差 × 3」を足した新しい評価関数"""
+    score = evaluate(board, color)   # 重みによる点数(ここはこのまま)
+    # ← 自分と相手の len(valid_moves(...)) を使って score に足し引きしよう
+    return score
+
+def ai_ultimate(board, color, moves):
+    """全部の手を試し打ちして、evaluate2 が最高の手を選ぶAI"""
+    return moves[0]   # ← ai_master を参考に「試し打ち+evaluate2」で選ぼう
+
+# 動作チェック(そのまま使ってOK)
+board = make_board()
+moves = valid_moves(board, BLACK)
+print("初期盤面の評価:", evaluate2(board, BLACK))
+print("ai_ultimate の選択:", ai_ultimate(board, BLACK, moves))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("evaluate2 関数が定義されている", "evaluate2" in globals())
+_t("ai_ultimate 関数が定義されている", "ai_ultimate" in globals())
+if "evaluate2" in globals() and "ai_ultimate" in globals():
+    def _ev2(_bd, _c):
+        return evaluate(_bd, _c) + 3 * len(valid_moves(_bd, _c)) - 3 * len(valid_moves(_bd, opponent(_c)))
+    def _score_after(_bd, _c, _m):
+        _tb = copy_board(_bd)
+        place(_tb, _m[0], _m[1], _c)
+        return _ev2(_tb, _c)
+    _b1 = make_board()
+    place(_b1, 2, 3, BLACK)
+    _b2 = make_board()
+    place(_b2, 2, 3, BLACK)
+    place(_b2, 2, 2, WHITE)
+    place(_b2, 3, 2, BLACK)
+    _t("3手進めた盤面: evaluate2 = 重み + 着手可能数の差×3",
+       evaluate2(_b2, BLACK) == _ev2(_b2, BLACK),
+       f"結果: {evaluate2(_b2, BLACK)} / 期待値: {_ev2(_b2, BLACK)}(黒6か所・白2か所打てる局面です)")
+    _t("白の立場でも正しく採点できる",
+       evaluate2(_b2, WHITE) == _ev2(_b2, WHITE),
+       f"結果: {evaluate2(_b2, WHITE)} / 期待値: {_ev2(_b2, WHITE)}(相手= opponent(color) の分を引いているかな?)")
+    _mv1 = sorted(valid_moves(_b1, WHITE), key=lambda _m: _score_after(_b1, WHITE, _m))   # わざと悪い手を先頭に
+    _pick1 = ai_ultimate(_b1, WHITE, _mv1)
+    _t("試し打ちで evaluate2 が最大の手を選ぶ",
+       _pick1 in _mv1 and _score_after(_b1, WHITE, _pick1) == max(_score_after(_b1, WHITE, _m) for _m in _mv1),
+       f"選んだ手: {_pick1}(ai_master の evaluate を evaluate2 に替えるだけ)")
+    _mv2 = sorted(valid_moves(_b2, BLACK), key=lambda _m: _score_after(_b2, BLACK, _m))
+    _pick2 = ai_ultimate(_b2, BLACK, _mv2)
+    _t("別の盤面でも最大の手を選ぶ",
+       _pick2 in _mv2 and _score_after(_b2, BLACK, _pick2) == max(_score_after(_b2, BLACK, _m) for _m in _mv2),
+       f"選んだ手: {_pick2}")
+    _b3 = [[EMPTY] * 8 for _ in range(8)]
+    _b3[5][5] = BLACK
+    _b3[6][6] = WHITE
+    _t("打てる場所が1つだけなら必ずその手 (7,7) を返す",
+       ai_ultimate(_b3, BLACK, [(7, 7)]) == (7, 7),
+       f"結果: {ai_ultimate(_b3, BLACK, [(7, 7)])}")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
           <div class="codeblock"><pre>def evaluate2(board, color):
+    """重みの点数に「着手可能数の差 × 3」を足した新しい評価関数"""
     score = evaluate(board, color)   # 重みによる点数
     my_mob = len(valid_moves(board, color))
     op_mob = len(valid_moves(board, opponent(color)))
     return score + 3 * my_mob - 3 * op_mob
 
 def ai_ultimate(board, color, moves):
+    """全部の手を試し打ちして、evaluate2 が最高の手を選ぶAI"""
     best_move = None
     best_score = None
     for x, y in moves:
         test = copy_board(board)
         place(test, x, y, color)
         score = evaluate2(test, color)
-        if best_score is None or score > best_score:
+        if best_score is None or score &gt; best_score:
             best_score = score
             best_move = (x, y)
     return best_move
 
-wins = losses = draws = 0
-for i in range(30):
-    if i % 2 == 0:
-        b, w = play_match_varied(ai_ultimate, ai_master)
-        my, op = b, w
-    else:
-        b, w = play_match_varied(ai_master, ai_ultimate)
-        my, op = w, b
-    if my > op: wins += 1
-    elif op > my: losses += 1
-    else: draws += 1
-print(f"ai_ultimate: {wins}勝 {losses}敗 {draws}分")</pre></div>
-          <p>係数「3」を変えると強さはどう変わるでしょう? こうした実験の積み重ねが、AI開発の醍醐味です。</p>
+board = make_board()
+moves = valid_moves(board, BLACK)
+print("初期盤面の評価:", evaluate2(board, BLACK))
+print("ai_ultimate の選択:", ai_ultimate(board, BLACK, moves))</pre></div>
+          <p>合格したら STEP 4 のエディタで <code>play_match_varied(ai_ultimate, ai_master)</code> の30局対戦へ。係数「3」を変えると強さはどう変わるでしょう? こうした実験の積み重ねが、AI開発の醍醐味です。</p>
         </div>
       </details>
     </div>

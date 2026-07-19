@@ -151,11 +151,67 @@ print("落とせる列:", valid_columns(board))   # 0列目だけ抜けている
 
     <div class="challenge">
       <h3>チャレンジ:何段積まれているか数えよう</h3>
-      <p>各列に何個石が積まれているかを数える <code>column_heights(board)</code> を作ってみましょう。<code>next_row</code>の結果から逆算できます(その列が空なら高さ0)。</p>
+      <p>各列に何個石が積まれているかを数えて、長さ<code>WIDTH</code>のリストで返す <code>column_heights(board)</code> を、下の専用エディタで完成させましょう。<code>next_row</code>の結果から逆算できます(その列が空なら高さ0、満杯なら<code>HEIGHT</code>)。実行すると、空の盤面・積んだ盤面・満杯の列など複数のテストデータで自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def column_heights(board):
+    """各列に積まれた石の数を、長さWIDTHのリストで返す"""
+    heights = []
+    # ← ここを作ろう: 各列 x について next_row(board, x) の結果から高さを逆算して
+    #    heights に追加していく(空の列は0、満杯の列は HEIGHT)
+    return heights
+
+# デモ: 0列目に1個、3列目に2個積んだ盤面で確かめる
+board = make_board()
+board[5][0] = BLACK
+board[5][3] = BLACK
+board[4][3] = WHITE
+print(column_heights(board))   # [1, 0, 0, 2, 0, 0, 0] になれば成功
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("column_heights 関数が定義されている", "column_heights" in globals())
+if "column_heights" in globals():
+    _b = make_board()
+    _t("空の盤面 → すべて高さ0",
+       column_heights(_b) == [0, 0, 0, 0, 0, 0, 0],
+       f"結果: {column_heights(_b)}(長さWIDTH=7のリストで返そう)")
+    _b = make_board()
+    _b[5][0] = BLACK
+    _b[5][3] = BLACK
+    _b[4][3] = WHITE
+    _t("0列目に1個・3列目に2個 → [1, 0, 0, 2, 0, 0, 0]",
+       column_heights(_b) == [1, 0, 0, 2, 0, 0, 0],
+       f"結果: {column_heights(_b)}(next_rowが返すyから HEIGHT - 1 - y で逆算できる)")
+    _b = make_board()
+    for _y in range(1, 6):
+        _b[_y][2] = WHITE
+    _t("2列目に5個(あと1個で満杯) → 高さ5",
+       column_heights(_b) == [0, 0, 5, 0, 0, 0, 0],
+       f"結果: {column_heights(_b)}")
+    _b = make_board()
+    for _y in range(6):
+        _b[_y][6] = BLACK
+    _t("6列目が満杯 → 高さ6",
+       column_heights(_b) == [0, 0, 0, 0, 0, 0, 6],
+       f"結果: {column_heights(_b)}(next_rowがNoneのときは高さHEIGHT)")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>def column_heights(board):
+          <div class="codeblock"><pre>def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def column_heights(board):
     heights = []
     for x in range(WIDTH):
         y = next_row(board, x)
@@ -163,6 +219,10 @@ print("落とせる列:", valid_columns(board))   # 0列目だけ抜けている
         heights.append(height)
     return heights
 
+board = make_board()
+board[5][0] = BLACK
+board[5][3] = BLACK
+board[4][3] = WHITE
 print(column_heights(board))</pre></div>
           <p><code>next_row</code>が返す<code>y</code>は「次に石が落ちる場所」なので、積まれている高さは <code>HEIGHT - 1 - y</code>。満杯(<code>y is None</code>)なら高さは<code>HEIGHT</code>そのものです。</p>
         </div>
