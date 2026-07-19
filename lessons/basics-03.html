@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>きほん Lesson 3: 条件分岐 — Python×オセロ道場</title>
+<title>きほん Lesson 3: 条件分岐 — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -137,11 +137,37 @@ print(f"この行に黒石は {black_count} 個あります")
 
     <div class="challenge">
       <h3>チャレンジ:白石と空きマスも数えよう</h3>
-      <p>上のコードに、白石(<code>"○"</code>)の数を数えて表示する処理を追加してください。さらに余裕があれば、空きマス(<code>"."</code>)の数も。</p>
+      <p>STEP 4と同じ行データから、今度は白石(<code>"○"</code>)の数を変数 <code>white_count</code> に、空きマス(<code>"."</code>)の数を変数 <code>empty_count</code> に数えて表示するプログラムを、下の専用エディタに書いてみましょう。<code>for</code> + <code>if</code> の練習です。実行すると自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+row = ["●", "●", "○", ".", "○", "○", "○", "."]
+
+white_count = 0
+empty_count = 0
+# ← ここに for と if を書いて、2つのカウントを育てよう
+
+print(f"白石は {white_count} 個、空きマスは {empty_count} 個")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("white_count が白石の数 4 になっている",
+   "white_count" in globals() and white_count == 4,
+   'for の中で if row[i] == "○": のときだけ 1 増やそう')
+_t("empty_count が空きマスの数 2 になっている",
+   "empty_count" in globals() and empty_count == 2,
+   'if row[i] == ".": のカウントも忘れずに')
+_t("数えた結果を表示している", "4" in _output and "2" in _output,
+   "print で white_count と empty_count の両方を表示しよう")
+_t("リスト row はそのまま残っている",
+   "row" in globals() and row == ["●", "●", "○", ".", "○", "○", "○", "."],
+   "row のリストは書き換えずに、読み取るだけにしよう")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>white_count = 0
+          <div class="codeblock"><pre>row = ["●", "●", "○", ".", "○", "○", "○", "."]
+
+white_count = 0
 empty_count = 0
 for i in range(8):
     if row[i] == "○":

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>コネクトフォー Lesson 1: 盤面を作ろう — Python×オセロ道場</title>
+<title>コネクトフォー Lesson 1: 盤面を作ろう — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -121,11 +121,63 @@ print_board(board)
 
     <div class="challenge">
       <h3>やってみよう</h3>
-      <p><code>board[y][x]</code> を直接書き換えて、一番下の段(<code>y = HEIGHT - 1</code>)に石を3個くらい並べて表示してみましょう。次のレッスンで作る「重力」のイメージを先取りできます。</p>
+      <p><code>board[y][x]</code> を直接書き換えて、一番下の段(<code>y = HEIGHT - 1</code>)に石を3個以上並べるコードを、下の専用エディタに書いてみましょう。石が「浮いて」いたら重力違反です。実行すると自動でチェックされます。次のレッスンで作る「重力」のイメージを先取りできますよ。</p>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+
+board = make_board()
+# ← ここに書き足そう: 一番下の段(y = HEIGHT - 1)に石を3個以上並べる
+#    例: board[HEIGHT - 1][2] = BLACK
+
+print_board(board)
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("盤面 board が横7×縦6になっている",
+   "board" in globals() and len(board) == 6 and all(len(_r) == 7 for _r in board),
+   "make_board() で作った board をそのまま使おう")
+if "board" in globals():
+    _t("一番下の段に石が3個以上並んでいる",
+       len(board) == 6 and sum(1 for _c in board[5] if _c != ".") >= 3,
+       "board[HEIGHT - 1][x] = BLACK のように、y は HEIGHT - 1(=5)を指定しよう")
+    _t("石が浮いていない(上の5段はすべて空)",
+       len(board) == 6 and all(_c == "." for _r in board[:5] for _c in _r),
+       "y が HEIGHT - 1 以外のマスに石を置いていないかな? 重力があるので石は一番下の段だけ")
+    _t("使っている石は ● か ○ だけ",
+       all(_c in ".●○" for _r in board for _c in _r),
+       "石は BLACK(●)か WHITE(○)の2種類を使おう")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>board = make_board()
+          <div class="codeblock"><pre>EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+
+board = make_board()
 board[HEIGHT - 1][2] = BLACK
 board[HEIGHT - 1][3] = WHITE
 board[HEIGHT - 1][4] = BLACK

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五目並べ Lesson 5: 対戦AIを作る — Python×オセロ道場</title>
+<title>五目並べ Lesson 5: 対戦AIを作る — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -235,11 +235,190 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
 
     <div class="challenge">
       <h3>チャレンジ:自分だけの改造AI</h3>
-      <p><code>ai_block</code> をベースに、「勝ち・防御どちらもなければ、盤の中心に近い手を選ぶ」ように改造してみましょう。五目並べは中心付近ほど並びを作りやすい、というのが定石です。</p>
+      <p><code>ai_block</code> をベースに、「勝ち・防御どちらもなければ、<strong>盤の中心に近い手</strong>を選ぶ」<code>ai_center</code> を、下の専用エディタで完成させましょう。五目並べは中心付近ほど並びを作りやすい、というのが定石です。ランダム要素がなくなるので、実行するといろいろな盤面で「勝ち手を逃さないか」「相手のリーチを防げるか」「中央に寄れるか」が自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
+
+def ai_center(board, color, moves):
+    """勝てるなら勝つ → 相手の勝ち手を防ぐ → 中央に一番近い手"""
+    # ← ai_block を思い出しながら書こう。最後のランダムの代わりに、
+    #    中央 center = SIZE // 2 からの距離が一番近い手を min(moves, key=...) で選ぶ
+    return moves[0]   # ← 仮の手。ここを直そう
+
+# 白がリーチの盤面で試す((1, 1) か (6, 6) で防げれば成功)
+board = make_board()
+for x, y in [(2, 2), (3, 3), (4, 4), (5, 5)]:
+    place(board, x, y, WHITE)
+print_board(board)
+print("黒番の ai_center の選択:", ai_center(board, BLACK, empty_cells(board)))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("ai_center 関数が定義されている", "ai_center" in globals())
+if "ai_center" in globals():
+    _board = make_board()
+    for _x in [2, 3, 4, 5]:
+        _board[4][_x] = BLACK
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("勝てる盤面(黒の横4連)で勝ち手 (1,4) か (6,4) を選ぶ",
+       _move in [(1, 4), (6, 4)],
+       f"選んだ手: {_move}(まず find_winning_move で自分の勝ち手を探そう)")
+    _board = make_board()
+    for _i in [2, 3, 4, 5]:
+        _board[_i][_i] = WHITE
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("相手のリーチ(白の斜め4連)を (1,1) か (6,6) でブロックする",
+       _move in [(1, 1), (6, 6)],
+       f"選んだ手: {_move}(opponent(color) の勝ち手も探そう)")
+    _board = make_board()
+    for _x in [0, 1, 2, 3]:
+        _board[1][_x] = BLACK
+    for _x in [2, 3, 4, 5]:
+        _board[7][_x] = WHITE
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("勝ちと防御が両方あるときは自分の勝ち (4,1) を優先する",
+       _move == (4, 1),
+       f"選んだ手: {_move}(防御より先に、自分の勝ち手をチェックしよう)")
+    _board = make_board()
+    _move = ai_center(_board, BLACK, empty_cells(_board))
+    _t("勝ちも防御もない空の盤面では中央 (4,4) を選ぶ",
+       _move == (4, 4),
+       f"選んだ手: {_move}(中央からの距離が一番近い手を min で選ぼう)")
+
+# ---- バルク検証: ランダムな盤面で「勝ち」「防御」の性質を確認 ----
+import random as _random
+
+def _ref_check_win(_b, _x, _y, _c):
+    for _dx, _dy in [(1, 0), (0, 1), (1, 1), (1, -1)]:
+        _n = 1
+        for _s in (1, -1):
+            _nx, _ny = _x + _dx * _s, _y + _dy * _s
+            while 0 <= _nx < SIZE and 0 <= _ny < SIZE and _b[_ny][_nx] == _c:
+                _n += 1
+                _nx += _dx * _s
+                _ny += _dy * _s
+        if _n >= 5:
+            return True
+    return False
+
+def _win_cells(_b, _c):
+    _cells = []
+    for _y in range(SIZE):
+        for _x in range(SIZE):
+            if _b[_y][_x] == EMPTY:
+                _b[_y][_x] = _c
+                if _ref_check_win(_b, _x, _y, _c):
+                    _cells.append((_x, _y))
+                _b[_y][_x] = EMPTY
+    return _cells
+
+def _copy_b(_b):
+    return [_r[:] for _r in _b]
+
+def _bsum(_b):
+    return "/".join("".join(_r) for _r in _b)
+
+def _rand_start(_d, _ln):
+    if _d == 1:
+        return _random.randrange(0, SIZE - _ln + 1)
+    if _d == -1:
+        return _random.randrange(_ln - 1, SIZE)
+    return _random.randrange(SIZE)
+
+if "ai_center" in globals():
+    _fail = ""
+    _b0 = None
+    try:
+        for _i in range(20):
+            # 黒の4連(5マス窓の1マスだけ空き)を仕込む → 黒に勝ち手がある盤面
+            _b = make_board()
+            _dx, _dy = _random.choice([(1, 0), (0, 1), (1, 1), (1, -1)])
+            _sx, _sy = _rand_start(_dx, 5), _rand_start(_dy, 5)
+            _cells5 = [(_sx + _dx * _k, _sy + _dy * _k) for _k in range(5)]
+            _gap = _random.randrange(5)
+            for _j, (_lx, _ly) in enumerate(_cells5):
+                if _j != _gap:
+                    _b[_ly][_lx] = BLACK
+            for _k in range(_random.randrange(0, 9)):   # 白石のノイズ(窓は避ける)
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                if _b[_ry][_rx] == EMPTY and (_rx, _ry) not in _cells5:
+                    _b[_ry][_rx] = WHITE
+            _b0 = _copy_b(_b)
+            _moves = empty_cells(_b)
+            _mv = ai_center(_b, BLACK, _moves)
+            if _mv not in _moves:
+                _fail = f"盤面 {_bsum(_b0)} で返した手 {_mv} が空きマスでない"
+                break
+            _bb = _copy_b(_b0)
+            _bb[_mv[1]][_mv[0]] = BLACK
+            if not _ref_check_win(_bb, _mv[0], _mv[1], BLACK):
+                _fail = (f"盤面 {_bsum(_b0)} は黒に勝ち手があるのに、"
+                         f"返した手 {_mv} では勝てない(まず自分の勝ち手を探そう)")
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}" + (f"(盤面 {_bsum(_b0)})" if _b0 else "")
+    _t("勝ち手のあるランダム盤面20個すべてで勝ち切る", _fail == "", _fail)
+
+    _fail = ""
+    _b0 = None
+    try:
+        _made = 0
+        _tries = 0
+        while _made < 20 and _tries < 400:
+            _tries += 1
+            # 片端を黒で塞いだ白の4連 → 白の勝ち手がちょうど1つの盤面を作る
+            _b = make_board()
+            _dx, _dy = _random.choice([(1, 0), (0, 1), (1, 1), (1, -1)])
+            _sx, _sy = _rand_start(_dx, 6), _rand_start(_dy, 6)
+            _cells6 = [(_sx + _dx * _k, _sy + _dy * _k) for _k in range(6)]
+            _b[_cells6[0][1]][_cells6[0][0]] = BLACK
+            for _lx, _ly in _cells6[1:5]:
+                _b[_ly][_lx] = WHITE
+            for _k in range(_random.randrange(0, 7)):   # 黒石のノイズ(窓は避ける)
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                if _b[_ry][_rx] == EMPTY and (_rx, _ry) not in _cells6:
+                    _b[_ry][_rx] = BLACK
+            _w = _win_cells(_b, WHITE)
+            if len(_w) != 1 or _win_cells(_b, BLACK):
+                continue
+            _made += 1
+            _b0 = _copy_b(_b)
+            _moves = empty_cells(_b)
+            _mv = ai_center(_b, BLACK, _moves)
+            if _mv not in _moves:
+                _fail = f"盤面 {_bsum(_b0)} で返した手 {_mv} が空きマスでない"
+                break
+            _bb = _copy_b(_b0)
+            _bb[_mv[1]][_mv[0]] = BLACK
+            if _win_cells(_bb, WHITE):
+                _fail = (f"盤面 {_bsum(_b0)} は白の勝ち手が {_w[0]} の1つだけなのに、"
+                         f"返した手 {_mv} では防げていない(opponent(color) の勝ち手も探そう)")
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}" + (f"(盤面 {_bsum(_b0)})" if _b0 else "")
+    _t("相手のリーチがあるランダム盤面20個すべてでブロックする", _fail == "", _fail)
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>def ai_center(board, color, moves):
+          <div class="codeblock"><pre>def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
+
+def ai_center(board, color, moves):
     win_move = find_winning_move(board, color, moves)
     if win_move:
         return win_move
@@ -250,14 +429,12 @@ print(f"勝率: {wins / 50 * 100:.0f}%")
     # 中心からの距離が一番近い手を選ぶ
     return min(moves, key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
 
-wins = losses = draws = 0
-for i in range(50):
-    winner = play_match(ai_center, ai_random)
-    if winner == BLACK: wins += 1
-    elif winner == WHITE: losses += 1
-    else: draws += 1
-print(f"中心志向AI: {wins}勝 {losses}敗 {draws}分")</pre></div>
-          <p><code>key=lambda m: 式</code> は「各手 <code>m</code> を<strong>いったん式の値に変換してから</strong>比べる」という指定です。ここでは <code>(m[0] - center) ** 2 + (m[1] - center) ** 2</code>(中心からの距離。<code>** 2</code> は「2乗」)で各手を点数化し、<code>min</code> がその<strong>いちばん小さい=中心にいちばん近い</strong>手を選びます。<code>lambda</code> は「その場で作る、名前のない小さな関数」——今は『各要素を点数に変える式』と読めればOKです。<code>min/max</code> の <code>key</code> は、どの種目のAI作りでも使える定番テクニックなので形に慣れておきましょう。</p>
+board = make_board()
+for x, y in [(2, 2), (3, 3), (4, 4), (5, 5)]:
+    place(board, x, y, WHITE)
+print_board(board)
+print("黒番の ai_center の選択:", ai_center(board, BLACK, empty_cells(board)))</pre></div>
+          <p><code>key=lambda m: 式</code> は「各手 <code>m</code> を<strong>いったん式の値に変換してから</strong>比べる」という指定です。ここでは <code>(m[0] - center) ** 2 + (m[1] - center) ** 2</code>(中心からの距離。<code>** 2</code> は「2乗」)で各手を点数化し、<code>min</code> がその<strong>いちばん小さい=中心にいちばん近い</strong>手を選びます。<code>lambda</code> は「その場で作る、名前のない小さな関数」——今は『各要素を点数に変える式』と読めればOKです。<code>min/max</code> の <code>key</code> は、どの種目のAI作りでも使える定番テクニックなので形に慣れておきましょう。完成した <code>ai_center</code> を STEP 4 の <code>play_match</code> に渡して <code>ai_random</code> と50局戦わせれば、勝率でも強さを確かめられます。</p>
         </div>
       </details>
     </div>

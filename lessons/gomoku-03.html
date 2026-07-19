@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五目並べ Lesson 3: 5つ並びの判定 — Python×オセロ道場</title>
+<title>五目並べ Lesson 3: 5つ並びの判定 — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -148,20 +148,172 @@ print("5つ並んだ時点:", check_win(board, 6, 4, BLACK))   # True
          data-caption="横一列に5つ並んだ勝利の形。check_winはこの並びをどの方向からでも見抜きます"></div>
 
     <div class="challenge">
-      <h3>チャレンジ:斜めの勝ちを判定しよう</h3>
-      <p><code>check_win.py</code> を書き換えて、斜め方向(右下がり)に黒石を5つ並べ、最後の1個を置いた直後に <code>check_win</code> が <code>True</code> を返すことを確認してみましょう。</p>
+      <h3>チャレンジ:check_win を自分の手で完成させよう</h3>
+      <p>心臓部の <code>check_win</code> を、下の専用エディタで自分の手で完成させましょう。<code>count_line</code> は用意してあるので、「4つの軸それぞれで <code>1 + 前方向 + 後ろ方向</code> を数えて、5以上なら <code>True</code>」を書くだけです。実行すると、縦・横・斜め2方向、そして「4つではまだ勝ちでない」ケースまで自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    """(x, y) に color を置いた直後に呼ぶ。5つ以上並んでいれば True"""
+    # ← ここを書こう: DIRECTIONS4 の各軸で
+    #    1 + count_line(前方向) + count_line(反対方向) が 5 以上なら True
+    return False
+
+# 斜めに5つ並べて試す(True になれば成功)
+board = make_board()
+for i in range(5):
+    place(board, i + 2, i + 2, BLACK)
+print_board(board)
+print("斜めの5つ並び:", check_win(board, 4, 4, BLACK))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("check_win 関数が定義されている", "check_win" in globals())
+if "check_win" in globals():
+    _board = make_board()
+    for _x in [2, 3, 4, 5, 6]:
+        _board[4][_x] = BLACK
+    _t("横の5つ並びで True(真ん中の石を起点にしても)",
+       check_win(_board, 4, 4, BLACK) == True,
+       "前方向と反対方向の両方を足すのを忘れずに")
+    _board = make_board()
+    for _y in [0, 1, 2, 3, 4]:
+        _board[_y][3] = WHITE
+    _t("縦の5つ並び(白)で True",
+       check_win(_board, 3, 0, WHITE) == True,
+       "軸 (0, 1) のチェックはできているかな?")
+    _board = make_board()
+    for _i in [2, 3, 4, 5, 6]:
+        _board[_i][_i] = BLACK
+    _t("斜め(右下がり)の5つ並びで True",
+       check_win(_board, 6, 6, BLACK) == True,
+       "軸 (1, 1) のチェックはできているかな?")
+    _board = make_board()
+    for _x, _y in [(1, 7), (2, 6), (3, 5), (4, 4), (5, 3)]:
+        _board[_y][_x] = BLACK
+    _t("斜め(右上がり)の5つ並びで True",
+       check_win(_board, 3, 5, BLACK) == True,
+       "軸 (1, -1) のチェックはできているかな?")
+    _board = make_board()
+    for _x in [2, 3, 4, 5]:
+        _board[4][_x] = BLACK
+    _t("4つ並びではまだ False",
+       check_win(_board, 5, 4, BLACK) == False,
+       "合計が5未満なら True にしてはいけないよ")
+
+# ---- バルク検証: ランダムな盤面で参照実装と比較 ----
+import random as _random
+
+def _ref_check_win(_b, _x, _y, _c):
+    for _dx, _dy in [(1, 0), (0, 1), (1, 1), (1, -1)]:
+        _n = 1
+        for _s in (1, -1):
+            _nx, _ny = _x + _dx * _s, _y + _dy * _s
+            while 0 <= _nx < SIZE and 0 <= _ny < SIZE and _b[_ny][_nx] == _c:
+                _n += 1
+                _nx += _dx * _s
+                _ny += _dy * _s
+        if _n >= 5:
+            return True
+    return False
+
+def _bsum(_b):
+    return "/".join("".join(_r) for _r in _b)
+
+def _rand_start(_d, _ln):
+    if _d == 1:
+        return _random.randrange(0, SIZE - _ln + 1)
+    if _d == -1:
+        return _random.randrange(_ln - 1, SIZE)
+    return _random.randrange(SIZE)
+
+if "check_win" in globals():
+    _fail = ""
+    try:
+        for _i in range(30):
+            _b = make_board()
+            _turn = BLACK
+            for _k in range(_random.randrange(0, 13)):
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                if _b[_ry][_rx] == EMPTY:
+                    _b[_ry][_rx] = _turn
+                    _turn = opponent(_turn)
+            _c = _random.choice([BLACK, WHITE])
+            _dx, _dy = _random.choice([(1, 0), (0, 1), (1, 1), (1, -1)])
+            _ln = _random.choice([5, 6])
+            _sx, _sy = _rand_start(_dx, _ln), _rand_start(_dy, _ln)
+            _line = [(_sx + _dx * _k, _sy + _dy * _k) for _k in range(_ln)]
+            for _lx, _ly in _line:
+                _b[_ly][_lx] = _c
+            _px, _py = _random.choice(_line)
+            _got = check_win(_b, _px, _py, _c)
+            if _got != True:
+                _fail = (f"盤面 {_bsum(_b)} に{_c}の{_ln}連(軸 ({_dx}, {_dy}))を仕込み、"
+                         f"線上の ({_px}, {_py}) で判定 → 期待 True / 実際 {_got}")
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}"
+    _t("勝ちラインを仕込んだランダム盤面30個すべてで True", _fail == "", _fail)
+
+    _fail = ""
+    try:
+        for _i in range(30):
+            _b = make_board()
+            _turn = BLACK
+            _pts = []
+            for _k in range(_random.randrange(1, 31)):
+                _rx, _ry = _random.randrange(SIZE), _random.randrange(SIZE)
+                if _b[_ry][_rx] == EMPTY:
+                    _b[_ry][_rx] = _turn
+                    _pts.append((_rx, _ry, _turn))
+                    _turn = opponent(_turn)
+            _px, _py, _pc = _random.choice(_pts)
+            _exp = _ref_check_win(_b, _px, _py, _pc)
+            _got = check_win(_b, _px, _py, _pc)
+            if _got != _exp:
+                _fail = f"盤面 {_bsum(_b)} の ({_px}, {_py}) {_pc} で期待 {_exp} / 実際 {_got}"
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}"
+    _t("ランダムな盤面30個で参照実装と判定が一致する", _fail == "", _fail)
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>board = make_board()
-for i in range(4):
-    place(board, i, i, BLACK)
-print_board(board)
-print(check_win(board, 3, 3, BLACK))   # False (4個)
+          <div class="codeblock"><pre>DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
 
-place(board, 4, 4, BLACK)
-print(check_win(board, 4, 4, BLACK))   # True</pre></div>
-          <p><code>DIRECTIONS4</code> に <code>(1, 1)</code> が含まれているおかげで、斜めもまったく同じ関数でチェックできます。方向を「データ」として扱う設計の強みです。</p>
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 &lt;= nx &lt; SIZE and 0 &lt;= ny &lt; SIZE and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total &gt;= 5:
+            return True
+    return False
+
+board = make_board()
+for i in range(5):
+    place(board, i + 2, i + 2, BLACK)
+print_board(board)
+print("斜めの5つ並び:", check_win(board, 4, 4, BLACK))</pre></div>
+          <p><code>DIRECTIONS4</code> に <code>(1, 1)</code> と <code>(1, -1)</code> が含まれているおかげで、斜めもまったく同じコードでチェックできます。方向を「データ」として扱う設計の強みです。</p>
         </div>
       </details>
     </div>

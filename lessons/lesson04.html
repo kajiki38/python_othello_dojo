@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ Lesson 3: 石をひっくり返す — Python×オセロ道場</title>
+<title>オセロ Lesson 3: 石をひっくり返す — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -188,17 +188,174 @@ print("\n黒が (0,0) に置こうとする →", place(board, 0, 0, BLACK), "(�
 
     <div class="challenge">
       <h3>チャレンジ:連続対局</h3>
-      <p>上のコードの続きに手を追加して、黒→白→黒…と交互に3手以上進めてみましょう。「どこなら置けるか」を頭で考えながら座標を選ぶのがコツ。置けない座標を選ぶと <code>False</code> が返ってくるはずです。</p>
+      <p>黒→白→黒…と交互に打ち進める「進行係」を関数にしましょう。<code>play_moves(board, moves)</code> は、座標リスト <code>moves</code> の手を<strong>黒から交互に</strong>置いていき、<strong>置けない手が出たらそこで中断</strong>して、置けた手数を返す関数です。下の専用エディタに書いて実行すると、いろいろな手順のデータで自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+# STEP 3・4 で完成させた部品(そのまま使ってOK)
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def play_moves(board, moves):
+    """moves の座標を黒→白→黒→…と交互に置いていく。
+    置けない手が出たらそこで中断し、置けた手数を返す"""
+    turn = BLACK
+    count = 0
+    # ← ここを完成させよう(place が False を返したら break で中断)
+    return count
+
+# 動作チェック(そのまま使ってOK)
+board = make_board()
+n = play_moves(board, [(2, 3), (2, 2), (3, 2)])
+print(f"{n} 手進みました")
+print_board(board)
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("play_moves 関数が定義されている", "play_moves" in globals())
+if "play_moves" in globals():
+    _b = make_board()
+    _n = play_moves(_b, [(2, 3), (2, 2), (3, 2)])
+    _t("3手とも置ける並び: 3 が返り、黒 5 個・白 2 個になる",
+       _n == 3 and sum(_r.count(BLACK) for _r in _b) == 5 and sum(_r.count(WHITE) for _r in _b) == 2,
+       f"返り値: {_n} / 黒 {sum(_r.count(BLACK) for _r in _b)} 個・白 {sum(_r.count(WHITE) for _r in _b)} 個")
+    _t("2手目の (2, 2) が白になっている(交互に置けている)",
+       _b[2][2] == WHITE,
+       f"(2, 2) のマス: {_b[2][2]}(turn を opponent() で交代させよう)")
+    _b2 = make_board()
+    _n2 = play_moves(_b2, [(0, 0), (2, 3)])
+    _t("1手目から置けない並び: 0 が返り、盤面は無傷のまま",
+       _n2 == 0 and sum(_r.count(BLACK) for _r in _b2) == 2 and sum(_r.count(WHITE) for _r in _b2) == 2,
+       f"返り値: {_n2}(place が False を返したらすぐ中断しよう)")
+    _b3 = make_board()
+    _n3 = play_moves(_b3, [(2, 3), (0, 0), (3, 2)])
+    _t("途中で置けない並び: 1 が返り、それ以降の手は打たれない",
+       _n3 == 1 and sum(_r.count(BLACK) for _r in _b3) == 4,
+       f"返り値: {_n3} / 黒 {sum(_r.count(BLACK) for _r in _b3)} 個(中断したら後の (3, 2) は打たないで)")
+    import random as _random
+    def _ref_flips(_bd, _x, _y, _c):
+        if _bd[_y][_x] != EMPTY:
+            return []
+        _fl = []
+        for _dx, _dy in DIRECTIONS:
+            _line = []
+            _nx, _ny = _x + _dx, _y + _dy
+            while 0 <= _nx < 8 and 0 <= _ny < 8 and _bd[_ny][_nx] == opponent(_c):
+                _line.append((_nx, _ny))
+                _nx, _ny = _nx + _dx, _ny + _dy
+            if _line and 0 <= _nx < 8 and 0 <= _ny < 8 and _bd[_ny][_nx] == _c:
+                _fl += _line
+        return _fl
+    def _ref_place(_bd, _x, _y, _c):
+        _fl = _ref_flips(_bd, _x, _y, _c)
+        if not _fl:
+            return False
+        _bd[_y][_x] = _c
+        for _fx, _fy in _fl:
+            _bd[_fy][_fx] = _c
+        return True
+    def _ref_play(_bd, _mv):
+        _turn = BLACK
+        _cnt = 0
+        for _mx, _my in _mv:
+            if not _ref_place(_bd, _mx, _my, _turn):
+                break
+            _cnt += 1
+            _turn = opponent(_turn)
+        return _cnt
+    _ng = None
+    for _i in range(25):
+        _mv = []
+        _sim = make_board()
+        _turn = BLACK
+        for _k in range(_random.randint(1, 6)):
+            _legal = [(_px, _py) for _px in range(8) for _py in range(8)
+                      if _ref_flips(_sim, _px, _py, _turn)]
+            if _legal and _random.random() < 0.7:
+                _m = _random.choice(_legal)
+            else:
+                _m = (_random.randint(0, 7), _random.randint(0, 7))
+            _mv.append(_m)
+            if _ref_place(_sim, _m[0], _m[1], _turn):
+                _turn = opponent(_turn)
+        _b_exp = make_board()
+        _exp = _ref_play(_b_exp, _mv)
+        _b_got = make_board()
+        try:
+            _got = play_moves(_b_got, _mv)
+        except Exception as _e:
+            _ng = f"play_moves(初期盤面, {_mv}) がエラーに: {_e}"
+            break
+        if _got != _exp:
+            _ng = f"play_moves(初期盤面, {_mv}) の期待 {_exp} に対して {_got}"
+            break
+        if _b_got != _b_exp:
+            _ng = f"play_moves(初期盤面, {_mv}) の返り値 {_got} は正しいが、最終盤面が期待と一致しない"
+            break
+    _t("ランダムな手順25件でも返り値と盤面が正しい", _ng is None, _ng or "")
+</script>
       <details class="solution">
-        <summary>進め方の例を見る</summary>
+        <summary>解答例を見る</summary>
         <div class="body">
-          <div class="codeblock"><pre>board = make_board()
-place(board, 2, 3, BLACK)   # 黒
-place(board, 2, 2, WHITE)   # 白
-place(board, 3, 2, BLACK)   # 黒
-place(board, 2, 4, WHITE)   # 白
+          <div class="codeblock"><pre>def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 &lt;= nx &lt; 8 and 0 &lt;= ny &lt; 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 &lt;= nx &lt; 8 and 0 &lt;= ny &lt; 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def play_moves(board, moves):
+    """moves の座標を黒→白→黒→…と交互に置いていく。
+    置けない手が出たらそこで中断し、置けた手数を返す"""
+    turn = BLACK
+    count = 0
+    for x, y in moves:
+        if not place(board, x, y, turn):
+            break                     # 置けない手が出たら中断
+        count += 1
+        turn = opponent(turn)         # 置けたら手番交代
+    return count
+
+board = make_board()
+n = play_moves(board, [(2, 3), (2, 2), (3, 2), (2, 4)])
+print(f"{n} 手進みました")
 print_board(board)</pre></div>
-          <p>「次にどこへ置けるか」を毎回頭で探すのは大変ですよね。次のレッスンで、それを<strong>コンピュータに探させる</strong>関数を作ります。</p>
+          <p><code>place</code> の返り値 <code>True/False</code> をそのまま <code>if</code> の条件に使うのがポイント。<code>moves</code> の座標を差し替えて「どこなら置けるか」を頭で考えながら遊ぶのもおすすめです。次のレッスンで、それを<strong>コンピュータに探させる</strong>関数を作ります。</p>
         </div>
       </details>
     </div>

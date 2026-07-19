@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>きほん Lesson 4: 関数 — Python×オセロ道場</title>
+<title>きほん Lesson 4: 関数 — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -39,7 +39,7 @@
     <div class="pyrunner" data-name="def_basics.py">
 <script type="text/x-python">
 def cheer(name):
-    print(f"{name} さん、ようこそオセロ道場へ!")
+    print(f"{name} さん、ようこそボドゲ道場へ!")
     print("今日も一局、楽しみましょう")
 
 # 関数は「呼び出す」まで実行されない
@@ -138,7 +138,52 @@ for i in range(6):
 
     <div class="challenge">
       <h3>チャレンジ:盤内チェックを関数に</h3>
-      <p>前のレッスンで書いた「盤内チェック」を、<code>is_inside(x, y)</code> という関数にしてみましょう。8×8の盤として、盤の中なら <code>True</code>、外なら <code>False</code> を返すようにします(<code>True</code>/<code>False</code> はそのまま <code>return</code> できます)。</p>
+      <p>前のレッスンで書いた「盤内チェック」を、<code>is_inside(x, y)</code> という関数にして、下の専用エディタで完成させましょう。8×8の盤として、盤の中なら <code>True</code>、外なら <code>False</code> を返すようにします(比較式の結果はそのまま <code>return</code> できます)。実行すると、いろいろな座標で自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+def is_inside(x, y):
+    """8×8の盤の中なら True、外なら False を返す"""
+    return True   # ← ここを盤内チェックの式に直そう
+
+# 動作チェック(この部分はそのまま使ってOK)
+print(is_inside(3, 5))    # True になるはず
+print(is_inside(8, 0))    # False になるはず
+print(is_inside(-1, 4))   # False になるはず
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("is_inside 関数が定義されている", "is_inside" in globals())
+if "is_inside" in globals():
+    _t("盤のまんなか: is_inside(3, 5) が True",
+       is_inside(3, 5) == True,
+       f"結果: {is_inside(3, 5)}")
+    _t("角も盤の中: is_inside(0, 0) と is_inside(7, 7) が True",
+       is_inside(0, 0) == True and is_inside(7, 7) == True,
+       "0 と 7 は盤の中。0 <= x < 8 の範囲に入っているかな?")
+    _t("はみ出しは外: is_inside(8, 0) と is_inside(3, 8) が False",
+       is_inside(8, 0) == False and is_inside(3, 8) == False,
+       "8 は盤の外(マスは 0〜7)。x と y の両方をチェックしよう")
+    _t("マイナスも外: is_inside(-1, 4) と is_inside(4, -1) が False",
+       is_inside(-1, 4) == False and is_inside(4, -1) == False,
+       "0 <= のほうのチェックも忘れずに")
+    import random as _random
+    def _ref_inside(_x, _y):
+        return 0 <= _x < 8 and 0 <= _y < 8
+    _ng = None
+    for _i in range(30):
+        _rx = _random.randint(-3, 10)
+        _ry = _random.randint(-3, 10)
+        _exp = _ref_inside(_rx, _ry)
+        try:
+            _got = is_inside(_rx, _ry)
+        except Exception as _e:
+            _ng = f"is_inside({_rx}, {_ry}) がエラーに: {_e}"
+            break
+        if _got != _exp:
+            _ng = f"is_inside({_rx}, {_ry}) の期待 {_exp} に対して {_got}"
+            break
+    _t("ランダムな座標30件でも正しい", _ng is None, _ng or "")
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">

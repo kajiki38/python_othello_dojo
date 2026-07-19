@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>きほん Lesson 1: はじめてのPython — Python×オセロ道場</title>
+<title>きほん Lesson 1: はじめてのPython — Python×ボドゲ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
     <div class="lesson-head">
       <div class="crumb">きほん LESSON 01 / 04</div>
       <h1>はじめてのPython</h1>
-      <p class="lead">ようこそ、Python×オセロ道場へ。このコースでは、ゲーム作りに必要なPythonの文法をまとめて身につけます。ここを終えれば、オセロ・五目並べ・コネクトフォー、どの種目からでも始められます。まずはこのサイトの使い方から。</p>
+      <p class="lead">ようこそ、Python×ボドゲ道場へ。このコースでは、ゲーム作りに必要なPythonの文法をまとめて身につけます。ここを終えれば、オセロ・五目並べ・コネクトフォー、どの種目からでも始められます。まずはこのサイトの使い方から。</p>
     </div>
 
     <div class="goal-box">
@@ -38,7 +38,7 @@
 
     <div class="pyrunner" data-name="hello.py">
 <script type="text/x-python">
-print("こんにちは、オセロ道場へようこそ!")
+print("こんにちは、ボドゲ道場へようこそ!")
 print("Python は", 2026 - 1991, "歳です")
 </script>
     </div>
@@ -93,7 +93,23 @@ print(f"合計 {black + white} 個の石が盤上にあります")
 
     <div class="challenge">
       <h3>やってみよう</h3>
-      <p>上のコードを書き換えて、黒の石を <code>34</code> 個、白の石を <code>30</code> 個にして、「黒が4個リードしています」のような差を計算して表示する行を追加してみましょう。</p>
+      <p>黒の石の数を <code>black</code>、白の石の数を <code>white</code> という変数に入れて(黒 <code>34</code> 個・白 <code>30</code> 個)、「黒が4個リードしています」のような<strong>差を計算して</strong>表示するプログラムを、下の専用エディタに書いてみましょう。実行すると自動でチェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-check="challenge-check">
+<script type="text/x-python">
+# 黒34個・白30個。差を「計算して」表示しよう
+black = 0   # ← 書き換えよう
+white = 0   # ← 書き換えよう
+print("黒が ? 個リードしています")
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("変数 black が 34 になっている", "black" in globals() and black == 34,
+   "black = 34 と書けているかな?")
+_t("変数 white が 30 になっている", "white" in globals() and white == 30,
+   "white = 30 と書けているかな?")
+_t("差の 4 を計算して表示している", "4 個リード" in _output or "4個リード" in _output,
+   'print(f"黒が {black - white} 個リードしています") のように書いてみよう')
+</script>
       <details class="solution">
         <summary>解答例を見る</summary>
         <div class="body">
