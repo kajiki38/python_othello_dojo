@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五目並べ Lesson 6: AIをもっと強く — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="gomoku-06" data-board-theme="gomoku">
+
+<script type="text/x-python" id="pre">
+import random
+
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+
+def place(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return False
+    board[y][x] = color
+    return True
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 5:
+            return True
+    return False
+
+def empty_cells(board):
+    cells = []
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] == EMPTY:
+                cells.append((x, y))
+    return cells
+
+def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def ai_block(board, color, moves):
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    return random.choice(moves)
+
+def play_match(ai_black, ai_white, opening=2):
+    # ランダム要素のないAIどうしだと毎回同じ棋譜になるため、
+    # 最初の opening 手はランダムに打って展開をバラけさせる(オセロLesson 7と同じ工夫)
+    board = make_board()
+    turn = BLACK
+    count = 0
+    while True:
+        moves = empty_cells(board)
+        if not moves:
+            return None
+        if count < opening:
+            x, y = random.choice(moves)
+        else:
+            ai = ai_black if turn == BLACK else ai_white
+            x, y = ai(board, turn, moves)
+        place(board, x, y, turn)
+        count += 1
+        if check_win(board, x, y, turn):
+            return turn
+        turn = opponent(turn)
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">五目並べ LESSON 06 / 06</div>
+      <h1>AIをもっと強く</h1>
+      <p class="lead">前回作った <code>ai_block</code> には、実は人間が簡単に勝ててしまう「必勝パターン」があります。その正体<strong>ダブルリーチ</strong>を突き止めて、1手先を読んで封じる強化AIを作りましょう。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>1手読みAIの弱点「ダブルリーチ」を理解する</li>
+        <li>リーチの数を数えて、ダブルリーチを「狙う」「先回りして防ぐ」AIを作る</li>
+        <li>候補を絞って高速化する、というAI実装の定番テクニックを知る</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ai_block はなぜ負ける?</h2>
+    <p><code>ai_block</code> は「相手の<strong>即勝ち手</strong>(あと1手で5連になる場所)」しか防ぎません。では、こんな盤面ではどうでしょう。黒(相手)が<strong>両端の空いた3連</strong>を作っています。</p>
+
+    <div class="static-board"
+         data-rows=".........|.........|.........|.........|.★●●●★...|.........|.........|.........|........."
+         data-caption="黒が★のどちらかに置くと「両端の空いた4連」= 勝ち手が2つ。白は片方しか防げない"></div>
+
+    <div class="pyrunner" data-name="weakness.py" data-preamble="pre">
+<script type="text/x-python">
+board = make_board()
+for x in [2, 3, 4]:
+    place(board, x, 4, BLACK)
+print_board(board)
+
+moves = empty_cells(board)
+print("黒の即勝ち手:", find_winning_move(board, BLACK, moves))
+print("白(ai_block)の選択:", ai_block(board, WHITE, moves))
+</script>
+    </div>
+
+    <p>結果を見てください。3連の段階では黒の即勝ち手は <code>None</code> — つまり <code>ai_block</code> の防御センサーには<strong>何も映っていません</strong>。だから白はランダムな場所に打ってしまい、次に黒が3連を4連に伸ばした瞬間、勝ち手が2つ(<strong>ダブルリーチ</strong>)になって手遅れです。何回か実行して、白が端を守らないことを確かめてみましょう。</p>
+
+    <div class="note">
+      <p><strong>1手読みの壁:</strong> 「今すぐ勝てる/負ける」しか見ないAIは、「<strong>次の手で必勝形を作られる</strong>」ことに気づけません。強くするには、1手先の形まで読む必要があります。</p>
+    </div>
+
+    <h2><span class="step">STEP 2</span>リーチを「数える」</h2>
+    <p>ダブルリーチを見抜く道具を作ります。<code>find_winning_move</code> は勝ち手を「1つ見つけたら終わり」でしたが、こんどは<strong>いくつあるか</strong>を数えます。おなじみ「試しに置く→判定→戻す」です。</p>
+
+    <div class="pyrunner" data-name="count_reaches.py" data-preamble="pre">
+<script type="text/x-python">
+def count_reaches(board, color):
+    """いま color が「置けば即勝ち」になる場所がいくつあるか"""
+    count = 0
+    for x, y in empty_cells(board):
+        board[y][x] = color            # 試しに置く
+        if check_win(board, x, y, color):
+            count += 1
+        board[y][x] = EMPTY            # 必ず戻す
+    return count
+
+board = make_board()
+for x in [2, 3, 4]:
+    place(board, x, 4, BLACK)
+print("3連のリーチ数:", count_reaches(board, BLACK))
+
+place(board, 5, 4, BLACK)              # 3連を4連に伸ばすと…
+print_board(board)
+print("両端の空いた4連のリーチ数:", count_reaches(board, BLACK))
+</script>
+    </div>
+
+    <p>3連は <code>0</code>、両端の空いた4連は <code>2</code>。<strong>リーチ数が2以上 = 相手は片方しか防げない = 事実上の勝ち</strong>です。この「2」を検出できれば、狙うことも防ぐこともできます。</p>
+
+    <h2><span class="step">STEP 3</span>ダブルリーチを「狙う」「先回りして防ぐ」</h2>
+    <p>部品はそろいました。<code>ai_block</code> に2つの読みを追加します。<strong>①自分がダブルリーチを作れる手があれば打つ</strong>(次のターンで勝ち確定)。<strong>②相手がダブルリーチを作れる場所があれば、先回りして自分がそこに置く</strong>。</p>
+
+    <div class="pyrunner" data-name="ai_strong.py" data-preamble="pre">
+<script type="text/x-python">
+def count_reaches(board, color):
+    count = 0
+    for x, y in empty_cells(board):
+        board[y][x] = color
+        if check_win(board, x, y, color):
+            count += 1
+        board[y][x] = EMPTY
+    return count
+
+def ai_strong(board, color, moves):
+    """勝ち → 防御 → ダブルリーチを狙う → 相手のダブルリーチを先回り → 中央寄り"""
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    for x, y in moves:                     # ① 自分がダブルリーチを作れる?
+        board[y][x] = color
+        n = count_reaches(board, color)
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    for x, y in moves:                     # ② 相手に作られる前に塞ぐ!
+        board[y][x] = opponent(color)
+        n = count_reaches(board, opponent(color))
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    center = SIZE // 2
+    return min(moves, key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+
+# STEP 1 で ai_block が防げなかった盤面をもう一度
+board = make_board()
+for x in [2, 3, 4]:
+    place(board, x, 4, BLACK)
+moves = empty_cells(board)
+print("白(ai_strong)の選択:", ai_strong(board, WHITE, moves))
+</script>
+    </div>
+
+    <p>今度は白が <code>(1, 4)</code> か <code>(5, 4)</code> — 3連の端 — を選んだはずです。「相手がここに置いたらリーチが2つになる」と<strong>1手先を読んで</strong>、必勝形ができる前に芽を摘みました。</p>
+
+    <div class="tip">
+      <p>②のループでは <code>board[y][x] = opponent(color)</code> と、<strong>相手の石を置いて</strong>試しています。「相手の立場になって盤面を読む」——人間の対局と同じ発想が、そのままコードになっています。</p>
+    </div>
+
+    <h2><span class="step">STEP 4</span>高速化 — 候補を絞る</h2>
+    <p>STEP 3 のAI、実は計算量に難ありです。「全空きマス × 全空きマス」で調べるので、序盤は <code>79 × 78 ≒ 6000</code> 回も勝敗判定を回します。でも考えてみると、<strong>意味のある手はほぼ「すでにある石の近く」だけ</strong>。候補をそこに絞りましょう。</p>
+
+    <div class="pyrunner" data-name="near_cells.py" data-preamble="pre">
+<script type="text/x-python">
+def near_cells(board):
+    """石の周囲1マスにある空点だけを集める(候補の絞り込み)"""
+    cells = set()                          # set は重複を自動で除いてくれる
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] != EMPTY:
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == EMPTY:
+                            cells.add((nx, ny))
+    return list(cells)
+
+board = make_board()
+place(board, 4, 4, BLACK)
+place(board, 5, 4, WHITE)
+print("全空きマス   :", len(empty_cells(board)), "個")
+print("石の周囲だけ :", len(near_cells(board)), "個")
+</script>
+    </div>
+
+    <p>ここで初めて <code>set</code>(セット=集合)が登場しました。リストとよく似ていますが、<strong>同じ値を重複して持たない</strong>のが特徴です。<code>set()</code> で空の集合を作り、<code>.add(値)</code> で足していきます(すでにある値を足しても増えません)。石の周囲を調べると同じ空点を何度も拾ってしまうので、自動で重複を消してくれる <code>set</code> がぴったり。最後に <code>list(cells)</code> で、いつものリストに戻しています。</p>
+
+    <p>結果は79個 → 12個。調べる数が数分の一になれば、掛け算で効いて<strong>数十倍速く</strong>なります。「正しく動くものを作ってから、無駄を削って速くする」——これもプログラミングの王道の手順です。</p>
+
+    <h2><span class="step">STEP 5</span>対戦実験:先読みAI vs 勝ち・防御AI</h2>
+    <p>絞り込み版 <code>ai_strong</code> を完成させて、前回の <code>ai_block</code> と20局対戦させましょう(先手後手は1局ごとに交代)。なお、ランダム要素のないAIどうしだと毎回まったく同じ棋譜になってしまうため、<code>play_match</code> は<strong>各対局の最初の2手をランダムに打ってから</strong>実力勝負に入る作りにしてあります。※数秒かかることがあります。</p>
+
+    <div class="pyrunner" data-name="experiment.py" data-preamble="pre">
+<script type="text/x-python">
+def near_cells(board):
+    cells = set()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] != EMPTY:
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == EMPTY:
+                            cells.add((nx, ny))
+    return list(cells)
+
+def count_reaches(board, color):
+    count = 0
+    for x, y in near_cells(board):         # 高速化: 石の近くだけ調べる
+        board[y][x] = color
+        if check_win(board, x, y, color):
+            count += 1
+        board[y][x] = EMPTY
+    return count
+
+def ai_strong(board, color, moves):
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    center = SIZE // 2
+    cand = near_cells(board)               # 高速化: 候補も石の近くだけ
+    if not cand:
+        return (center, center)            # 盤が空なら中央から
+    cand.sort(key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+    for x, y in cand:
+        board[y][x] = color
+        n = count_reaches(board, color)
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    for x, y in cand:
+        board[y][x] = opponent(color)
+        n = count_reaches(board, opponent(color))
+        board[y][x] = EMPTY
+        if n >= 2:
+            return (x, y)
+    return cand[0]                         # 石の近く・中央寄りに展開
+
+wins = losses = draws = 0
+for i in range(20):
+    if i % 2 == 0:
+        winner = play_match(ai_strong, ai_block)
+        my_color = BLACK
+    else:
+        winner = play_match(ai_block, ai_strong)
+        my_color = WHITE
+    if winner == my_color:
+        wins += 1
+    elif winner is None:
+        draws += 1
+    else:
+        losses += 1
+
+print(f"先読みAIの成績: {wins}勝 {losses}敗 {draws}分")
+</script>
+    </div>
+
+    <p>圧勝のはずです。読みの深さがたった1手違うだけで、これだけの差がつきます。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:攻めをさらに鋭く</h3>
+      <p>いまのAIは「ダブルリーチが作れないときは、ただ中央寄りに置く」だけ。ここを「<strong>せめてリーチ(勝ち手1つ)を作れる手を優先する</strong>」に改造してみましょう。<code>n &gt;= 2</code> のループの後に、<code>n &gt;= 1</code> のループを足すだけです。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def ai_strong2(board, color, moves):
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    center = SIZE // 2
+    cand = near_cells(board)
+    if not cand:
+        return (center, center)
+    cand.sort(key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+    for need in (2, 1):                  # まずダブルリーチ、なければ単リーチ
+        for x, y in cand:
+            board[y][x] = color
+            n = count_reaches(board, color)
+            board[y][x] = EMPTY
+            if n &gt;= need:
+                return (x, y)
+        if need == 2:                    # ダブルリーチ狙いの直後に防御を挟む
+            for x, y in cand:
+                board[y][x] = opponent(color)
+                n = count_reaches(board, opponent(color))
+                board[y][x] = EMPTY
+                if n &gt;= 2:
+                    return (x, y)
+    return cand[0]</pre></div>
+          <p>常にリーチを作り続けるAIは、相手に防御を強制し続けます。攻め続けている限り、相手は自分の形を作る暇がない——五目並べの「先手の理」をAIに教えたことになります。<code>ai_strong2</code> と <code>ai_strong</code> を <code>play_match</code> で戦わせて、勝率がどう変わるか確かめてみましょう。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 6</span>まとめ — 五目並べ道場 完走!</h2>
+    <ul>
+      <li>1手読みAIは「ダブルリーチ(勝ち手2つ)」に原理的に勝てない</li>
+      <li>リーチを<strong>数える</strong>ことで、必勝形を「狙う」ことも「先回りして防ぐ」こともできる</li>
+      <li>候補を石の近くに絞れば、同じ読みが数十倍速くなる</li>
+    </ul>
+    <p>おつかれさまでした!実は、プレイグラウンドの対戦相手「つよい(先読みAI)」の正体は、まさに今日作った <code>ai_strong</code> です。卒業制作としてAI工房で自作AIを育てて、自分の手で「つよい」を倒してみてください。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

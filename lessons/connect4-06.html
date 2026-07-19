@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コネクトフォー Lesson 6: AIをもっと強く — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="connect4-06" data-board-theme="connect4">
+
+<script type="text/x-python" id="pre">
+import random
+
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+def drop(board, col, color):
+    y = next_row(board, col)
+    if y is None:
+        return None
+    board[y][col] = color
+    return col, y
+
+def valid_columns(board):
+    return [x for x in range(WIDTH) if board[0][x] == EMPTY]
+
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < WIDTH and 0 <= ny < HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 4:
+            return True
+    return False
+
+def find_winning_col(board, color, cols):
+    for col in cols:
+        y = next_row(board, col)
+        if y is None:
+            continue
+        board[y][col] = color
+        win = check_win(board, col, y, color)
+        board[y][col] = EMPTY
+        if win:
+            return col
+    return None
+
+def ai_random(board, color, cols):
+    return random.choice(cols)
+
+def ai_block(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    return random.choice(cols)
+
+def play_match(ai_black, ai_white, opening=2):
+    # ランダム要素のないAIどうしだと毎回同じ棋譜になるため、
+    # 最初の opening 手はランダムな列に落として展開をバラけさせる(オセロLesson 7と同じ工夫)
+    board = make_board()
+    turn = BLACK
+    count = 0
+    while True:
+        cols = valid_columns(board)
+        if not cols:
+            return None
+        if count < opening:
+            col = random.choice(cols)
+        else:
+            ai = ai_black if turn == BLACK else ai_white
+            col = ai(board, turn, cols)
+        x, y = drop(board, col, turn)
+        count += 1
+        if check_win(board, x, y, turn):
+            return turn
+        turn = opponent(turn)
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">コネクトフォー LESSON 06 / 06</div>
+      <h1>AIをもっと強く</h1>
+      <p class="lead">前回の <code>ai_block</code> は、実は「底辺に3つ並べる」だけで人間に負けます。弱点の正体<strong>ダブルリーチ</strong>と、コネクトフォー特有の<strong>「うっかり手」</strong>——2つの穴を先読みで塞いだ強化AIを作ります。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>1手読みAIの弱点「ダブルリーチ」を理解する</li>
+        <li>「落とすと相手に上で勝たれる列」= うっかり手を避ける</li>
+        <li>勝ち列を数えて、ダブルリーチを「狙う」「先回りして防ぐ」AIを完成させる</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ai_block はなぜ負ける?</h2>
+    <p>赤(相手)が底辺に<strong>両端の空いた3連</strong>を作った局面です。<code>ai_block</code> は片方の端を防げますが……</p>
+
+    <div class="static-board"
+         data-rows=".......|.......|.......|.......|.......|.★●●●★."
+         data-caption="赤のダブルリーチ。★の2列がどちらも勝ち列 — 黄は片方しか防げない"></div>
+
+    <div class="pyrunner" data-name="weakness.py" data-preamble="pre">
+<script type="text/x-python">
+board = make_board()
+for col in [2, 3, 4]:
+    drop(board, col, BLACK)
+print_board(board)
+
+cols = valid_columns(board)
+block = ai_block(board, WHITE, cols)
+print("黄(ai_block)は", block, "列を防いだ")
+
+drop(board, block, WHITE)
+print("それでも残っている赤の勝ち列:", find_winning_col(board, BLACK, valid_columns(board)))
+</script>
+    </div>
+
+    <p>片側(1列)を塞いでも、反対側(5列)が残っていて手遅れ。<strong>勝ち列が2つある形(ダブルリーチ)は、できてしまったら防げません</strong>。防ぐタイミングは「3連が完成する前」——つまり1手先を読む必要があります。</p>
+
+    <h2><span class="step">STEP 2</span>勝ち列を「数える」</h2>
+    <p><code>find_winning_col</code> は勝ち列を「1つ見つけたら終わり」でした。ダブルリーチを見抜くために、<strong>ぜんぶ集める</strong>版を作ります。</p>
+
+    <div class="pyrunner" data-name="winning_cols.py" data-preamble="pre">
+<script type="text/x-python">
+def winning_cols(board, color):
+    """いま color が落とせば即勝ちになる列をぜんぶ集める"""
+    wins = []
+    for col in valid_columns(board):
+        y = next_row(board, col)
+        board[y][col] = color          # 試しに落とす
+        if check_win(board, col, y, color):
+            wins.append(col)
+        board[y][col] = EMPTY          # 必ず戻す
+    return wins
+
+board = make_board()
+for col in [2, 3, 4]:
+    drop(board, col, BLACK)
+print("赤の勝ち列リスト:", winning_cols(board, BLACK))
+</script>
+    </div>
+
+    <p><code>[1, 5]</code> — リストの長さが<strong>2以上ならダブルリーチ</strong>です。この数を使えば、必勝形を「作られる前に検知」できます。</p>
+
+    <h2><span class="step">STEP 3</span>コネクトフォー特有の「うっかり手」</h2>
+    <p>もうひとつ、このゲームならではの罠があります。<strong>自分が落とした石が「台」になって、相手がその上に乗って勝つ</strong>パターンです。2段目に赤の3連が眠っている局面で確かめましょう。</p>
+
+    <div class="pyrunner" data-name="safe_columns.py" data-preamble="pre">
+<script type="text/x-python">
+def winning_cols(board, color):
+    wins = []
+    for col in valid_columns(board):
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            wins.append(col)
+        board[y][col] = EMPTY
+    return wins
+
+def safe_columns(board, color, cols):
+    """落とした直後に、その上へ相手に勝たれない「安全な列」だけを残す"""
+    safe = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color                       # 試しに落とす
+        if not winning_cols(board, opponent(color)):
+            safe.append(col)
+        board[y][col] = EMPTY                       # 必ず戻す
+    return safe
+
+# 教材用の局面: 2段目(y=4)に赤の3連が眠っている
+board = make_board()
+board[5][1] = WHITE; board[5][2] = BLACK; board[5][3] = WHITE
+board[4][1] = BLACK; board[4][2] = BLACK; board[4][3] = BLACK
+print_board(board)
+
+cols = valid_columns(board)
+print("すべての列:", cols)
+print("黄の安全な列:", safe_columns(board, WHITE, cols))
+</script>
+    </div>
+
+    <p>0列と4列が消えました。黄がそこに落とすと、赤が<strong>その上(2段目)</strong>に乗って4連が完成してしまうからです。「打った直後の相手の返し」を1手だけ読む——これだけで、うっかり負けが激減します。</p>
+
+    <h2><span class="step">STEP 4</span>強化AI ai_strong を組み立てる</h2>
+    <p>部品がそろったので合体させます。優先順位は <strong>勝ち → 防御 → (安全な列の中で)ダブルリーチを狙う → 相手のダブルリーチを先回りして塞ぐ → 中央寄り</strong>。</p>
+
+    <div class="pyrunner" data-name="ai_strong.py" data-preamble="pre">
+<script type="text/x-python">
+def winning_cols(board, color):
+    wins = []
+    for col in valid_columns(board):
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            wins.append(col)
+        board[y][col] = EMPTY
+    return wins
+
+def safe_columns(board, color, cols):
+    safe = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if not winning_cols(board, opponent(color)):
+            safe.append(col)
+        board[y][col] = EMPTY
+    return safe
+
+def ai_strong(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:                # ① 勝てるなら勝つ
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:              # ② 相手の即勝ちは防ぐ
+        return block_col
+    center = WIDTH // 2
+    cand = safe_columns(board, color, cols)
+    if not cand:                           # 全列が危険なら仕方ない
+        cand = cols
+    cand = sorted(cand, key=lambda c: abs(c - center))
+    for col in cand:                       # ③ 自分のダブルリーチを狙う
+        y = next_row(board, col)
+        board[y][col] = color
+        n = len(winning_cols(board, color))
+        board[y][col] = EMPTY
+        if n >= 2:
+            return col
+    for col in cand:                       # ④ 相手のダブルリーチは先回りして塞ぐ
+        y = next_row(board, col)
+        board[y][col] = opponent(color)    # 相手がここに落としたら…
+        n = len(winning_cols(board, opponent(color)))
+        board[y][col] = EMPTY
+        if n >= 2:
+            return col
+    return cand[0]                         # ⑤ 中央寄りの安全な列
+
+# STEP 1 の3連は、2連の段階で止められるか?
+board = make_board()
+drop(board, 2, BLACK)
+drop(board, 3, BLACK)
+print_board(board)
+print("黄(ai_strong)の選択:", ai_strong(board, WHITE, valid_columns(board)))
+</script>
+    </div>
+
+    <p>赤がまだ<strong>2連</strong>の段階で、黄は1列か4列 — 3連が両端オープンになる場所 — に先回りしました。「ここに落とされたら勝ち列が2つになる」と読んだからです。もうSTEP 1の必勝パターンは通用しません。</p>
+
+    <h2><span class="step">STEP 5</span>対戦実験:先読みAI vs 勝ち・防御AI</h2>
+    <p>仕上げに <code>ai_block</code> と50局対戦(先手後手は1局ごとに交代)。読みの深さ1手分の差を数字で確かめましょう。なお、ランダム要素のないAIどうしだと毎回まったく同じ棋譜になってしまうため、<code>play_match</code> は<strong>各対局の最初の2手をランダムに落としてから</strong>実力勝負に入る作りにしてあります。</p>
+
+    <div class="pyrunner" data-name="experiment.py" data-preamble="pre">
+<script type="text/x-python">
+def winning_cols(board, color):
+    wins = []
+    for col in valid_columns(board):
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            wins.append(col)
+        board[y][col] = EMPTY
+    return wins
+
+def safe_columns(board, color, cols):
+    safe = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if not winning_cols(board, opponent(color)):
+            safe.append(col)
+        board[y][col] = EMPTY
+    return safe
+
+def ai_strong(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    center = WIDTH // 2
+    cand = safe_columns(board, color, cols)
+    if not cand:
+        cand = cols
+    cand = sorted(cand, key=lambda c: abs(c - center))
+    for col in cand:
+        y = next_row(board, col)
+        board[y][col] = color
+        n = len(winning_cols(board, color))
+        board[y][col] = EMPTY
+        if n >= 2:
+            return col
+    for col in cand:
+        y = next_row(board, col)
+        board[y][col] = opponent(color)
+        n = len(winning_cols(board, opponent(color)))
+        board[y][col] = EMPTY
+        if n >= 2:
+            return col
+    return cand[0]
+
+wins = losses = draws = 0
+for i in range(50):
+    if i % 2 == 0:
+        winner = play_match(ai_strong, ai_block)
+        my_color = BLACK
+    else:
+        winner = play_match(ai_block, ai_strong)
+        my_color = WHITE
+    if winner == my_color:
+        wins += 1
+    elif winner is None:
+        draws += 1
+    else:
+        losses += 1
+
+print(f"先読みAIの成績: {wins}勝 {losses}敗 {draws}分")
+</script>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:攻めをさらに鋭く</h3>
+      <p>いまのAIは、ダブルリーチが作れないときは「中央寄りの安全な列」に置くだけ。「<strong>せめてリーチ(勝ち列1つ)を作れる列を優先する</strong>」ように改造して、<code>ai_strong</code> と対戦させてみましょう。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def ai_strong2(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    center = WIDTH // 2
+    cand = safe_columns(board, color, cols)
+    if not cand:
+        cand = cols
+    cand = sorted(cand, key=lambda c: abs(c - center))
+    for need in (2, 1):                  # まずダブルリーチ、なければ単リーチ
+        for col in cand:
+            y = next_row(board, col)
+            board[y][col] = color
+            n = len(winning_cols(board, color))
+            board[y][col] = EMPTY
+            if n &gt;= need:
+                return col
+        if need == 2:                    # ダブルリーチ狙いの直後に防御を挟む
+            for col in cand:
+                y = next_row(board, col)
+                board[y][col] = opponent(color)
+                n = len(winning_cols(board, opponent(color)))
+                board[y][col] = EMPTY
+                if n &gt;= 2:
+                    return col
+    return cand[0]</pre></div>
+          <p>リーチを作る=相手に防御を強制する、ということ。攻め続ければ相手は自分の形を作れません。<code>play_match(ai_strong2, ai_strong)</code> で本当に強くなったか計測してみましょう(勝率で確かめる習慣、もう身についていますね)。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 6</span>まとめ — 3種目コンプリート!</h2>
+    <ul>
+      <li>ダブルリーチ(勝ち列2つ)は<strong>できる前に</strong>しか防げない — だから1手先を読む</li>
+      <li>コネクトフォーは「自分の石が相手の台になる」うっかり手のケアが必須</li>
+      <li>「勝ち→防御→狙う→先回り→安全第一」という優先順位の設計が、AIの強さを決める</li>
+    </ul>
+    <p>おつかれさまでした!プレイグラウンドの「つよい(先読みAI)」の正体は、まさに今日作った <code>ai_strong</code> です。そしてこれで、オセロ・五目並べ・コネクトフォーの3種目すべてを「ルールの実装からAI強化まで」自分の手で作り上げたことになります。卒業制作としてAI工房で自作AIを磨いて、3種目制覇を目指してください!</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lesson 4: 石をひっくり返す — Python×オセロ道場</title>
+<title>オセロ Lesson 3: 石をひっくり返す — Python×オセロ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -45,7 +45,7 @@ DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
 
   <article class="lesson">
     <div class="lesson-head">
-      <div class="crumb">LESSON 04 / 08</div>
+      <div class="crumb">オセロ LESSON 03 / 07</div>
       <h1>石をひっくり返す</h1>
       <p class="lead">オセロの心臓部、「挟んだ石を裏返す」ロジックを完成させます。このレッスンが本教材の山場。越えれば景色が変わります。</p>
     </div>
@@ -132,6 +132,10 @@ print("(4,5)に黒 →", stones_to_flip(board, 4, 5, BLACK))
 print("(0,0)に黒 →", stones_to_flip(board, 0, 0, BLACK), "← 置けない場所")
 print("(2,3)に白 →", stones_to_flip(board, 2, 3, WHITE), "← 白は挟めない")
 </script>
+    </div>
+
+    <div class="note">
+      <p><code>flips += line</code> は、これまで集めた <code>flips</code> の<strong>後ろに <code>line</code> の中身をまるごとつなげる</strong>書き方です(リスト版の足し算)。数の <code>+=</code>(<code>count += 1</code> のような「足して代入」)と同じ感覚で、リストでは「連結して代入」になります。これで8方向ぶんの「挟めた石」が1つの <code>flips</code> にまとまります。</p>
     </div>
 
     <p>テスト結果を確認しましょう。初期盤面で黒が(2,3)に置くと(3,3)の白を挟める、(0,0)は何も挟めないので空リスト——期待通りに動いていますか?</p>

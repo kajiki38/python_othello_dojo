@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コネクトフォー Lesson 3: 4つ並びの判定 — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="connect4-03" data-board-theme="connect4">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+def drop(board, col, color):
+    y = next_row(board, col)
+    if y is None:
+        return None
+    board[y][col] = color
+    return col, y
+
+def valid_columns(board):
+    return [x for x in range(WIDTH) if board[0][x] == EMPTY]
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">コネクトフォー LESSON 03 / 06</div>
+      <h1>4つ並びの判定</h1>
+      <p class="lead">五目並べで作った「4つの軸を数える」考え方が、ここでもほぼそのまま使えます。違うのは並べる数(5→4)と、盤面が長方形なので範囲チェックを<code>WIDTH</code>・<code>HEIGHT</code>で分けて書く点だけです。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>長方形の盤面に合わせて範囲チェックを書き直せる</li>
+        <li>4方向の連続数を数える <code>count_line</code> を作る</li>
+        <li>勝敗判定 <code>check_win</code> を完成させる</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>正方形と長方形、範囲チェックの違い</h2>
+    <p>五目並べでは盤面が9×9の正方形だったので、<code>x</code>も<code>y</code>も同じ<code>SIZE</code>で範囲チェックできました。コネクトフォーは横7×縦6なので、<strong><code>x</code>は <code>0 &lt;= x &lt; WIDTH</code>、<code>y</code>は <code>0 &lt;= y &lt; HEIGHT</code></strong> と別々にチェックする必要があります。この式がこのあと<code>count_line</code>の中にそのまま登場します。</p>
+
+    <div class="pyrunner" data-name="bounds.py" data-preamble="pre">
+<script type="text/x-python">
+x, y = 6, 5
+print(0 <= x < WIDTH and 0 <= y < HEIGHT)   # 右下の角 → True
+
+x, y = 7, 5
+print(0 <= x < WIDTH and 0 <= y < HEIGHT)   # x=7 は範囲外(WIDTHは7列なので0〜6) → False
+
+x, y = 6, 6
+print(0 <= x < WIDTH and 0 <= y < HEIGHT)   # y=6 は範囲外(HEIGHTは6段なので0〜5) → False
+</script>
+    </div>
+
+    <h2><span class="step">STEP 2</span>一方向に数える count_line</h2>
+    <p>五目並べの<code>count_line</code>とほぼ同じですが、範囲チェックを<code>WIDTH</code>・<code>HEIGHT</code>それぞれに対応させます。</p>
+
+    <div class="pyrunner" data-name="count_line.py" data-preamble="pre">
+<script type="text/x-python">
+def count_line(board, x, y, dx, dy, color):
+    """(x, y) から (dx, dy) 方向に、同じ color が何個連続しているか数える"""
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < WIDTH and 0 <= ny < HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+board = make_board()
+for col in [2, 3, 4]:
+    drop(board, col, BLACK)
+
+print_board(board)
+x, y = 4, HEIGHT - 1
+print("右方向:", count_line(board, x, y, 1, 0, BLACK))
+print("左方向:", count_line(board, x, y, -1, 0, BLACK))
+</script>
+    </div>
+
+    <p><code>count_line</code> がやっているのは、<strong>1マスずつ「歩く」</strong>だけです。<code>nx, ny = x + dx, y + dy</code> でまず<strong>隣の1マス</strong>へ移り、<code>while</code> で「盤の中(<code>0 &lt;= nx &lt; WIDTH</code> かつ <code>0 &lt;= ny &lt; HEIGHT</code>)」かつ「同じ色」が続く間だけ、<code>count</code> を増やしながら <code>nx += dx; ny += dy</code> で<strong>さらに先へ進み続けます</strong>。違う色・空きマス・盤の外にぶつかった瞬間に <code>while</code> が止まり、そこまでの連続数を返します。<code>(dx, dy)</code> は進む向き——<code>(1, 0)</code> なら右、<code>(0, 1)</code> なら下、<code>(1, 1)</code> なら右斜め下です。</p>
+
+    <h2><span class="step">STEP 3</span>4つの軸すべてをチェック — check_win</h2>
+    <p>片方向を数えられたので、あとは<strong>反対向きと足し合わせる</strong>だけ。ある軸の連続数は「<strong>自分の石(1個)＋その向きに続く数＋逆向きに続く数</strong>」で求まります。だから <code>1 + count_line(…, dx, dy, …) + count_line(…, -dx, -dy, …)</code>。<code>(dx, dy)</code> の逆向きは <code>(-dx, -dy)</code> です。これを4つの軸(縦・横・斜め2方向)で調べ、どれかが<strong>4以上</strong>なら勝ち——並べる数を「5」から「4」に変えるだけで、判定の組み立てはそのまま通用します。</p>
+
+    <div class="pyrunner" data-name="check_win.py" data-preamble="pre">
+<script type="text/x-python">
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < WIDTH and 0 <= ny < HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    """(x, y) に color を置いた直後に呼ぶ。4つ以上並んでいれば True"""
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 4:
+            return True
+    return False
+
+board = make_board()
+for col in [1, 2, 3]:
+    x, y = drop(board, col, BLACK)
+print_board(board)
+print("3つ並んだ時点:", check_win(board, x, y, BLACK))   # False
+
+x, y = drop(board, 4, BLACK)
+print("4つ並んだ時点:", check_win(board, x, y, BLACK))   # True
+</script>
+    </div>
+
+    <div class="note">
+      <p><code>DIRECTIONS4</code>の中身は五目並べと完全に同じ4方向です。「縦・横・斜め2方向に並べたら勝ち」という<strong>判定ロジックそのものはゲームが変わっても再利用できる</strong>——これがこの2軸(4方向スキャン)方式の強みです。</p>
+    </div>
+
+    <div class="static-board"
+         data-theme="connect4"
+         data-rows=".......|.......|.......|.......|.......|.●●●●.."
+         data-caption="横に4つ並んだ勝利の形。オセロ・五目並べと同じ判定ロジックが、盤面の形が変わっても通用します"></div>
+
+    <div class="challenge">
+      <h3>チャレンジ:縦に4つ並べて確認しよう</h3>
+      <p>同じ列に黒石を4回落として、縦の4つ並びで<code>check_win</code>が<code>True</code>になることを確認してみましょう。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>board = make_board()
+for i in range(3):
+    x, y = drop(board, 3, BLACK)
+print(check_win(board, x, y, BLACK))   # False (3個)
+
+x, y = drop(board, 3, BLACK)
+print(check_win(board, x, y, BLACK))   # True (4個)</pre></div>
+          <p><code>DIRECTIONS4</code>の<code>(0, 1)</code>(縦方向)が自動でこの並びを見つけてくれます。方向をリストで管理しているおかげで、追加のコードは一切不要でした。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 4</span>まとめ</h2>
+    <ul>
+      <li>長方形の盤面では、<code>x</code>を<code>WIDTH</code>で、<code>y</code>を<code>HEIGHT</code>で別々に範囲チェックする</li>
+      <li>判定ロジック(4軸スキャン)そのものはゲームが変わっても使い回せる</li>
+      <li>並べる数だけをゲームに合わせて変える(オセロ:8方向裏返し / 五目並べ:5つ / コネクトフォー:4つ)</li>
+    </ul>
+    <p>判定ロジックが完成しました。次はいよいよ、これを使って1局を最後まで打ち切るゲームループです。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

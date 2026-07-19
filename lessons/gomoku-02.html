@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五目並べ Lesson 2: 石を置くしくみ — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="gomoku-02" data-board-theme="gomoku">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">五目並べ LESSON 02 / 06</div>
+      <h1>石を置くしくみ</h1>
+      <p class="lead">盤面はできました。次は「石を置く」関数と、「手番を交代する」しくみを作ります。オセロと違ってひっくり返しがない分、驚くほどシンプルに書けます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>座標 <code>(x, y)</code> を指定して石を置く <code>place</code> 関数を作る</li>
+        <li>すでに石があるマスには置けないようにする</li>
+        <li>手番を交代する <code>opponent</code> を使い、交互に石を置く流れを体験する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>座標のおさらい</h2>
+    <p>五目並べでもオセロと同じ座標系を使います。<code>x</code> は横方向(列)、<code>y</code> は縦方向(行)。盤面への読み書きは <code>board[y][x]</code>(<strong>yが先</strong>)でしたね。</p>
+
+    <div class="pyrunner" data-name="coords.py" data-preamble="pre">
+<script type="text/x-python">
+board = make_board()
+print("中央のマスの座標:", SIZE // 2, SIZE // 2)
+board[SIZE // 2][SIZE // 2] = BLACK
+print_board(board)
+</script>
+    </div>
+
+    <h2><span class="step">STEP 2</span>place関数を作る</h2>
+    <p>「すでに石があるマスには置けない」——これが五目並べで唯一守るべきルールです。置けたら <code>True</code>、置けなければ <code>False</code> を返すようにしておくと、あとでゲームループを作るときに便利です。</p>
+
+    <div class="pyrunner" data-name="place.py" data-preamble="pre">
+<script type="text/x-python">
+def place(board, x, y, color):
+    """(x, y) が空いていれば color を置いて True。すでに石があれば False"""
+    if board[y][x] != EMPTY:
+        return False
+    board[y][x] = color
+    return True
+
+board = make_board()
+print(place(board, 4, 4, BLACK))   # 空いているので True
+print(place(board, 4, 4, WHITE))   # もう石があるので False
+print_board(board)
+</script>
+    </div>
+
+    <div class="tip">
+      <p>ちなみにオセロの <code>place</code> は「ひっくり返せる石があるか」まで判定する複雑な関数になります。五目並べは「空いているか」だけを見ればいいので、たった4行。ルールが単純なゲームは、コードも単純になる——プログラミングあるあるです。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>手番を交代しながら置く</h2>
+    <p><code>opponent</code> でBLACKとWHITEを交互に切り替えながら、何手か置いてみましょう。</p>
+
+    <div class="pyrunner" data-name="turns.py" data-preamble="pre">
+<script type="text/x-python">
+def place(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return False
+    board[y][x] = color
+    return True
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+board = make_board()
+turn = BLACK
+moves = [(4, 4), (4, 5), (3, 3), (5, 5), (2, 2)]
+
+for x, y in moves:
+    place(board, x, y, turn)
+    print(f"{turn} が ({x}, {y}) に着手")
+    turn = opponent(turn)
+
+print()
+print_board(board)
+</script>
+    </div>
+
+    <p>黒石が斜めに3つ並んでいるのが見えるはずです。あと2つ、同じ斜め線上に置ければ五目並べの勝ちになります——その「並びを見抜く」判定を、次のレッスンで作ります。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:置けないマスを確かめよう</h3>
+      <p><code>turns.py</code> の <code>moves</code> リストに、<code>(4, 4)</code> をもう一度追加してみましょう。<code>place</code> が <code>False</code> を返し、盤面が変わらないことを確認してください。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>moves = [(4, 4), (4, 5), (3, 3), (5, 5), (2, 2), (4, 4)]
+
+for x, y in moves:
+    ok = place(board, x, y, turn)
+    print(f"{turn} が ({x}, {y}) に着手 → {'成功' if ok else '失敗(すでに石あり)'}")
+    turn = opponent(turn)</pre></div>
+          <p>置けなかったときも <code>turn</code> は進めてしまっている点に注目。本物のゲームループでは「置けないなら別の場所を選び直す」処理が必要です。次のレッスン以降で対応します。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 4</span>まとめ</h2>
+    <ul>
+      <li><code>place</code> は「空いていれば置く・すでにあれば置かない」だけのシンプルな関数</li>
+      <li><code>opponent</code> でBLACK/WHITEを交互に切り替える</li>
+      <li>五目並べのコードはオセロより短いが、考え方の骨組みは同じ</li>
+    </ul>
+    <p>次のレッスンはこのゲームの心臓部、「5つ並んだら勝ち」の判定ロジックです。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

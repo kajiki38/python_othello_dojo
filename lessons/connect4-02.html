@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コネクトフォー Lesson 2: 重力で列に落とす — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="connect4-02" data-board-theme="connect4">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">コネクトフォー LESSON 02 / 06</div>
+      <h1>重力で列に落とす</h1>
+      <p class="lead">コネクトフォー最大の特徴です。オセロや五目並べのように「好きな座標に置く」ことはできません。指定できるのは<strong>列(x)だけ</strong>——石は重力に従って、その列で一番下の空きマスに落ちます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>ある列の「一番下の空きマス」を探す <code>next_row</code> を作る</li>
+        <li>実際に石を落とす <code>drop</code> を作る</li>
+        <li>満杯の列を判定できるようにする</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>「座標を直接指定できない」という制約</h2>
+    <p>これまでの <code>place(board, x, y, color)</code> のように <code>y</code> を自分で決めることはできません。<code>y</code> は<strong>盤面の状態から自動で決まる</strong>のがコネクトフォーです。まずは「この列は何段目まで石が積まれているか」を調べる部品から作ります。</p>
+
+    <div class="pyrunner" data-name="next_row.py" data-preamble="pre">
+<script type="text/x-python">
+def next_row(board, col):
+    """col列で、石が落ちて止まる行(y)を返す。満杯ならNone"""
+    for y in range(HEIGHT - 1, -1, -1):   # 一番下(HEIGHT-1)から上に向かって探す
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+board = make_board()
+print("空の3列目に落としたら:", next_row(board, 3))   # 一番下 = 5
+
+board[5][3] = BLACK   # 1個積む
+print("1個積んだ後の3列目:", next_row(board, 3))       # その上 = 4
+</script>
+    </div>
+
+    <p><code>range(HEIGHT - 1, -1, -1)</code> は「<code>HEIGHT-1</code>から<code>0</code>まで1ずつ減らす」——<strong>下から上に向かって</strong>調べています。オセロや五目並べのループはほとんど「上から下・左から右」でしたが、重力を扱うここだけは逆向きです。</p>
+
+    <h2><span class="step">STEP 2</span>drop関数で実際に落とす</h2>
+    <p><code>next_row</code>で落ちる場所を調べて、そこに置く。この2ステップをまとめたのが <code>drop</code> です。</p>
+
+    <div class="pyrunner" data-name="drop.py" data-preamble="pre">
+<script type="text/x-python">
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+def drop(board, col, color):
+    """col列に石を落とす。落とせたら(x, y)を返し、満杯ならNoneを返す"""
+    y = next_row(board, col)
+    if y is None:
+        return None
+    board[y][col] = color
+    return col, y
+
+board = make_board()
+turn = BLACK
+for col in [3, 3, 3, 2, 4]:
+    drop(board, col, turn)
+    turn = opponent(turn)
+
+print_board(board)
+</script>
+    </div>
+
+    <p>同じ3列目に3回続けて落としたので、石が下から積み上がっているのが分かるはずです。<strong>これが「重力」の正体</strong>——ただの「一番下の空きマスを探すループ」です。</p>
+
+    <div class="static-board"
+         data-theme="connect4"
+         data-rows=".......|.......|.......|...●...|...○...|..○●●.."
+         data-caption="上のコードの実行結果。3列目に3個積み上がり、2列目・4列目に1個ずつ——列の下から順に埋まっていくのがコネクトフォーの盤面"></div>
+
+    <h2><span class="step">STEP 3</span>満杯の列を判定する</h2>
+    <p>列が満杯だと <code>drop</code> は <code>None</code> を返します。ゲームループでは「どの列になら落とせるか」の一覧が必要になるので、先に作っておきましょう。一番上の段(<code>y=0</code>)が空いているかどうかを見れば、その列が満杯かすぐ分かります。</p>
+
+    <div class="pyrunner" data-name="valid_columns.py" data-preamble="pre">
+<script type="text/x-python">
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+def drop(board, col, color):
+    y = next_row(board, col)
+    if y is None:
+        return None
+    board[y][col] = color
+    return col, y
+
+def valid_columns(board):
+    """まだ石を落とせる列の一覧を返す(一番上の段が空いていればOK)"""
+    return [x for x in range(WIDTH) if board[0][x] == EMPTY]
+
+board = make_board()
+# 0列目を満杯にする
+for _ in range(HEIGHT):
+    drop(board, 0, BLACK)
+
+print_board(board)
+print("落とせる列:", valid_columns(board))   # 0列目だけ抜けているはず
+</script>
+    </div>
+
+    <div class="tip">
+      <p><code>[x for x in range(WIDTH) if ...]</code> は「リスト内包表記」。<code>for</code>ループで<code>append</code>していくのと同じ結果を1行で書けます。「条件を満たすものだけ集める」場面で重宝するので、覚えておくと便利です。</p>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:何段積まれているか数えよう</h3>
+      <p>各列に何個石が積まれているかを数える <code>column_heights(board)</code> を作ってみましょう。<code>next_row</code>の結果から逆算できます(その列が空なら高さ0)。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def column_heights(board):
+    heights = []
+    for x in range(WIDTH):
+        y = next_row(board, x)
+        height = HEIGHT if y is None else HEIGHT - 1 - y
+        heights.append(height)
+    return heights
+
+print(column_heights(board))</pre></div>
+          <p><code>next_row</code>が返す<code>y</code>は「次に石が落ちる場所」なので、積まれている高さは <code>HEIGHT - 1 - y</code>。満杯(<code>y is None</code>)なら高さは<code>HEIGHT</code>そのものです。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 4</span>まとめ</h2>
+    <ul>
+      <li>コネクトフォーは座標ではなく<strong>列</strong>を指定するゲーム。<code>y</code>は盤面から自動で決まる</li>
+      <li><code>next_row</code>で「下から上に向かって」空きマスを探すのが重力の実装</li>
+      <li><code>drop</code>は「探す→置く」をまとめた関数。満杯なら<code>None</code></li>
+    </ul>
+    <p>次のレッスンでは、このゲームの心臓部「4つ並びの判定」を作ります。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

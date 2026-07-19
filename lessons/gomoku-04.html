@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五目並べ Lesson 4: ゲームを完成させる — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="gomoku-04" data-board-theme="gomoku">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+
+def place(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return False
+    board[y][x] = color
+    return True
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 5:
+            return True
+    return False
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">五目並べ LESSON 04 / 06</div>
+      <h1>ゲームを完成させる</h1>
+      <p class="lead">部品はすべて揃いました。手番を交代しながら石を置き続け、5つ並んだら終了、誰も置けなくなったら引き分け——ゲームループを組んで1局を最後まで走らせます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>空いているマスの一覧を作る <code>empty_cells</code> を作る</li>
+        <li>ゲーム全体の流れ(ゲームループ)を設計できる</li>
+        <li>1局を自動対局させて、勝敗を発表する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ゲームの流れを言葉で書く</h2>
+    <p>オセロのときと同じく、まず日本語で整理します。</p>
+    <div class="codeblock"><pre>1. 盤面を初期化。手番は黒から
+2. くり返し:
+     a. 空いているマスの一覧を作る
+     b. 空きマスがなければ → 引き分けで終了
+     c. どこかに石を置く
+     d. いま置いた場所を起点に5つ並びをチェック → 並んでいれば勝者決定で終了
+     e. 手番を交代
+</pre></div>
+    <p>オセロにあった「パス」がありません。五目並べは打てる場所がある限り必ず打てるので、その分ロジックがすっきりします。</p>
+
+    <h2><span class="step">STEP 2</span>空いているマスを集める</h2>
+    <p>「どこに置くか」を選ぶには、まず空きマスの一覧が必要です。盤面を二重ループでなめて集めましょう。</p>
+
+    <div class="pyrunner" data-name="empty_cells.py" data-preamble="pre">
+<script type="text/x-python">
+def empty_cells(board):
+    """空いているマスの座標リストを返す"""
+    cells = []
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] == EMPTY:
+                cells.append((x, y))
+    return cells
+
+board = make_board()
+place(board, 4, 4, BLACK)
+place(board, 4, 5, WHITE)
+
+cells = empty_cells(board)
+print("空きマスの数:", len(cells))
+print("最初の5個:", cells[:5])
+</script>
+    </div>
+
+    <h2><span class="step">STEP 3</span>ゲームループを組む</h2>
+    <p>今回は「打てる場所からランダムに選ぶ」対局にします。<code>random.choice</code> で空きマスを1つ選び、置いて、勝敗をチェックして、交代——これをくり返します。</p>
+
+    <div class="pyrunner" data-name="game_loop.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def empty_cells(board):
+    cells = []
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] == EMPTY:
+                cells.append((x, y))
+    return cells
+
+def play_game(show_moves=False):
+    """ランダム同士で1局対戦し、(盤面, 勝者) を返す。引き分けなら勝者はNone"""
+    board = make_board()
+    turn = BLACK
+    move_no = 0
+
+    while True:
+        cells = empty_cells(board)
+        if not cells:
+            return board, None                # 引き分け
+
+        x, y = random.choice(cells)
+        place(board, x, y, turn)
+        move_no += 1
+        if show_moves:
+            print(f"{move_no}手目: {turn} → ({x}, {y})")
+
+        if check_win(board, x, y, turn):
+            return board, turn                # 勝者決定
+        turn = opponent(turn)
+
+# --- 1局、様子を見ながら実行 ---
+board, winner = play_game(show_moves=True)
+print()
+print_board(board)
+print()
+print("勝者:", winner if winner else "引き分け")
+</script>
+    </div>
+
+    <p>実行するたびに違う棋譜が流れます。9×9盤(81マス)はランダム同士でもわりとすぐ5つ並びが生まれるので、数手〜数十手で決着することが多いはずです。</p>
+
+    <div class="note">
+      <p><code>check_win</code> を毎手番、置いた直後にだけ呼んでいる点がポイントです。「置く前に全部チェック」ではなく「置いた場所だけ調べれば十分」——これが<code>check_win</code>を軽量に保つ設計のコツでした(前回のレッスンの復習)。</p>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:100局トーナメント</h3>
+      <p>ランダム同士だと黒と白、引き分け、どのくらいの割合になるでしょうか? <code>play_game()</code> を100回くり返して集計してみましょう。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>black_wins = white_wins = draws = 0
+
+for i in range(100):
+    board, winner = play_game()
+    if winner == BLACK:
+        black_wins += 1
+    elif winner == WHITE:
+        white_wins += 1
+    else:
+        draws += 1
+
+print(f"黒 {black_wins} 勝 / 白 {white_wins} 勝 / 引き分け {draws}")</pre></div>
+          <p>先に置く黒がわずかに有利な傾向が出やすいはずです。五目並べは実際に「先手必勝」が理論的に証明されているゲームとして知られています。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 4</span>まとめ</h2>
+    <ul>
+      <li>五目並べのゲームループは「置く→判定→交代」のくり返し。パス処理が不要な分シンプル</li>
+      <li>空きマスがなくなったら引き分け</li>
+      <li>「置いた直後にだけ判定する」設計で、判定処理を軽く保てる</li>
+    </ul>
+    <p>ゲームは完成。最終レッスンでは、ランダムより賢く打つAIを作ります。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

@@ -8,6 +8,10 @@
  * オプション:
  *   data-preamble="共有スニペットのid" — 実行前に見えないコードを流し込む
  *   (ページ内の <script type="text/x-python" id="..."> を参照)
+ *
+ * 盤面ビジュアルのテーマ切替: <body data-board-theme="gomoku|connect4"> を付けると、
+ * そのページ内の全ウィジェットの自動盤面検出(BOARD_SCAN)が該当テーマで描画される。
+ * 未指定時は既定の "othello"(オセロ盤スタイル)。
  */
 (function () {
   "use strict";
@@ -213,11 +217,14 @@
     });
   }
 
-  /* 実行後の名前空間から「盤面らしいリスト」を探して、本物のオセロ盤ビジュアルで表示する */
+  /* 実行後の名前空間から「盤面らしいリスト」を探して、本物の盤面ビジュアルで表示する
+     正方形限定ではない(コネクトフォー 7×6 のような長方形も許容)。
+     上限15は、教材が学習者に試すよう勧める最大の盤(本物の五目並べ盤 15×15)。 */
   const BOARD_SCAN = `__import__("json").dumps({ k: ["".join(r) for r in v]
     for k, v in list(globals().items())
-    if not k.startswith("_") and isinstance(v, list) and 3 <= len(v) <= 8
-    and all(isinstance(r, list) and len(r) == len(v)
+    if not k.startswith("_") and isinstance(v, list) and 3 <= len(v) <= 15
+    and isinstance(v[0], list) and 3 <= len(v[0]) <= 15
+    and all(isinstance(r, list) and len(r) == len(v[0])
             and all(isinstance(c, str) and len(c) == 1 and c in ".●○*" for c in r) for r in v) })`;
 
   function renderBoardViz(viz, py, ns) {
@@ -230,8 +237,12 @@
     } catch {
       return;
     }
-    const names = Object.keys(boards).slice(0, 4);
+    // 教材の主役は "board" 変数。学習者が作った盤面っぽい別のリストに枠(4つ)を食われても消えないよう先頭へ
+    const names = Object.keys(boards)
+      .sort((a, b) => (b === "board") - (a === "board"))
+      .slice(0, 4);
     if (!names.length) return;
+    const theme = document.body.dataset.boardTheme || "othello";
     for (const name of names) {
       const rows = boards[name];
       const chars = rows.join("");
@@ -242,8 +253,8 @@
       const label = document.createElement("div");
       label.className = "viz-label";
       label.innerHTML = `<span class="vn">${name}</span>` +
-        (nb + nw > 0 ? `<span>● ${nb}</span><span>○ ${nw}</span>` : "");
-      item.append(label, window.PGIBoard.buildBoardGrid(rows, "30px"));
+        (nb + nw > 0 ? `<span class="cnt-b">● ${nb}</span><span class="cnt-w">○ ${nw}</span>` : "");
+      item.append(label, window.PGIBoard.buildBoardGrid(rows, "30px", theme));
       viz.append(item);
     }
     viz.classList.add("show");
@@ -281,7 +292,7 @@
       [/SyntaxError/, "構文エラー: コロン(:)やカッコの閉じ忘れ、全角文字の混入がないか確認しよう"],
       [/IndentationError/, "インデントエラー: 行頭のスペースがずれていないか確認しよう(スペース4つが基本)"],
       [/NameError/, "名前エラー: その変数・関数は定義した?スペルは合ってる?"],
-      [/IndexError/, "インデックスエラー: リストの範囲外にアクセスしていないか確認しよう(0〜7の範囲?)"],
+      [/IndexError/, "インデックスエラー: リストの範囲外にアクセスしていないか確認しよう(インデックスは0始まり、最大は「長さ − 1」)"],
       [/TypeError/, "型エラー: 数値と文字列を混ぜていないか、引数の数は合っているか確認しよう"],
     ];
     for (const [re, hint] of hints) {

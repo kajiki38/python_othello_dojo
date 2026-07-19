@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lesson 8: AIをもっと強く — Python×オセロ道場</title>
+<title>オセロ Lesson 7: AIをもっと強く — Python×オセロ道場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -244,7 +244,7 @@ def ai_master(board, color, moves):
 
   <article class="lesson">
     <div class="lesson-head">
-      <div class="crumb">LESSON 08 / 08</div>
+      <div class="crumb">オセロ LESSON 07 / 07</div>
       <h1>AIをもっと強く</h1>
       <p class="lead">最終レッスン。「マスの価値」と「評価関数」という本格AIの考え方を導入して、欲張りAIを倒します。ここから先は、あなた自身の研究テーマです。</p>
     </div>
@@ -374,6 +374,10 @@ print("→ 2局とも完全に同じ結果…なぜ?")
 </script>
     </div>
 
+    <div class="note">
+      <p><strong>「まだ無い」の目印に <code>None</code>:</strong> <code>best_score</code> の初期値を <code>0</code> ではなく <code>None</code>(=まだ何も入っていない)にしているのがポイントです。評価点はマイナスにもなり得るので、<code>0</code> から始めると「0より低いけど最善」の手を取り逃します。<code>best_score is None</code>(=まだ1手も比べていない)なら無条件に採用し、2手目以降は点数で比べる——「最初の1個は必ず採用する」ときの定番パターンです。</p>
+    </div>
+
     <p>おそらく圧勝ですね。<strong>「目先の石数」より「場所の価値」</strong>——たった8×8の数字テーブルで、AIは見違えるほど強くなります。</p>
     <p>…ところで、<strong>2局の結果がまったく同じ</strong>だったことに気づきましたか?</p>
 
@@ -437,7 +441,7 @@ print(f"勝率: {wins / 30 * 100:.0f}%")
     <p>ここから先に「教科書」はありません。強いオセロAIづくりの定番アイデアをいくつか紹介するので、好きなものを選んで <code>ai_master</code> を改造してみてください。</p>
     <ul>
       <li><strong>重みの調整</strong> — WEIGHTSの数字を変えて対戦実験。角は100で足りる? X打ちはもっと減点?</li>
-      <li><strong>着手可能数(モビリティ)</strong> — Lesson 5で作った「打てる場所の数」を評価に足す。<code>evaluate</code> に <code>+ 3 * len(valid_moves(board, color))</code> のような項を追加</li>
+      <li><strong>着手可能数(モビリティ)</strong> — Lesson 4で作った「打てる場所の数」を評価に足す。<code>evaluate</code> に <code>+ 3 * len(valid_moves(board, color))</code> のような項を追加</li>
       <li><strong>終盤モード</strong> — 残りマスが少なくなったら(例: 12マス以下)、重みではなく<strong>石数そのもの</strong>で評価を切り替える</li>
       <li><strong>2手先読み</strong> — 自分の手の後、相手が最善手を打ったときの評価で選ぶ(ミニマックス法への入り口)</li>
     </ul>

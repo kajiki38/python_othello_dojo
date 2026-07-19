@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五目並べ Lesson 5: 対戦AIを作る — Python×オセロ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="gomoku-05" data-board-theme="gomoku">
+
+<script type="text/x-python" id="pre">
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+SIZE = 9
+
+def make_board():
+    return [[EMPTY] * SIZE for _ in range(SIZE)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(SIZE)))
+    for y in range(SIZE):
+        print(y, " ".join(board[y]))
+
+def place(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return False
+    board[y][x] = color
+    return True
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 5:
+            return True
+    return False
+
+def empty_cells(board):
+    cells = []
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if board[y][x] == EMPTY:
+                cells.append((x, y))
+    return cells
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">五目並べ LESSON 05 / 06</div>
+      <h1>対戦AIを作る</h1>
+      <p class="lead">五目並べ道場、最終レッスンです。「勝てる手があれば勝つ」「相手が勝ちそうなら防ぐ」——たった2つのルールで、ランダムAIよりずっと強いAIが作れます。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>AI = 「盤面を見て手を返す関数」という考え方(この道場に共通の型)</li>
+        <li>「試しに置いてみて判定し、元に戻す」というテクニックを使う</li>
+        <li>勝ち・防御を読む <code>ai_block</code> を作り、ランダムAIと対戦実験する</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>ランダムAI(基準点)</h2>
+    <p>まずは比較の基準になるランダムAIから。この道場共通のインターフェース——<code>(board, color, moves)</code> を受け取って1手返す関数です。</p>
+
+    <div class="pyrunner" data-name="ai_random.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def ai_random(board, color, moves):
+    """打てる場所から適当に選ぶAI"""
+    return random.choice(moves)
+
+board = make_board()
+moves = empty_cells(board)
+print("ランダムAIの選択:", ai_random(board, BLACK, moves))
+</script>
+    </div>
+
+    <h2><span class="step">STEP 2</span>「試しに置いてみる」テクニック</h2>
+    <p>「この手を打ったら勝てるか?」を調べる一番簡単な方法は、<strong>実際に試しに置いてみて<code>check_win</code>で判定し、ダメならすぐ元に戻す</strong>ことです。盤面を1回だけ書き換えて調べる、軽量なやり方です。</p>
+
+    <div class="pyrunner" data-name="find_winning_move.py" data-preamble="pre">
+<script type="text/x-python">
+def find_winning_move(board, color, moves):
+    """movesの中に「置いたら即勝ち」の手があれば返す。なければNone"""
+    for x, y in moves:
+        board[y][x] = color             # 試しに置く
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY             # 必ず元に戻す
+        if win:
+            return (x, y)
+    return None
+
+board = make_board()
+for x, y in [(2, 4), (3, 4), (4, 4), (5, 4)]:
+    place(board, x, y, BLACK)
+print_board(board)
+
+moves = empty_cells(board)
+print("黒の勝ち手:", find_winning_move(board, BLACK, moves))
+</script>
+    </div>
+
+    <div class="warn">
+      <p><strong>元に戻し忘れに注意!</strong> <code>board[y][x] = EMPTY</code> を忘れると、調べただけのはずの石が盤面に残ってしまいます。「試しに置く→調べる→戻す」は3点セットで覚えましょう。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>勝ち + 防御 — ai_block</h2>
+    <p><code>find_winning_move</code> は「自分の勝ち手を探す」だけでなく、「<code>color</code> に相手の色を渡せば、相手の勝ち手=自分が防ぐべき手」も探せます。同じ部品を2通りに使い回すのがポイントです。</p>
+
+    <div class="pyrunner" data-name="ai_block.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
+
+def ai_block(board, color, moves):
+    """勝てるならその手、相手が次に勝てるなら防ぐ、それ以外はランダム"""
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    return random.choice(moves)
+
+# 白がリーチ(あと1つで勝ち)の局面を作る
+board = make_board()
+for x, y in [(2, 2), (3, 3), (4, 4), (5, 5)]:
+    place(board, x, y, WHITE)
+print_board(board)
+
+moves = empty_cells(board)
+print("黒番のai_blockの選択:", ai_block(board, BLACK, moves))   # (1,1) か (6,6) で防ぐはず
+</script>
+    </div>
+
+    <h2><span class="step">STEP 4</span>実験:防御AI vs ランダムAI</h2>
+    <p>AIの強さは大量対局の勝率で測るのがこの道場の流儀。対戦させる装置 <code>play_match</code> を作って50局戦わせましょう。</p>
+
+    <div class="pyrunner" data-name="experiment.py" data-preamble="pre">
+<script type="text/x-python">
+import random
+
+def find_winning_move(board, color, moves):
+    for x, y in moves:
+        board[y][x] = color
+        win = check_win(board, x, y, color)
+        board[y][x] = EMPTY
+        if win:
+            return (x, y)
+    return None
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def ai_block(board, color, moves):
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    return random.choice(moves)
+
+def play_match(ai_black, ai_white):
+    """2つのAIを対戦させ、勝者を返す(引き分けはNone)"""
+    board = make_board()
+    turn = BLACK
+    while True:
+        moves = empty_cells(board)
+        if not moves:
+            return None
+        ai = ai_black if turn == BLACK else ai_white
+        x, y = ai(board, turn, moves)
+        place(board, x, y, turn)
+        if check_win(board, x, y, turn):
+            return turn
+        turn = opponent(turn)
+
+# 防御AI(黒) vs ランダムAI(白) を50局! ※数秒かかります
+wins = losses = draws = 0
+for i in range(50):
+    winner = play_match(ai_block, ai_random)
+    if winner == BLACK:
+        wins += 1
+    elif winner == WHITE:
+        losses += 1
+    else:
+        draws += 1
+
+print(f"防御AIの成績: {wins}勝 {losses}敗 {draws}分")
+print(f"勝率: {wins / 50 * 100:.0f}%")
+</script>
+    </div>
+
+    <div class="note">
+      <p><strong>関数を「渡す」— 初めての大技:</strong> <code>play_match(ai_block, ai_random)</code> の呼び出しに注目してください。<code>ai_block()</code> のように<strong>実行する</strong>のではなく、<code>ai_block</code> という<strong>関数そのものを引数として渡して</strong>います。<code>play_match</code> の中では、受け取った関数を <code>ai = ai_black if turn == BLACK else ai_white</code> で手番に応じて選び、<code>ai(board, turn, moves)</code> の形で呼び出します。Pythonでは<strong>関数も値の一種</strong>なので、こうして「どのAIで戦わせるか」をあとから差し替えられるのです。この仕組みのおかげで、次のレッスンで作るもっと強いAIも、同じ <code>play_match</code> にそのまま渡して試せます。</p>
+    </div>
+
+    <p>「勝てる手を逃さず、負けそうな手だけ防ぐ」——たったこれだけで、ランダムAIにかなりの差をつけられるはずです。五目並べは読みの深さがそのまま強さに直結するゲームなので、この <code>find_winning_move</code> の考え方をさらに2手先・3手先まで広げれば、もっと強いAIに育てられます。</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:自分だけの改造AI</h3>
+      <p><code>ai_block</code> をベースに、「勝ち・防御どちらもなければ、盤の中心に近い手を選ぶ」ように改造してみましょう。五目並べは中心付近ほど並びを作りやすい、というのが定石です。</p>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def ai_center(board, color, moves):
+    win_move = find_winning_move(board, color, moves)
+    if win_move:
+        return win_move
+    block_move = find_winning_move(board, opponent(color), moves)
+    if block_move:
+        return block_move
+    center = SIZE // 2
+    # 中心からの距離が一番近い手を選ぶ
+    return min(moves, key=lambda m: (m[0] - center) ** 2 + (m[1] - center) ** 2)
+
+wins = losses = draws = 0
+for i in range(50):
+    winner = play_match(ai_center, ai_random)
+    if winner == BLACK: wins += 1
+    elif winner == WHITE: losses += 1
+    else: draws += 1
+print(f"中心志向AI: {wins}勝 {losses}敗 {draws}分")</pre></div>
+          <p><code>key=lambda m: 式</code> は「各手 <code>m</code> を<strong>いったん式の値に変換してから</strong>比べる」という指定です。ここでは <code>(m[0] - center) ** 2 + (m[1] - center) ** 2</code>(中心からの距離。<code>** 2</code> は「2乗」)で各手を点数化し、<code>min</code> がその<strong>いちばん小さい=中心にいちばん近い</strong>手を選びます。<code>lambda</code> は「その場で作る、名前のない小さな関数」——今は『各要素を点数に変える式』と読めればOKです。<code>min/max</code> の <code>key</code> は、どの種目のAI作りでも使える定番テクニックなので形に慣れておきましょう。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ</h2>
+    <ul>
+      <li>「試しに置く→<code>check_win</code>で判定→元に戻す」で、先読み1手のAIが作れる</li>
+      <li>同じ部品(<code>find_winning_move</code>)を「攻め」と「守り」の両方に使い回せる</li>
+      <li>強さは大量対局の勝率で測る</li>
+    </ul>
+    <p>ところで——この <code>ai_block</code>、実は人間が簡単に勝てる弱点を抱えています。次の最終レッスンでその弱点を暴いて、1手先を読む強化AIに育てましょう。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>
