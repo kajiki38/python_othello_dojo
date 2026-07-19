@@ -655,7 +655,7 @@ def my_ai(board, color, moves):
               <span><span class="cnt" id="cnt-white">0</span><br><span class="who" id="who-white">AI</span></span>
             </div>
           </div>
-          <div class="pg-msg" id="pg-msg">「新しいゲーム」を押してスタート!</div>
+          <div class="pg-msg" id="pg-msg" role="status" aria-live="polite">「新しいゲーム」を押してスタート!</div>
         </div>
         <div class="pg-controls">
           <div>
@@ -719,7 +719,7 @@ def my_ai(board, color, moves):
           <label for="lab-saved" style="margin-left: 6px;">保存したAI:</label>
           <select id="lab-saved"><option value="">(まだありません)</option></select>
           <button class="lab-mini-btn" id="lab-load" title="エディタに開く">📂 開く</button>
-          <button class="lab-mini-btn" id="lab-delete" title="削除">🗑</button>
+          <button class="lab-mini-btn" id="lab-delete" title="削除" aria-label="保存したAIを削除">🗑</button>
         </div>
         <div class="tip" id="save-hint" style="margin: 0 0 14px; display: none;">保存すると「🎮 対戦する」タブの<strong>対戦相手</strong>に「あなたのAI」として並びます。自分の作ったAIと勝負できます!</div>
         <div class="pyrunner" data-manual style="margin-top: 0;">
@@ -784,17 +784,17 @@ def my_ai(board, color, moves):
       </div>
       <div class="lab-results">
         <h3>🏟️ 対戦結果</h3>
-        <div style="font-size: 13.5px; color: var(--text-soft);" id="lab-summary">まだ対戦していません。左のコードはそのまま動くので、まずは「⚔️ 対戦開始」を押してみましょう!</div>
+        <div style="font-size: 13.5px; color: var(--text-soft);" id="lab-summary" aria-live="polite">まだ対戦していません。左のコードはそのまま動くので、まずは「⚔️ 対戦開始」を押してみましょう!</div>
 
         <!-- 1局じっくり観戦ビュー -->
         <div id="lab-single" style="display: none;">
           <div class="lab-board-frame"><div class="sb sb-gomoku pg-lab-board" id="lab-board" aria-label="観戦盤"></div></div>
           <div class="playback">
-            <button id="lab-to-start" title="最初の手へ">⏮</button>
-            <button id="lab-step-back" title="1手戻る">◀</button>
+            <button id="lab-to-start" title="最初の手へ" aria-label="最初の手へ">⏮</button>
+            <button id="lab-step-back" title="1手戻る" aria-label="1手戻る">◀</button>
             <button id="lab-play" class="play" title="再生 / 一時停止">▶ 再生</button>
-            <button id="lab-step-fwd" title="1手進む">▶</button>
-            <button id="lab-to-end" title="最後の手へ">⏭</button>
+            <button id="lab-step-fwd" title="1手進む" aria-label="1手進む">▶</button>
+            <button id="lab-to-end" title="最後の手へ" aria-label="最後の手へ">⏭</button>
             <select id="lab-speed" title="再生速度">
               <option value="0.22">ゆっくり</option>
               <option value="0.6" selected>ふつう</option>
