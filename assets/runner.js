@@ -43,6 +43,7 @@
         await Promise.all([
           loadCss(`${CM_BASE}/codemirror.min.css`),
           loadCss(`${CM_BASE}/theme/material-darker.min.css`),
+          loadCss(`${CM_BASE}/addon/hint/show-hint.min.css`),
         ]);
         await loadJs(`${CM_BASE}/codemirror.min.js`);
         await Promise.all([
@@ -50,6 +51,7 @@
           loadJs(`${CM_BASE}/addon/edit/matchbrackets.min.js`),
           loadJs(`${CM_BASE}/addon/edit/closebrackets.min.js`),
           loadJs(`${CM_BASE}/addon/comment/comment.min.js`),
+          loadJs(`${CM_BASE}/addon/hint/show-hint.min.js`),
         ]);
       })();
     }
@@ -107,6 +109,59 @@
     return lines.map((ln) => ln.slice(min)).join("\n");
   }
 
+  /* ---------- Python入力補完 ----------
+   * 候補 = エディタ内(+プリアンブルやエンジンコード)に出てくる単語 + Pythonキーワード/組み込み。
+   * 英字・_ を打つたびに自動で出る(文字列・コメント内は出さない)。Ctrl-Spaceでも呼べる。 */
+  const PY_WORDS = (
+    "False None True and as assert async await break class continue def del elif else except finally " +
+    "for from global if import in is lambda nonlocal not or pass raise return try while with yield " +
+    "print len range abs min max sum sorted reversed enumerate zip list dict set tuple str int float " +
+    "bool round input isinstance type random"
+  ).split(/\s+/);
+
+  function pythonHint(cm, extraText) {
+    const cur = cm.getCursor();
+    const line = cm.getLine(cur.line);
+    let start = cur.ch;
+    while (start > 0 && /\w/.test(line.charAt(start - 1))) start--;
+    const word = line.slice(start, cur.ch);
+    if (!word || /^\d/.test(word)) return null;
+    const lower = word.toLowerCase();
+    const seen = new Set([word]);
+    const docList = [], stdList = [];
+    // エディタ内+付随コードの単語(自分の変数・関数名)を優先候補に
+    const docWords = new Set();
+    const re = /[A-Za-z_][A-Za-z0-9_]*/g;
+    const text = cm.getValue() + "\n" + (extraText || "");
+    let m;
+    while ((m = re.exec(text))) docWords.add(m[0]);
+    for (const w of [...docWords].sort()) {
+      if (!seen.has(w) && w.toLowerCase().startsWith(lower)) { seen.add(w); docList.push(w); }
+    }
+    for (const w of PY_WORDS) {
+      if (!seen.has(w) && w.toLowerCase().startsWith(lower)) { seen.add(w); stdList.push(w); }
+    }
+    const list = docList.concat(stdList);
+    if (!list.length) return null;
+    return { list, from: CodeMirror.Pos(cur.line, start), to: CodeMirror.Pos(cur.line, cur.ch) };
+  }
+
+  function enablePythonHints(cm, getExtra) {
+    cm.setOption("hintOptions", {
+      hint: (c) => pythonHint(c, getExtra ? getExtra() : ""),
+      completeSingle: false,   // 候補が1つでも勝手に確定しない
+    });
+    cm.addKeyMap({ "Ctrl-Space": (c) => c.showHint() });
+    cm.on("inputRead", (c, change) => {
+      if (c.state.completionActive) return;
+      const typed = change.text[change.text.length - 1];
+      if (!typed || !/[A-Za-z_]$/.test(typed)) return;
+      const tok = c.getTokenAt(c.getCursor());
+      if (/\b(string|comment)\b/.test(tok.type || "")) return;
+      c.showHint();
+    });
+  }
+
   function buildWidget(el, index) {
     const srcEl = el.querySelector('script[type="text/x-python"]');
     const original = dedent(srcEl ? srcEl.textContent : "");
@@ -154,6 +209,10 @@
         },
       },
     });
+
+    const preHintEl = preambleId ? document.getElementById(preambleId) : null;
+    const preHintText = preHintEl ? dedent(preHintEl.textContent) : "";
+    enablePythonHints(cm, () => preHintText);
 
     resetBtn.addEventListener("click", () => {
       cm.setValue(original);
@@ -313,5 +372,5 @@
   });
 
   /* 他スクリプト(プレイグラウンド)からも使えるように公開 */
-  window.PGI = { ensurePyodide, ensureCodeMirror, dedent };
+  window.PGI = { ensurePyodide, ensureCodeMirror, dedent, enablePythonHints };
 })();
