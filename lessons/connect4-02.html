@@ -71,6 +71,14 @@ print("1個積んだ後の3列目:", next_row(board, 3))       # その上 = 4
 
     <p><code>range(HEIGHT - 1, -1, -1)</code> は「<code>HEIGHT-1</code>から<code>0</code>まで1ずつ減らす」——<strong>下から上に向かって</strong>調べています。オセロや五目並べのループはほとんど「上から下・左から右」でしたが、重力を扱うここだけは逆向きです。</p>
 
+    <div class="note">
+      <p><code>range(開始, 終了, 増分)</code> の形も使えます。<strong>終了の値自体は含まれない</strong>ので、0 まで見たいときは終了に -1 を書きます。<code>range(HEIGHT - 1, -1, -1)</code> =「HEIGHT-1 から 0 まで、1ずつ減らしながら」——下の段から上へ調べる動きです。</p>
+    </div>
+
+    <div class="note">
+      <p><code>None</code> は「<strong>値がない</strong>」を表すPythonの特別な値です。「落とせる場所が見つからなかった(満杯)」の合図として return するのが定番で、確認は <code>is None</code> と書くのが習慣です(<code>== None</code> でも動きますが <code>is</code> が正式な作法)。</p>
+    </div>
+
     <h2><span class="step">STEP 2</span>drop関数で実際に落とす</h2>
     <p><code>next_row</code>で落ちる場所を調べて、そこに置く。この2ステップをまとめたのが <code>drop</code> です。</p>
 

@@ -75,6 +75,10 @@ print_board(board)
 
     <p>関数名のあとのカッコに並んだ <code>board, x, y, color</code> が<strong>引数(ひきすう)</strong>。呼び出すときに渡した値が、この名前で関数の中に届きます。</p>
 
+    <div class="note">
+      <p><code>place_simple</code> には <code>return</code> がありません。それでも呼び出し元の盤面が変わるのは、<strong>リストを引数に渡すと「コピー」ではなく「本物」が渡される</strong>から——関数の中で <code>board[y][x] = color</code> と書き換えれば、それがそのまま元の盤面の変化になります。だから盤面は返さず、この先のレッスンでは「置けたかどうか」だけを return する設計にできます。</p>
+    </div>
+
     <div class="warn">
       <p>本物のオセロでは「相手の石を挟める場所」にしか置けません。ルールチェックは次のレッスンのお楽しみ。まずは部品を揃えます。</p>
     </div>
@@ -157,7 +161,7 @@ print("盤の端に到達!")
 
     <div class="challenge">
       <h3>チャレンジ:8方向ぜんぶに歩こう</h3>
-      <p>STEP 4のwhileループを<strong>関数</strong>にまとめましょう。<code>walk(x, y, dx, dy)</code> は「(x, y) から方向 (dx, dy) に端まで歩き、<strong>通過したマスの座標をリストで返す</strong>」関数です。できたら8方向ループと組み合わせて、(3, 3) からの通過マスを表示してみましょう。実行すると複数のテストデータで自動チェックされます。</p>
+      <p>STEP 4のwhileループを<strong>関数</strong>にまとめましょう。<code>walk(x, y, dx, dy)</code> は「(x, y) から方向 (dx, dy) に端まで歩き、<strong>通過したマスの座標をリストで返す</strong>」関数です。できたら8方向ループと組み合わせて、(3, 3) からの通過マスを表示してみましょう。スターターの <code>cells.append((nx, ny))</code> のカッコが2重なのは、内側のカッコが座標のタプル <code>(nx, ny)</code> だから——カッコ2重で「タプルを1個追加」になります。実行すると複数のテストデータで自動チェックされます。</p>
       <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
 <script type="text/x-python">
 DIRECTIONS = [(-1, -1), (0, -1), (1, -1),

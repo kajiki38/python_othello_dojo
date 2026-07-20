@@ -261,6 +261,10 @@ print("石の周囲だけ :", len(near_cells(board)), "個")
 
     <p>ここで初めて <code>set</code>(セット=集合)が登場しました。リストとよく似ていますが、<strong>同じ値を重複して持たない</strong>のが特徴です。<code>set()</code> で空の集合を作り、<code>.add(値)</code> で足していきます(すでにある値を足しても増えません)。石の周囲を調べると同じ空点を何度も拾ってしまうので、自動で重複を消してくれる <code>set</code> がぴったり。最後に <code>list(cells)</code> で、いつものリストに戻しています。</p>
 
+    <div class="note">
+      <p>ちなみに <code>(dx, dy) = (0, 0)</code>(石自身のマス)も候補に入りますが、そこには石があるので空きマス条件で自動的に除外されます——場合分け不要のちょっとした手抜きです。</p>
+    </div>
+
     <p>結果は79個 → 12個。調べる数が数分の一になれば、掛け算で効いて<strong>数十倍速く</strong>なります。「正しく動くものを作ってから、無駄を削って速くする」——これもプログラミングの王道の手順です。</p>
 
     <h2><span class="step">STEP 5</span>対戦実験:先読みAI vs 勝ち・防御AI</h2>
@@ -332,6 +336,10 @@ for i in range(20):
 
 print(f"先読みAIの成績: {wins}勝 {losses}敗 {draws}分")
 </script>
+    </div>
+
+    <div class="note">
+      <p><code>リスト.sort(key=...)</code> はリスト<strong>そのもの</strong>を key の値が小さい順に並べ替えます。先に中央に近い順へ並べておくおかげで、この後のどのループも「同点なら中央寄り」を自動的に優先し、どれもダメなら先頭 <code>cand[0]</code>(最も中央寄り)に落ち着きます。</p>
     </div>
 
     <p>圧勝のはずです。読みの深さがたった1手違うだけで、これだけの差がつきます。</p>
@@ -607,6 +615,7 @@ for x in [2, 3, 4]:
     place(board, x, 4, BLACK)
 print_board(board)
 print("黒番の ai_strong2 の選択:", ai_strong2(board, BLACK, empty_cells(board)))</pre></div>
+          <p>案内どおり「<code>n &gt;= 1</code> のループを最後に足す」形でも正解です。解答例は同じループを2回書かないよう <code>need</code> を (2, 1) で回す書き方にしており、優先順位(ダブルリーチ→相手の阻止→単リーチ)が崩れないよう、防御チェックを <code>need == 2</code> の直後に挟んでいます。</p>
           <p>常にリーチを作り続けるAIは、相手に防御を強制し続けます。攻め続けている限り、相手は自分の形を作る暇がない——五目並べの「先手の理」をAIに教えたことになります。<code>ai_strong2</code> と <code>ai_strong</code> を <code>play_match</code> で戦わせて、勝率がどう変わるか確かめてみましょう。</p>
         </div>
       </details>

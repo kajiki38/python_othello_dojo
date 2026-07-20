@@ -108,11 +108,19 @@ print_board(board)
     </div>
 
     <div class="note">
+      <p><code>join</code> のカッコの中に直接 for を書くのは、リスト内包表記の <code>[ ]</code> を省いた形です。<code>str(i)</code> は数値を文字列にする関数(<code>join</code> は文字列しかつなげないため)。</p>
+    </div>
+
+    <div class="note">
       <p>実行結果の下に、自動で<strong>五目並べ盤のビジュアル</strong>が表示されたはずです。マスを塗るのではなく<strong>交点に石を置く</strong>碁盤スタイルになっています。中身のデータ(<code>.</code> <code>●</code> <code>○</code> のリスト)はどの種目でも同じ仕組みで、見た目だけがゲームに合わせて変わります。</p>
     </div>
 
     <h2><span class="step">STEP 4</span>試しに石を置いてみる</h2>
     <p>まだ「置く関数」は作っていませんが、<code>board[y][x] = 石</code> で直接書き込むことはもうできます。中央付近に何個か置いて、盤面ビジュアルで確認してみましょう。</p>
+
+    <div class="note">
+      <p><code>board[y]</code> は<strong>y行目(1つのリスト)</strong>を取り出し、そのリストの <code>[x]</code> 番目がマスの中身——<strong>2段階のインデックス</strong>です。盤面が「行のリスト」だから、<strong>行(y)が先</strong>になります。<code>board[x][y]</code> と逆に書くのが定番のミスなので要注意。</p>
+    </div>
 
     <div class="pyrunner" data-name="try_stones.py">
 <script type="text/x-python">

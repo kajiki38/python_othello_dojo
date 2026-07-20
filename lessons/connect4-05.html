@@ -74,7 +74,7 @@ def check_win(board, x, y, color):
     <div class="lesson-head">
       <div class="crumb">コネクトフォー LESSON 05 / 06</div>
       <h1>対戦AIを作る</h1>
-      <p class="lead">コネクトフォー道場、最終レッスンです。五目並べで学んだ「勝てる手を逃さず、負けそうな手を防ぐ」という考え方を、列を選ぶAIとして実装します。</p>
+      <p class="lead">いよいよAI作りです。「勝てる手を逃さず、負けそうな手を防ぐ」という考え方を、列を選ぶAIとして実装します(五目並べコースで同じ型のAIを作った人には復習になります。初めてでも、ここだけで分かるようにゼロから組み立てます)。</p>
     </div>
 
     <div class="goal-box">
@@ -102,8 +102,12 @@ print("ランダムAIの選択:", ai_random(board, BLACK, cols))
 </script>
     </div>
 
+    <div class="note">
+      <p>どのAIも <code>(board, color, cols)</code> の<strong>同じ形</strong>にそろえておくと、あとで自由に差し替えられます(<code>ai_random</code> のように使わない引数があってもOK)。</p>
+    </div>
+
     <h2><span class="step">STEP 2</span>「試しに落としてみる」— 列バージョン</h2>
-    <p>五目並べでは座標に直接置いて調べましたが、コネクトフォーは<code>drop</code>を使って「試しに落として」から調べます。<code>next_row</code>で落ちる場所(<code>y</code>)を先に確認しておくのがポイントです。</p>
+    <p>AIの読みの基本は「試しに置いてみて、判定して、必ず元に戻す」です。コネクトフォーでは <code>next_row</code> で落ちる先の段 <code>y</code> を調べ、そこに<strong>直接</strong>置いて勝ちを判定し、<strong>同じ <code>y</code> を使って必ず元に戻します</strong>。戻し忘れると、本物の盤面(呼び出し元と共有しているリスト)が書き換わったままになってしまうからです(五目並べ経験者向け: あちらで座標に直接置いて調べたテクニックの、列バージョンです)。</p>
 
     <div class="pyrunner" data-name="find_winning_col.py" data-preamble="pre">
 <script type="text/x-python">
@@ -130,8 +134,12 @@ print("黒の勝ち列:", find_winning_col(board, BLACK, cols))
 </script>
     </div>
 
+    <div class="note">
+      <p><code>continue</code> は「<strong>このループの今の1周をここで打ち切って、次の要素へ進む</strong>」命令です(下の行は実行されません)。英語の「続ける」から「そのまま下へ進む」と誤解しやすいので注意——続けるのは<strong>ループの次の周</strong>です。</p>
+    </div>
+
     <h2><span class="step">STEP 3</span>勝ち + 防御 — ai_block</h2>
-    <p>五目並べの<code>ai_block</code>と同じ組み立てです。まず自分の勝ち手、なければ相手の勝ち手(=防ぐべき手)、それもなければランダム。</p>
+    <p>組み立てはシンプルです。まず自分の勝ち手、なければ相手の勝ち手(=防ぐべき手)、それもなければランダム(五目並べ経験者向け: あちらの<code>ai_block</code>と同じ組み立てです)。</p>
 
     <div class="pyrunner" data-name="ai_block.py" data-preamble="pre">
 <script type="text/x-python">
