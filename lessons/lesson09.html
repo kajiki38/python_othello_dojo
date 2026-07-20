@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オセロ 発展: 2手先を読むAI — Python×ボドゲ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="lesson09">
+
+<script type="text/x-python" id="pre">
+import random
+
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+
+def make_board():
+    board = [[EMPTY] * 8 for _ in range(8)]
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
+    return board
+
+def print_board(board):
+    print("  0 1 2 3 4 5 6 7")
+    for y in range(8):
+        print(y, " ".join(board[y]))
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+DIRECTIONS = [(-1, -1), (0, -1), (1, -1),
+              (-1,  0),          (1,  0),
+              (-1,  1), (0,  1), (1,  1)]
+
+def stones_to_flip(board, x, y, color):
+    if board[y][x] != EMPTY:
+        return []
+    flips = []
+    for dx, dy in DIRECTIONS:
+        line = []
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == opponent(color):
+            line.append((nx, ny))
+            nx, ny = nx + dx, ny + dy
+        if line and 0 <= nx < 8 and 0 <= ny < 8 and board[ny][nx] == color:
+            flips += line
+    return flips
+
+def place(board, x, y, color):
+    flips = stones_to_flip(board, x, y, color)
+    if not flips:
+        return False
+    board[y][x] = color
+    for fx, fy in flips:
+        board[fy][fx] = color
+    return True
+
+def valid_moves(board, color):
+    moves = []
+    for y in range(8):
+        for x in range(8):
+            if stones_to_flip(board, x, y, color):
+                moves.append((x, y))
+    return moves
+
+def count_stones(board, color):
+    total = 0
+    for row in board:
+        total += row.count(color)
+    return total
+
+def ai_random(board, color, moves):
+    return random.choice(moves)
+
+def ai_greedy(board, color, moves):
+    best_move = moves[0]
+    best_count = 0
+    for x, y in moves:
+        n = len(stones_to_flip(board, x, y, color))
+        if n > best_count:
+            best_count = n
+            best_move = (x, y)
+    return best_move
+
+def play_match(ai_black, ai_white):
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            ai = ai_black if turn == BLACK else ai_white
+            x, y = ai(board, turn, moves)
+            place(board, x, y, turn)
+            passes = 0
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+
+WEIGHTS = [
+    [100, -20,  10,   5,   5,  10, -20, 100],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [  5,  -2,   1,   0,   0,   1,  -2,   5],
+    [ 10,  -2,   5,   1,   1,   5,  -2,  10],
+    [-20, -50,  -2,  -2,  -2,  -2, -50, -20],
+    [100, -20,  10,   5,   5,  10, -20, 100],
+]
+
+def copy_board(board):
+    return [row[:] for row in board]
+
+def evaluate(board, color):
+    score = 0
+    for y in range(8):
+        for x in range(8):
+            if board[y][x] == color:
+                score += WEIGHTS[y][x]
+            elif board[y][x] == opponent(color):
+                score -= WEIGHTS[y][x]
+    return score
+
+def ai_master(board, color, moves):
+    best_move = None
+    best_score = None
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, color)
+        score = evaluate(test, color)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_move = (x, y)
+    return best_move
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">オセロ LESSON 08 / 08</div>
+      <h1>発展: 2手先を読むAI</h1>
+      <p class="lead">Lesson 7 で作った <code>ai_master</code> は、実は「<strong>打った直後</strong>の evaluate」しか見ていません。相手がどう返してくるかまで読む——本格AIの中心アイデア「<strong>ミニマックス法</strong>」で、<code>ai_master</code> を超えるAIを作りましょう。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>「打った直後」しか見ない評価の限界を、実際の罠局面で体感する</li>
+        <li>「自分の番は max、相手の番は min」——ミニマックスの考え方を理解する</li>
+        <li>新しい武器<strong>再帰</strong>(自分を呼ぶ関数)を使って <code>minimax_score</code> を実装する</li>
+        <li><code>ai_minimax</code> を完成させて、<code>ai_master</code> に勝ち越すことを確かめる</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <p>このページのウィジェットには、Lesson 7 までに作った全部品(<code>place</code> / <code>valid_moves</code> などのルール一式に加えて <code>WEIGHTS</code> / <code>evaluate</code> / <code>copy_board</code> / <code>ai_master</code> / <code>play_match</code>)が読み込み済みです(📦マーク)。</p>
+    </div>
+
+    <h2><span class="step">STEP 1</span>「1手先」の限界 — ai_master が罠にはまる</h2>
+    <p>Lesson 7 の最後に研究テーマとして挙げた「2手先読み」。なぜそれが必要なのか、まず <code>ai_master</code> が<strong>実際に罠にはまる局面</strong>を見てもらいます。序盤を10手すすめた局面で、黒番の <code>ai_master</code> に手を選ばせます。さらに各候補手について、「打った直後」の評価と、<strong>白にも ai_master として最善の返しを打たせた後</strong>の評価を並べてみましょう。</p>
+
+    <div class="pyrunner" data-name="trap.py" data-preamble="pre">
+<script type="text/x-python">
+# 序盤を10手すすめた局面(黒からの固定手順)
+board = make_board()
+opening = [(3, 2), (4, 2), (5, 2), (2, 4), (5, 5), (5, 1), (4, 1), (6, 6), (6, 0), (4, 0)]
+turn = BLACK
+for x, y in opening:
+    place(board, x, y, turn)
+    turn = opponent(turn)
+print_board(board)
+print()
+
+moves = valid_moves(board, BLACK)
+print("黒の手    直後   白の返し   返しの後")
+for x, y in moves:
+    test = copy_board(board)
+    place(test, x, y, BLACK)
+    now = evaluate(test, BLACK)                        # 打った直後の評価
+    rx, ry = ai_master(test, WHITE, valid_moves(test, WHITE))
+    place(test, rx, ry, WHITE)                         # 白にも最善を打たせてみる
+    after = evaluate(test, BLACK)                      # 返された後の評価
+    print(f"({x},{y})   {now:>4}   ({rx},{ry})     {after:>5}")
+
+print()
+print("ai_master の選択:", ai_master(board, BLACK, moves))
+</script>
+    </div>
+
+    <p>表を見てください。<code>ai_master</code> が選んだ <code>(5, 0)</code> は「直後」の評価 <code>30</code> で堂々の1位。ところが白の最善の返しは<strong>角 (7, 0)</strong>——返された後の評価は <code>-50</code> まで暴落します。いっぽう <code>(2, 5)</code> は直後 <code>29</code> と<strong>たった1点差の2位</strong>なのに、返された後も <code>21</code> でトップ。1点の欲に目がくらんで角を献上してしまうわけです。</p>
+
+    <div class="warn">
+      <p><strong>1手読みの壁:</strong> 「打った直後の点数」がどんなに良くても、<strong>相手の返しの一手</strong>で台無しになることがあります。手の本当の価値は「打った直後」ではなく「<strong>相手に返された後</strong>」で測らなければいけません。</p>
+    </div>
+
+    <h2><span class="step">STEP 2</span>相手は一番イヤな返しをしてくる</h2>
+    <p>そこで発想を変えます。<strong>「自分の手の価値 = 相手が最善(こちらに最悪)の返しをしてきた後の盤面の価値」</strong>。相手が甘い手を打ってくれることを祈るのではなく、<strong>一番イヤな返しをされる前提</strong>で手を選ぶのです。「一番イヤ = こちらの評価が最小になる返し」なので、Python では <code>min()</code> で書けます。</p>
+
+    <div class="pyrunner" data-name="min_reply.py" data-preamble="pre">
+<script type="text/x-python">
+def score_min_reply(board, color, x, y):
+    """(x, y) に打った手の価値 = 相手に一番イヤな返しをされた後の評価"""
+    test = copy_board(board)
+    place(test, x, y, color)
+    opp_moves = valid_moves(test, opponent(color))
+    if not opp_moves:
+        return evaluate(test, color)       # 相手が打てないならそのまま採点
+    scores = []
+    for ox, oy in opp_moves:
+        test2 = copy_board(test)
+        place(test2, ox, oy, opponent(color))
+        scores.append(evaluate(test2, color))
+    return min(scores)                     # 相手はこちらが一番困る返しを選ぶ!
+
+# STEP 1 と同じ罠局面で、新しいものさしで測り直す
+board = make_board()
+opening = [(3, 2), (4, 2), (5, 2), (2, 4), (5, 5), (5, 1), (4, 1), (6, 6), (6, 0), (4, 0)]
+turn = BLACK
+for x, y in opening:
+    place(board, x, y, turn)
+    turn = opponent(turn)
+
+best_move = None
+best_score = None
+for x, y in valid_moves(board, BLACK):
+    s = score_min_reply(board, BLACK, x, y)
+    print(f"({x},{y}) の価値: {s:>4}")
+    if best_score is None or s > best_score:   # 自分は一番良い手を選ぶ = max
+        best_move, best_score = (x, y), s
+print()
+print("新しいものさしでの最善手:", best_move)
+</script>
+    </div>
+
+    <p>各手の価値が、STEP 1 の表の「返しの後」の列と<strong>ぴったり同じ数字</strong>になりましたね。オセロは相手が得をした分だけ自分が損をするゲームなので、「白にとって最善の返し」と「黒にとって最悪の返し」は同じ手なのです。そして新しいものさしは、罠の <code>(5, 0)</code> ではなくちゃんと <code>(2, 5)</code> を選びました。</p>
+
+    <div class="note">
+      <p>ここに出てきた2つの道具に注目。<strong>相手の番は <code>min()</code></strong>(こちらに一番イヤな手を選んでくる)、<strong>自分の番は max</strong>(一番良い手を選ぶ)。この「max と min を交互に取りながら先を読む」方法を<strong>ミニマックス法</strong>と呼びます。1950年代から現代のチェス・将棋AIまで、対戦ゲームAIの土台であり続けている考え方です。</p>
+    </div>
+
+    <h2><span class="step">STEP 3</span>再帰 — 関数が自分を呼ぶ</h2>
+    <p>STEP 2 は「2手先」まででしたが、3手先・4手先はどうしましょう? ループを二重・三重に増やす…のは書いていられません。ここで新しい武器、<strong>再帰</strong>の出番です。まずはミニマックスを離れて、いちばん小さな例から。<strong>関数が自分自身を呼ぶ</strong>とどうなるか、実行して確かめてください。</p>
+
+    <div class="pyrunner" data-name="recursion.py">
+<script type="text/x-python">
+def countdown(n):
+    """n から 0 までカウントダウンする(自分で自分を呼ぶ=再帰)"""
+    print(n)
+    if n == 0:          # 止まる条件(基底ケース)。これが無いと無限に呼び続けてしまう
+        return
+    countdown(n - 1)    # 自分自身を呼ぶ! ただし「1小さい n」で
+
+countdown(5)
+</script>
+    </div>
+
+    <div class="note">
+      <p>関数が自分自身を呼ぶ書き方を<strong>再帰</strong>といいます。①必ず「止まる条件」を先に書く ②呼ぶたびに問題を小さくする(<code>n - 1</code>、<code>depth - 1</code>)——この2点さえ守れば怖くありません。ミニマックスは「depth 手先まで読む」を「<strong>1手進めて depth-1 手先まで読む</strong>」に置き換える、再帰の代表例です。</p>
+    </div>
+
+    <p>この型をミニマックスに当てはめます。「盤面を depth 手先まで読んで採点する関数」<code>minimax_score</code> は——止まる条件は「<code>depth == 0</code>(読み切った)か、打てる手がない」でそのときは <code>evaluate</code> で採点。それ以外は1手ずつ試し打ちして、<strong>残り depth-1 手の採点を自分自身に任せる</strong>。最後に自分の番なら max、相手の番なら min を取るだけです。</p>
+
+    <div class="pyrunner" data-name="minimax_score.py" data-preamble="pre">
+<script type="text/x-python">
+def minimax_score(board, color, turn, depth):
+    """color視点の評価値。turn = いま打つ側、depth = あと何手読むか"""
+    moves = valid_moves(board, turn)
+    if depth == 0 or not moves:
+        return evaluate(board, color)
+    scores = []
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, turn)
+        scores.append(minimax_score(test, color, opponent(turn), depth - 1))
+    if turn == color:
+        return max(scores)       # 自分の番: 一番良い手を選ぶ
+    return min(scores)           # 相手の番: こちらに一番イヤな手を選んでくる
+
+# STEP 1 の罠局面で検算。「白の番からあと1手読む」= STEP 2 と同じ2手読み
+board = make_board()
+opening = [(3, 2), (4, 2), (5, 2), (2, 4), (5, 5), (5, 1), (4, 1), (6, 6), (6, 0), (4, 0)]
+turn = BLACK
+for x, y in opening:
+    place(board, x, y, turn)
+    turn = opponent(turn)
+
+for x, y in valid_moves(board, BLACK):
+    test = copy_board(board)
+    place(test, x, y, BLACK)
+    print(f"({x},{y}) の価値: {minimax_score(test, BLACK, WHITE, 1):>4}")
+</script>
+    </div>
+
+    <p>STEP 2 の手書き二重ループと同じ数字が出たはずです。でも決定的な違いがあります。<code>score_min_reply</code> は2手先専用でしたが、<code>minimax_score</code> は <code>depth</code> を増やすだけで<strong>何手先でも</strong>読めます。二重ループを三重・四重に書き直す必要はありません——深くもぐるのは再帰が勝手にやってくれます。</p>
+
+    <h2><span class="step">STEP 4</span>ai_minimax 完成 — ai_master に挑む</h2>
+    <p>仕上げです。「各候補手を試し打ちして、<code>minimax_score</code> が一番高い手を選ぶ」AIを作ります。骨組みは <code>ai_master</code> とまったく同じで、ものさしが <code>evaluate</code> から <code>minimax_score</code> に変わっただけです。そして本家 <code>ai_master</code> と20局対戦させます。対戦には Lesson 7 の STEP 4 で学んだ「<strong>序盤ランダム</strong>」方式(最初の4手をランダムに打って展開をバラけさせる)をここでも使います——決定的AI同士の対決だからこそ、でしたね。※2手読みは1手あたり約10ミリ秒。20局でも数秒で終わります。</p>
+
+    <div class="pyrunner" data-name="experiment.py" data-preamble="pre">
+<script type="text/x-python">
+def minimax_score(board, color, turn, depth):
+    """color視点の評価値。turn = いま打つ側、depth = あと何手読むか"""
+    moves = valid_moves(board, turn)
+    if depth == 0 or not moves:
+        return evaluate(board, color)
+    scores = []
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, turn)
+        scores.append(minimax_score(test, color, opponent(turn), depth - 1))
+    if turn == color:
+        return max(scores)       # 自分の番: 一番良い手を選ぶ
+    return min(scores)           # 相手の番: こちらに一番イヤな手を選んでくる
+
+def ai_minimax(board, color, moves, depth=2):
+    best_move, best_score = None, None
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, color)
+        s = minimax_score(test, color, opponent(color), depth - 1)
+        if best_score is None or s > best_score:
+            best_move, best_score = (x, y), s
+    return best_move
+
+def play_match_varied(ai_black, ai_white, opening=4):
+    board = make_board()
+    turn = BLACK
+    passes = 0
+    n = 0
+    while passes < 2:
+        moves = valid_moves(board, turn)
+        if moves:
+            if n < opening:
+                x, y = random.choice(moves)
+            else:
+                ai = ai_black if turn == BLACK else ai_white
+                x, y = ai(board, turn, moves)
+            place(board, x, y, turn)
+            passes = 0
+            n += 1
+        else:
+            passes += 1
+        turn = opponent(turn)
+    return count_stones(board, BLACK), count_stones(board, WHITE)
+
+# ai_minimax vs ai_master 20局。先手・後手は1局ごとに交代
+wins = losses = draws = 0
+for i in range(20):
+    if i % 2 == 0:
+        b, w = play_match_varied(ai_minimax, ai_master)
+        my, op = b, w                  # ai_minimax が黒だった局
+    else:
+        b, w = play_match_varied(ai_master, ai_minimax)
+        my, op = w, b                  # ai_minimax が白だった局
+    if my > op:
+        wins += 1
+    elif op > my:
+        losses += 1
+    else:
+        draws += 1
+
+print(f"ai_minimax の成績: {wins}勝 {losses}敗 {draws}分")
+print(f"勝率: {wins / 20 * 100:.0f}%")
+</script>
+    </div>
+
+    <p>どうでしたか? 運にも左右されますが、<strong>7〜8割は勝てる</strong>はずです(こちらの実験では50局で38勝11敗1分でした)。注目してほしいのは、<code>ai_minimax</code> が使っている評価関数は <code>ai_master</code> と<strong>まったく同じ <code>evaluate</code></strong> だということ。「相手の返しまで読む」——それだけで、これだけの差がつくのです。</p>
+
+    <div class="note">
+      <p><code>depth=2</code> を大きくすれば、さらに先まで読めます。ただし読む局面の数は<strong>掛け算で</strong>増えていくので、1手増やすごとに何倍も遅くなります。「どこまで深く読むか」は強さと速さのトレードオフ——本物のゲームAI開発でも永遠のテーマです。</p>
+    </div>
+
+    <div class="challenge">
+      <h3>チャレンジ:評価関数を強くする — 角ボーナス</h3>
+      <p>ミニマックスの読みの底では、相変わらず <code>evaluate</code> が盤面を採点しています。つまり<strong>評価関数が賢くなれば、読み全体が賢くなる</strong>ということ。オセロでは、角に置いた石は絶対にひっくり返されない「<strong>確定石</strong>」です。<code>WEIGHTS</code> は「角のマスは価値が高い」ことしか知らないので、確定石のうまみをボーナスとして上乗せしましょう。<code>evaluate</code> の点数に、4つの角を調べて<strong>自分の石なら +25、相手の石なら −25</strong> する <code>evaluate2</code> を作り、それで読む <code>ai_minimax2</code> を完成させてください(<code>minimax_score2</code> は完成品を用意したのでそのまま使えます)。実行するといろいろな盤面で自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def evaluate2(board, color):
+    """evaluate の点数に「角の確定石ボーナス」を足した新しい評価関数"""
+    score = evaluate(board, color)   # 重みによる点数(ここはこのまま)
+    # ← 4つの角 (0,0) (7,0) (0,7) (7,7) を調べて、
+    #    自分の石なら score に +25、相手の石なら -25 しよう
+    return score
+
+def minimax_score2(board, color, turn, depth):
+    """minimax_score の evaluate を evaluate2 に替えた版(そのまま使ってOK)"""
+    moves = valid_moves(board, turn)
+    if depth == 0 or not moves:
+        return evaluate2(board, color)
+    scores = []
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, turn)
+        scores.append(minimax_score2(test, color, opponent(turn), depth - 1))
+    return max(scores) if turn == color else min(scores)
+
+def ai_minimax2(board, color, moves):
+    """試し打ち+minimax_score2(2手読み)で一番いい手を選ぶAI"""
+    return moves[0]   # ← STEP 4 の ai_minimax を参考に完成させよう
+
+# 動作チェック(そのまま使ってOK)
+board = make_board()
+board[0][0] = BLACK                  # ためしに角へ黒石を置いてみると…
+print("evaluate :", evaluate(board, BLACK))
+print("evaluate2:", evaluate2(board, BLACK), "(evaluate より 25 大きくなれば成功)")
+print("ai_minimax2 の選択:", ai_minimax2(make_board(), BLACK, valid_moves(make_board(), BLACK)))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("evaluate2 関数が定義されている", "evaluate2" in globals())
+_t("ai_minimax2 関数が定義されている", "ai_minimax2" in globals())
+import random as _random
+
+def _bstr(_bd):
+    return "/".join("".join(_r) for _r in _bd)
+
+def _rand_play_board(_max_plies=30):
+    """初期盤面からランダムに数手すすめた、実戦で現れうる盤面を作る"""
+    _bd = make_board()
+    _turn = BLACK
+    for _k in range(_random.randint(0, _max_plies)):
+        _ms = valid_moves(_bd, _turn)
+        if not _ms:
+            _turn = opponent(_turn)
+            _ms = valid_moves(_bd, _turn)
+            if not _ms:
+                break
+        _x, _y = _random.choice(_ms)
+        place(_bd, _x, _y, _turn)
+        _turn = opponent(_turn)
+    return _bd
+
+_corners = [(0, 0), (7, 0), (0, 7), (7, 7)]
+
+if "evaluate2" in globals():
+    _b1 = make_board()
+    _b1[0][0] = BLACK
+    _t("黒が角 (0,0) を持つ盤面: 黒の evaluate2 は evaluate より大きい",
+       evaluate2(_b1, BLACK) > evaluate(_b1, BLACK),
+       f"evaluate2={evaluate2(_b1, BLACK)} / evaluate={evaluate(_b1, BLACK)}(自分の角にボーナスを足したかな?)")
+    _t("同じ盤面を白から見ると evaluate2 は evaluate より小さい",
+       evaluate2(_b1, WHITE) < evaluate(_b1, WHITE),
+       f"evaluate2={evaluate2(_b1, WHITE)} / evaluate={evaluate(_b1, WHITE)}(相手の角では引いているかな?)")
+    _fail = ""
+    _b0 = None
+    try:
+        for _k in range(20):
+            # ランダムな盤面の角に、黒石をランダムに1〜4個置く
+            _bd = _rand_play_board()
+            for _cx, _cy in _corners:
+                _bd[_cy][_cx] = EMPTY
+            _mine = _random.sample(_corners, _random.randint(1, 4))
+            for _cx, _cy in _mine:
+                _bd[_cy][_cx] = BLACK
+            _b0 = _bd
+            _e1, _e2 = evaluate(_bd, BLACK), evaluate2(_bd, BLACK)
+            if not _e2 > _e1:
+                _fail = (f"盤面 {_bstr(_bd)}(黒の角 {len(_mine)} 個): "
+                         f"evaluate={_e1} に対し evaluate2={_e2}(大きくなるはず)")
+                break
+            _e1, _e2 = evaluate(_bd, WHITE), evaluate2(_bd, WHITE)
+            if not _e2 < _e1:
+                _fail = (f"盤面 {_bstr(_bd)} を白から見ると相手の角が {len(_mine)} 個: "
+                         f"evaluate={_e1} に対し evaluate2={_e2}(小さくなるはず)")
+                break
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}" + (f"(盤面 {_bstr(_b0)})" if _b0 else "")
+    _t("角に石を置いたランダムな盤面20個で、ボーナスの向きが正しい", _fail == "", _fail)
+
+if "ai_minimax2" in globals():
+    _bd = make_board()
+    _mv = ai_minimax2(copy_board(_bd), BLACK, valid_moves(_bd, BLACK))
+    _t("初期盤面で打てる手を返す", _mv in valid_moves(_bd, BLACK), f"返した手: {_mv}")
+    _b3 = [[EMPTY] * 8 for _ in range(8)]
+    _b3[5][5] = BLACK
+    _b3[6][6] = WHITE
+    _t("打てる場所が1つだけなら必ずその手 (7,7) を返す",
+       ai_minimax2(_b3, BLACK, [(7, 7)]) == (7, 7),
+       f"返した手: {ai_minimax2(_b3, BLACK, [(7, 7)])}")
+
+if "ai_minimax2" in globals() and "minimax_score2" in globals():
+    def _ref_score(_bd, _c, _m):
+        _tb = copy_board(_bd)
+        place(_tb, _m[0], _m[1], _c)
+        return minimax_score2(_tb, _c, opponent(_c), 1)   # 2手読みの価値
+    _fail = ""
+    _b0 = None
+    _done = 0
+    _tries = 0
+    try:
+        while _done < 30 and _tries < 200:
+            _tries += 1
+            _bd = _rand_play_board()
+            _c = _random.choice((BLACK, WHITE))
+            _ms = valid_moves(_bd, _c)
+            if not _ms:
+                continue
+            if len(_ms) > 8:
+                _ms = _random.sample(_ms, 8)
+            _random.shuffle(_ms)
+            _b0 = _bd
+            _mv = ai_minimax2(copy_board(_bd), _c, list(_ms))
+            if _mv not in _ms:
+                _fail = f"盤面 {_bstr(_bd)} / 手番 {_c}: 返した手 {_mv} は打てる場所ではない"
+                break
+            _best = max(_ref_score(_bd, _c, _m) for _m in _ms)
+            _got = _ref_score(_bd, _c, _mv)
+            if _got != _best:
+                _fail = (f"盤面 {_bstr(_bd)} / 手番 {_c}: 2手読みの価値が最高 {_best} の手があるのに "
+                         f"{_mv}(価値 {_got})を選んだ(minimax_score2 で比べているかな?)")
+                break
+            _done += 1
+    except Exception as _e:
+        _fail = f"実行中にエラー: {_e}" + (f"(盤面 {_bstr(_b0)})" if _b0 else "")
+    _t("ランダムな盤面30個すべてで、2手読みの価値が最高の手を選ぶ",
+       _fail == "" and _done >= 30,
+       _fail or (f"検証できた盤面が {_done} 個" if _done < 30 else ""))
+</script>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def evaluate2(board, color):
+    score = evaluate(board, color)
+    opp = opponent(color)
+    for x, y in [(0, 0), (7, 0), (0, 7), (7, 7)]:
+        if board[y][x] == color:
+            score += 25
+        elif board[y][x] == opp:
+            score -= 25
+    return score
+
+def minimax_score2(board, color, turn, depth):
+    moves = valid_moves(board, turn)
+    if depth == 0 or not moves:
+        return evaluate2(board, color)
+    scores = []
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, turn)
+        scores.append(minimax_score2(test, color, opponent(turn), depth - 1))
+    return max(scores) if turn == color else min(scores)
+
+def ai_minimax2(board, color, moves):
+    best_move, best_score = None, None
+    for x, y in moves:
+        test = copy_board(board)
+        place(test, x, y, color)
+        s = minimax_score2(test, color, opponent(color), 1)
+        if best_score is None or s &gt; best_score:
+            best_move, best_score = (x, y), s
+    return best_move
+
+# 動作チェック
+board = make_board()
+board[0][0] = BLACK
+print("evaluate :", evaluate(board, BLACK))
+print("evaluate2:", evaluate2(board, BLACK), "(evaluate より 25 大きくなれば成功)")
+print("ai_minimax2 の選択:", ai_minimax2(make_board(), BLACK, valid_moves(make_board(), BLACK)))</pre></div>
+          <p>合格したら STEP 4 のエディタに <code>evaluate2</code> / <code>minimax_score2</code> / <code>ai_minimax2</code> を貼り込んで、<code>play_match_varied(ai_minimax2, ai_minimax)</code> の20局対戦へ。ボーナスの「25」を 10 や 50 に変えると勝率はどう動くでしょう? 評価関数のチューニングと読みの深さ——2つの改造軸を手に入れたあなたは、もう立派なゲームAI研究者です。</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ — この型はどのゲームでも通用する</h2>
+    <ul>
+      <li>1手先だけの評価は、相手の「返しの一手」で崩れる(角の献上)</li>
+      <li>手の価値は「相手が一番イヤな返しをしてきた後」で測る——自分の番は <strong>max</strong>、相手の番は <strong>min</strong></li>
+      <li><strong>再帰</strong>のルールは2つ: 止まる条件を先に書く/呼ぶたびに問題を小さくする</li>
+      <li>同じ <code>evaluate</code> でも、読みを1手深くするだけで <code>ai_master</code> に勝ち越せる</li>
+    </ul>
+    <p>今日作った <code>minimax_score</code> をもう一度見てください。オセロ固有の知識は <code>evaluate</code> と <code>valid_moves</code> の中に閉じ込められていて、ミニマックス本体には「max と min を交互に取る」ことしか書かれていません。つまり<strong>「評価関数+ミニマックス」の型は、五目並べでもコネクトフォーでも、どのゲームでもそのまま通用します</strong>。他の種目の発展レッスンで、ぜひ確かめてみてください。仕上げは<a href="../playground.html?tab=lab">AI工房</a>へ——<code>ai_minimax</code> を持ち込んで、歴代の内蔵AIを蹴散らしましょう!</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>

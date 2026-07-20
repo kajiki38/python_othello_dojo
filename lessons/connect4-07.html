@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コネクトフォー 発展: 3手先を読むAI — Python×ボドゲ道場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231c7a43'/><circle cx='35' cy='35' r='16' fill='%23111'/><circle cx='65' cy='65' r='16' fill='%23fff'/></svg>">
+<script src="../assets/app.js"></script>
+<script src="../assets/runner.js"></script>
+</head>
+<body data-page="lessons" data-lesson="connect4-07" data-board-theme="connect4">
+
+<script type="text/x-python" id="pre">
+import random
+
+EMPTY = "."
+BLACK = "●"
+WHITE = "○"
+WIDTH = 7
+HEIGHT = 6
+
+def make_board():
+    return [[EMPTY] * WIDTH for _ in range(HEIGHT)]
+
+def print_board(board):
+    print("  " + " ".join(str(i) for i in range(WIDTH)))
+    for y in range(HEIGHT):
+        print(y, " ".join(board[y]))
+
+def next_row(board, col):
+    for y in range(HEIGHT - 1, -1, -1):
+        if board[y][col] == EMPTY:
+            return y
+    return None
+
+def opponent(color):
+    return WHITE if color == BLACK else BLACK
+
+def drop(board, col, color):
+    y = next_row(board, col)
+    if y is None:
+        return None
+    board[y][col] = color
+    return col, y
+
+def valid_columns(board):
+    return [x for x in range(WIDTH) if board[0][x] == EMPTY]
+
+DIRECTIONS4 = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+def count_line(board, x, y, dx, dy, color):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < WIDTH and 0 <= ny < HEIGHT and board[ny][nx] == color:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def check_win(board, x, y, color):
+    for dx, dy in DIRECTIONS4:
+        total = 1 + count_line(board, x, y, dx, dy, color) + count_line(board, x, y, -dx, -dy, color)
+        if total >= 4:
+            return True
+    return False
+
+def find_winning_col(board, color, cols):
+    for col in cols:
+        y = next_row(board, col)
+        if y is None:
+            continue
+        board[y][col] = color
+        win = check_win(board, col, y, color)
+        board[y][col] = EMPTY
+        if win:
+            return col
+    return None
+
+def ai_random(board, color, cols):
+    return random.choice(cols)
+
+def ai_block(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    return random.choice(cols)
+
+def play_match(ai_black, ai_white, opening=2):
+    # ランダム要素のないAIどうしだと毎回同じ棋譜になるため、
+    # 最初の opening 手はランダムな列に落として展開をバラけさせる(オセロLesson 7と同じ工夫)
+    board = make_board()
+    turn = BLACK
+    count = 0
+    while True:
+        cols = valid_columns(board)
+        if not cols:
+            return None
+        if count < opening:
+            col = random.choice(cols)
+        else:
+            ai = ai_black if turn == BLACK else ai_white
+            col = ai(board, turn, cols)
+        x, y = drop(board, col, turn)
+        count += 1
+        if check_win(board, x, y, turn):
+            return turn
+        turn = opponent(turn)
+
+# --- ここから Lesson 6 で作った関数 ---
+
+def winning_cols(board, color):
+    wins = []
+    for col in valid_columns(board):
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            wins.append(col)
+        board[y][col] = EMPTY
+    return wins
+
+def safe_columns(board, color, cols):
+    safe = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if not winning_cols(board, opponent(color)):
+            safe.append(col)
+        board[y][col] = EMPTY
+    return safe
+
+def ai_strong(board, color, cols):
+    win_col = find_winning_col(board, color, cols)
+    if win_col is not None:
+        return win_col
+    block_col = find_winning_col(board, opponent(color), cols)
+    if block_col is not None:
+        return block_col
+    center = WIDTH // 2
+    cand = safe_columns(board, color, cols)
+    if not cand:
+        cand = cols
+    cand = sorted(cand, key=lambda c: abs(c - center))
+    for col in cand:
+        y = next_row(board, col)
+        board[y][col] = color
+        n = len(winning_cols(board, color))
+        board[y][col] = EMPTY
+        if n >= 2:
+            return col
+    for col in cand:
+        y = next_row(board, col)
+        board[y][col] = opponent(color)
+        n = len(winning_cols(board, opponent(color)))
+        board[y][col] = EMPTY
+        if n >= 2:
+            return col
+    return cand[0]
+</script>
+
+<div class="layout">
+  <aside class="sidebar"></aside>
+
+  <article class="lesson">
+    <div class="lesson-head">
+      <div class="crumb">コネクトフォー LESSON 07 / 07</div>
+      <h1>発展: 3手先を読むAI</h1>
+      <p class="lead">前回完成した <code>ai_strong</code> も、実は「打った直後」しか見ていません。今回はどのゲームにも通じる汎用アイデア<strong>ミニマックス</strong>で、相手の返し・そのまた先まで読むAIを作ります。コネクトフォーは1手がたった<strong>7通り</strong>——<strong>分岐が少ないゲームは深く読める</strong>のが最大の武器。オセロや五目並べなら2手先が現実的なところ、ここでは<strong>3手先</strong>まで読みます。ミニマックスの見せ場です。</p>
+    </div>
+
+    <div class="goal-box">
+      <h3>🎯 このレッスンのゴール</h3>
+      <ul>
+        <li>「1手先読み」の限界 — 2手先に潜む罠を体感する</li>
+        <li>盤面を点数にする<strong>評価関数</strong>と、「相手は一番イヤな返しをしてくる」という読みの心(max と min)を知る</li>
+        <li><strong>再帰</strong>(自分を呼ぶ関数)で <code>minimax_score</code> を書き、3手先を読む <code>ai_minimax</code> を完成させる</li>
+      </ul>
+    </div>
+
+    <h2><span class="step">STEP 1</span>「1手先」の限界</h2>
+    <p><code>ai_strong</code> は「勝ち → 防御 → ダブルリーチ → 先回り → 安全な中央」と、かなり慎重に手を選びます。<code>safe_columns</code> で相手の返しも1手分ケアしていますが、チェックしているのは「落とした直後に即勝ちされないか」だけ。<strong>2手先に仕掛けられた罠</strong>は見えません。実際の局面で確かめましょう。赤も黄も <code>ai_strong</code>、赤の番です。</p>
+
+    <div class="static-board"
+         data-rows=".......|.......|.......|.......|..○.○.●|.●○.●●○"
+         data-caption="赤(●)の番。中央の3列目がいかにも良さそうに見えますが……"></div>
+
+    <div class="pyrunner" data-name="trap.py" data-preamble="pre">
+<script type="text/x-python">
+# ここまでの手順を再現する(赤=●から交互に落とした8手)
+moves = [5, 2, 4, 4, 1, 6, 6, 2]
+board = make_board()
+turn = BLACK
+for col in moves:
+    drop(board, col, turn)
+    turn = opponent(turn)
+
+cols = valid_columns(board)
+red = ai_strong(board, BLACK, cols)
+print("赤(ai_strong)の選択:", red)
+drop(board, red, BLACK)
+
+yellow = ai_strong(board, WHITE, valid_columns(board))
+print("黄(ai_strong)の返し:", yellow)
+drop(board, yellow, WHITE)
+print_board(board)
+print("黄の勝ち列:", winning_cols(board, WHITE))
+</script>
+    </div>
+
+    <p>赤が中央の3列目に落とした瞬間、その石が<strong>台</strong>になりました。黄がすかさず上に乗って4段目に○○○——勝ち列が <code>[1, 5]</code> の2つ、ダブルリーチ完成です。赤は片方しか塞げず、もう手遅れ。3列目に落とした時点では黄の即勝ちは存在しないので、<code>safe_columns</code> も④の先回りチェックもこの罠を検知できません。罠が姿を現すのは<strong>黄が乗った後=2手先</strong>——<code>ai_strong</code> の読みの外側です。「相手の返しの、そのまた先」まで読む仕組みが必要です。</p>
+
+    <h2><span class="step">STEP 2</span>相手は一番イヤな返しをしてくる</h2>
+    <p>先読みAIの部品は2つあります。部品①は、盤面の良し悪しを<strong>1つの数字</strong>にする<strong>評価関数</strong>。ここでは「勝ち列の数の差」を軸に、ダブルリーチはほぼ勝ち(±500)、おまけに中央列の石を1個1点で足します。</p>
+
+    <div class="pyrunner" data-name="evaluate.py" data-preamble="pre">
+<script type="text/x-python">
+def evaluate(board, color):
+    opp = opponent(color)
+    my = len(winning_cols(board, color))
+    op = len(winning_cols(board, opp))
+    if my >= 2:
+        return 500     # ダブルリーチ: 片方しか止められないのでほぼ勝ち
+    if op >= 2:
+        return -500
+    center = 0
+    for y in range(HEIGHT):
+        if board[y][WIDTH // 2] == color:
+            center += 1
+        elif board[y][WIDTH // 2] == opp:
+            center -= 1
+    return my * 10 - op * 10 + center
+
+# STEP 1 の罠の局面で、各列に試しに落として「打った直後」の点数を見る
+moves = [5, 2, 4, 4, 1, 6, 6, 2]
+board = make_board()
+turn = BLACK
+for col in moves:
+    drop(board, col, turn)
+    turn = opponent(turn)
+
+for col in valid_columns(board):
+    y = next_row(board, col)
+    board[y][col] = BLACK      # 試しに落とす
+    print(col, "列:", evaluate(board, BLACK))
+    board[y][col] = EMPTY      # 必ず戻す
+</script>
+    </div>
+
+    <p>なんと、罠の3列目が<strong>最高点</strong>(中央ボーナス +1)です。「打った直後」の点数だけでは罠は見えない——STEP 1 の再確認になりました。そこで部品②です。3列目に落とした後、<strong>黄のすべての返し</strong>に点数を付けてみます。</p>
+
+    <div class="pyrunner" data-name="min_reply.py" data-preamble="pre">
+<script type="text/x-python">
+def evaluate(board, color):
+    opp = opponent(color)
+    my = len(winning_cols(board, color))
+    op = len(winning_cols(board, opp))
+    if my >= 2:
+        return 500     # ダブルリーチ: 片方しか止められないのでほぼ勝ち
+    if op >= 2:
+        return -500
+    center = 0
+    for y in range(HEIGHT):
+        if board[y][WIDTH // 2] == color:
+            center += 1
+        elif board[y][WIDTH // 2] == opp:
+            center -= 1
+    return my * 10 - op * 10 + center
+
+moves = [5, 2, 4, 4, 1, 6, 6, 2]
+board = make_board()
+turn = BLACK
+for col in moves:
+    drop(board, col, turn)
+    turn = opponent(turn)
+
+# 赤が3列目に落とした後、黄のぜんぶの返しを試して赤視点の点数を付ける
+y = next_row(board, 3)
+board[y][3] = BLACK
+scores = []
+for w in valid_columns(board):
+    yw = next_row(board, w)
+    board[yw][w] = WHITE
+    s = evaluate(board, BLACK)
+    board[yw][w] = EMPTY
+    print("黄が", w, "列に返す →", s)
+    scores.append(s)
+board[y][3] = EMPTY
+
+print("黄が選ぶのは一番イヤな返し → min(scores) =", min(scores))
+</script>
+    </div>
+
+    <p>黄が3列目に乗り返した瞬間だけ <code>-500</code>(ダブルリーチ)。黄はもちろん、こちらに<strong>一番イヤな</strong>この返しを選びます。つまり「3列目に落とす手の本当の価値」は、返しの点数の<strong>最小値(min)= -500</strong> です。逆に、自分が選ぶ番では点数が<strong>最大(max)</strong>の手を選ぶ。<strong>自分は max、相手は min</strong>——この交互の読みこそが<strong>ミニマックス</strong>です。</p>
+
+    <h2><span class="step">STEP 3</span>再帰 — 関数が自分を呼ぶ</h2>
+    <p>「相手の返しの、そのまた先」まで読むにはどう書けばいいでしょう? コツは、「<strong>あと depth 手読む</strong>」を「<strong>1手進めて、あと depth−1 手読む</strong>」と言い換えることです。同じ形の小さい問題に置き換える——これは<strong>関数が自分自身を呼ぶ</strong>と自然に書けます。まずは一番小さな例から。</p>
+
+    <div class="pyrunner" data-name="recursion.py">
+<script type="text/x-python">
+def countdown(n):
+    """n から 0 までカウントダウンする(自分で自分を呼ぶ=再帰)"""
+    print(n)
+    if n == 0:          # 止まる条件(基底ケース)。これが無いと無限に呼び続けてしまう
+        return
+    countdown(n - 1)    # 自分自身を呼ぶ! ただし「1小さい n」で
+
+countdown(5)
+</script>
+    </div>
+
+    <div class="note">
+      <p>関数が自分自身を呼ぶ書き方を<strong>再帰</strong>といいます。①必ず「止まる条件」を先に書く ②呼ぶたびに問題を小さくする(n-1、depth-1)——この2点さえ守れば怖くありません。ミニマックスは『depth 手先まで読む』を『1手進めて depth-1 手先まで読む』に置き換える、再帰の代表例です。</p>
+    </div>
+
+    <p>これをミニマックスに当てはめたのが <code>minimax_score</code> です。止まる条件は「<code>depth == 0</code> か、落とせる列がない」——そこで評価関数が盤面を点数化します(読みの底)。途中で4連が完成したら、その場で ±1000 の決着点を返します。</p>
+
+    <div class="pyrunner" data-name="minimax_score.py" data-preamble="pre">
+<script type="text/x-python">
+def evaluate(board, color):
+    opp = opponent(color)
+    my = len(winning_cols(board, color))
+    op = len(winning_cols(board, opp))
+    if my >= 2:
+        return 500
+    if op >= 2:
+        return -500
+    center = 0
+    for y in range(HEIGHT):
+        if board[y][WIDTH // 2] == color:
+            center += 1
+        elif board[y][WIDTH // 2] == opp:
+            center -= 1
+    return my * 10 - op * 10 + center
+
+def minimax_score(board, color, turn, depth):
+    # color = 点数の主人公、turn = いま落とす側、depth = あと何手読むか
+    cols = valid_columns(board)
+    if depth == 0 or not cols:
+        return evaluate(board, color)   # 読みの底: 盤面を点数化
+    scores = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = turn
+        if check_win(board, col, y, turn):
+            s = 1000 if turn == color else -1000   # この1手で決着
+        else:
+            s = minimax_score(board, color, opponent(turn), depth - 1)
+        board[y][col] = EMPTY
+        scores.append(s)
+    if turn == color:
+        return max(scores)      # 自分の番: 一番良い手を選ぶ
+    return min(scores)          # 相手の番: こちらに一番イヤな手を選んでくる
+
+# STEP 1 の罠の局面で確かめる
+moves = [5, 2, 4, 4, 1, 6, 6, 2]
+board = make_board()
+turn = BLACK
+for col in moves:
+    drop(board, col, turn)
+    turn = opponent(turn)
+
+y = next_row(board, 3)
+board[y][3] = BLACK        # 罠の3列目に試しに落として…
+print("3列目に落として、あと1手読む:", minimax_score(board, BLACK, WHITE, 1))
+print("3列目に落として、あと3手読む:", minimax_score(board, BLACK, WHITE, 3))
+board[y][3] = EMPTY
+
+y = next_row(board, 1)
+board[y][1] = BLACK        # 比較: となりの1列目なら
+print("1列目に落として、あと3手読む:", minimax_score(board, BLACK, WHITE, 3))
+board[y][1] = EMPTY
+</script>
+    </div>
+
+    <p>あと1手読むと <code>-500</code>——STEP 2 で手作業でやった min の計算と同じ結果です。あと3手読むと <code>-1000</code>。「黄がダブルリーチを作り、赤が片方を塞いでも、黄が残りで勝ち切る」という結末まで読み切って、<strong>必敗</strong>と言い切りました。1列目なら <code>-2</code> でセーフ。depth を増やすほど、遠くの罠まで見えるのです。</p>
+    <p>オセロ版と違って盤をコピーせず、<strong>試しに置いて必ず戻す</strong>方式なのもポイント(Lesson 5・6 でおなじみの型ですね)。コピーが要らないぶん高速です。そして注目してほしいのはコストです。コネクトフォーの分岐は1手あたり<strong>最大7通り</strong>。3手読んでも 7×7×7 = 343 通りほどしかありません。分岐が10以上あるオセロや、候補を絞っても盤の広い五目並べでは2手先が現実的なところ、コネクトフォーは<strong>もっと深く</strong>潜れます。</p>
+
+    <h2><span class="step">STEP 4</span>ai_minimax 完成 — そして対戦実験</h2>
+    <p>仕上げは簡単。落とせる各列を試し、<code>minimax_score</code> の点数が最大の列を選ぶだけです。<code>depth=3</code> は「自分 → 相手 → 自分」の3手ぶんを読む設定です。</p>
+
+    <div class="pyrunner" data-name="ai_minimax.py" data-preamble="pre">
+<script type="text/x-python">
+def evaluate(board, color):
+    opp = opponent(color)
+    my = len(winning_cols(board, color))
+    op = len(winning_cols(board, opp))
+    if my >= 2:
+        return 500
+    if op >= 2:
+        return -500
+    center = 0
+    for y in range(HEIGHT):
+        if board[y][WIDTH // 2] == color:
+            center += 1
+        elif board[y][WIDTH // 2] == opp:
+            center -= 1
+    return my * 10 - op * 10 + center
+
+def minimax_score(board, color, turn, depth):
+    cols = valid_columns(board)
+    if depth == 0 or not cols:
+        return evaluate(board, color)
+    scores = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = turn
+        if check_win(board, col, y, turn):
+            s = 1000 if turn == color else -1000
+        else:
+            s = minimax_score(board, color, opponent(turn), depth - 1)
+        board[y][col] = EMPTY
+        scores.append(s)
+    if turn == color:
+        return max(scores)
+    return min(scores)
+
+def ai_minimax(board, color, cols, depth=3):
+    best_col, best_score = None, None
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            s = 1000                              # この1手で勝ち
+        else:
+            s = minimax_score(board, color, opponent(color), depth - 1)
+        board[y][col] = EMPTY
+        if best_score is None or s > best_score:
+            best_col, best_score = col, s
+    return best_col
+
+# STEP 1 の罠の局面で、前回の最強AIと読み比べ
+moves = [5, 2, 4, 4, 1, 6, 6, 2]
+board = make_board()
+turn = BLACK
+for col in moves:
+    drop(board, col, turn)
+    turn = opponent(turn)
+
+cols = valid_columns(board)
+print("ai_strong の選択 :", ai_strong(board, BLACK, cols))
+print("ai_minimax の選択:", ai_minimax(board, BLACK, cols))
+</script>
+    </div>
+
+    <p><code>ai_strong</code> がはまった3列目の罠を、<code>ai_minimax</code> はきれいに回避しました。しかも特別なコネクトフォーの知識(ダブルリーチ探し、うっかり手回避…)は<strong>一切書いていません</strong>。評価関数とミニマックスだけで、罠が「点数の低い手」として自然に浮かび上がるのです。それでは対戦実験。<code>ai_block</code> と20局、<code>ai_strong</code> と20局です(1局ごとに先手後手交代)。</p>
+
+    <div class="pyrunner" data-name="experiment.py" data-preamble="pre">
+<script type="text/x-python">
+def evaluate(board, color):
+    opp = opponent(color)
+    my = len(winning_cols(board, color))
+    op = len(winning_cols(board, opp))
+    if my >= 2:
+        return 500
+    if op >= 2:
+        return -500
+    center = 0
+    for y in range(HEIGHT):
+        if board[y][WIDTH // 2] == color:
+            center += 1
+        elif board[y][WIDTH // 2] == opp:
+            center -= 1
+    return my * 10 - op * 10 + center
+
+def minimax_score(board, color, turn, depth):
+    cols = valid_columns(board)
+    if depth == 0 or not cols:
+        return evaluate(board, color)
+    scores = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = turn
+        if check_win(board, col, y, turn):
+            s = 1000 if turn == color else -1000
+        else:
+            s = minimax_score(board, color, opponent(turn), depth - 1)
+        board[y][col] = EMPTY
+        scores.append(s)
+    if turn == color:
+        return max(scores)
+    return min(scores)
+
+def ai_minimax(board, color, cols, depth=3):
+    best_col, best_score = None, None
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            s = 1000
+        else:
+            s = minimax_score(board, color, opponent(color), depth - 1)
+        board[y][col] = EMPTY
+        if best_score is None or s > best_score:
+            best_col, best_score = col, s
+    return best_col
+
+for name, rival in [("ai_block ", ai_block), ("ai_strong", ai_strong)]:
+    wins = losses = draws = 0
+    for i in range(20):
+        if i % 2 == 0:
+            winner = play_match(ai_minimax, rival)
+            my_color = BLACK
+        else:
+            winner = play_match(rival, ai_minimax)
+            my_color = WHITE
+        if winner == my_color:
+            wins += 1
+        elif winner is None:
+            draws += 1
+        else:
+            losses += 1
+    print(f"vs {name}: {wins}勝 {losses}敗 {draws}分")
+</script>
+    </div>
+
+    <p>筆者の実測(各50局)では <code>ai_block</code> に<strong>45勝4敗1分</strong>——9割勝てる圧勝です。一方 <code>ai_strong</code> には<strong>10勝19敗21分</strong>。引き分けがとても多い、がっぷり四つの接戦です。コネクトフォー専用テクニックを磨き込んだ <code>ai_strong</code> はさすがに手強い——それでも、どのゲームにも使える汎用アイデア1本でここまで並んだこと自体がすごいことです。速度は1手 約9ms(depth=3)とまだまだ余裕。そう、コネクトフォーには<strong>深さを上げる</strong>という伸びしろが残っています。追い抜くのはこの後のチャレンジで!</p>
+
+    <div class="challenge">
+      <h3>チャレンジ:もっと深く読め — depth=4</h3>
+      <p>分岐が7通りしかないコネクトフォーなら、まだ深く潜れます。<code>ai_minimax</code> の depth を <strong>4</strong> に上げた <code>ai_minimax2</code> を完成させましょう。<code>minimax_score</code> はそのまま使えます——<code>ai_minimax</code> を depth 指定で呼ぶだけです。スターターの盤面は、実は<strong>3列目以外に落とすと4手以内に必敗</strong>という追い詰められた局面。depth=3 のままだと罠が見えず2列目を選んでしまいますが、4手先まで読めれば唯一の生還ルートを見つけられます。実行すると、この局面に加えてランダムな局面(合法手・勝ち切り・ブロック)で自動チェックされます。</p>
+      <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
+<script type="text/x-python">
+def evaluate(board, color):
+    opp = opponent(color)
+    my = len(winning_cols(board, color))
+    op = len(winning_cols(board, opp))
+    if my >= 2:
+        return 500
+    if op >= 2:
+        return -500
+    center = 0
+    for y in range(HEIGHT):
+        if board[y][WIDTH // 2] == color:
+            center += 1
+        elif board[y][WIDTH // 2] == opp:
+            center -= 1
+    return my * 10 - op * 10 + center
+
+def minimax_score(board, color, turn, depth):
+    cols = valid_columns(board)
+    if depth == 0 or not cols:
+        return evaluate(board, color)
+    scores = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = turn
+        if check_win(board, col, y, turn):
+            s = 1000 if turn == color else -1000
+        else:
+            s = minimax_score(board, color, opponent(turn), depth - 1)
+        board[y][col] = EMPTY
+        scores.append(s)
+    if turn == color:
+        return max(scores)
+    return min(scores)
+
+def ai_minimax(board, color, cols, depth=3):
+    best_col, best_score = None, None
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            s = 1000
+        else:
+            s = minimax_score(board, color, opponent(color), depth - 1)
+        board[y][col] = EMPTY
+        if best_score is None or s > best_score:
+            best_col, best_score = col, s
+    return best_col
+
+def ai_minimax2(board, color, cols):
+    # ここを改造: depth を 4 に上げた ai_minimax を返そう
+    return ai_minimax(board, color, cols)      # いまはまだ depth=3 のまま
+
+# 追い詰められた局面: 3列目だけが生還ルート(4手先の罠が見えれば選べる)
+moves = [5, 5, 6, 4, 1, 3, 1, 2, 1, 4, 4, 1]
+board = make_board()
+turn = BLACK
+for col in moves:
+    drop(board, col, turn)
+    turn = opponent(turn)
+print_board(board)
+print("ai_minimax2 の選択:", ai_minimax2(board, BLACK, valid_columns(board)))
+</script>
+      </div>
+      <script type="text/x-python" id="challenge-check">
+_t("ai_minimax2 関数が定義されている", "ai_minimax2" in globals())
+if "ai_minimax2" in globals():
+    _b = make_board()
+    _turn = BLACK
+    for _c in [5, 5, 6, 4, 1, 3, 1, 2, 1, 4, 4, 1]:
+        drop(_b, _c, _turn)
+        _turn = opponent(_turn)
+    _got = ai_minimax2([_r[:] for _r in _b], BLACK, valid_columns(_b))
+    _t("4手先の罠: 追い詰め局面で唯一助かる3列目を選ぶ",
+       _got == 3,
+       f"いまの選択は {_got} 列。4手先まで読めば3列目以外は必敗と分かります(ai_minimax(board, color, cols, depth=4) を返そう)")
+
+    # --- 参照実装(チェック専用) ---
+    def _ref_next(_bd, _c):
+        for _yy in range(HEIGHT - 1, -1, -1):
+            if _bd[_yy][_c] == EMPTY:
+                return _yy
+        return None
+
+    def _ref_win(_bd, _x, _y, _color):
+        for _dx, _dy in ((1, 0), (0, 1), (1, 1), (1, -1)):
+            _n = 1
+            for _s in (1, -1):
+                _nx, _ny = _x + _dx * _s, _y + _dy * _s
+                while 0 <= _nx < WIDTH and 0 <= _ny < HEIGHT and _bd[_ny][_nx] == _color:
+                    _n += 1
+                    _nx += _dx * _s
+                    _ny += _dy * _s
+            if _n >= 4:
+                return True
+        return False
+
+    def _ref_wincols(_bd, _color):
+        _ws = []
+        for _c in range(WIDTH):
+            _yy = _ref_next(_bd, _c)
+            if _yy is None:
+                continue
+            _bd[_yy][_c] = _color
+            if _ref_win(_bd, _c, _yy, _color):
+                _ws.append(_c)
+            _bd[_yy][_c] = EMPTY
+        return _ws
+
+    def _ref_eval(_bd, _color):
+        _oppc = WHITE if _color == BLACK else BLACK
+        _my = len(_ref_wincols(_bd, _color))
+        _op = len(_ref_wincols(_bd, _oppc))
+        if _my >= 2:
+            return 500
+        if _op >= 2:
+            return -500
+        _ctr = 0
+        for _yy in range(HEIGHT):
+            if _bd[_yy][WIDTH // 2] == _color:
+                _ctr += 1
+            elif _bd[_yy][WIDTH // 2] == _oppc:
+                _ctr -= 1
+        return _my * 10 - _op * 10 + _ctr
+
+    def _ref_score(_bd, _color, _turn, _depth):
+        _cs = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+        if _depth == 0 or not _cs:
+            return _ref_eval(_bd, _color)
+        _nturn = WHITE if _turn == BLACK else BLACK
+        _ss = []
+        for _c in _cs:
+            _yy = _ref_next(_bd, _c)
+            _bd[_yy][_c] = _turn
+            if _ref_win(_bd, _c, _yy, _turn):
+                _s = 1000 if _turn == _color else -1000
+            else:
+                _s = _ref_score(_bd, _color, _nturn, _depth - 1)
+            _bd[_yy][_c] = EMPTY
+            _ss.append(_s)
+        return max(_ss) if _turn == _color else min(_ss)
+
+    def _rand_board():
+        # 空盤にランダムな列へ交互に0〜30回落とす(4つ並んでしまう手は取り消し、満杯列はスキップ)
+        _bd = make_board()
+        _turn = BLACK
+        for _ in range(random.randrange(0, 31)):
+            _cands = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+            random.shuffle(_cands)
+            _placed = False
+            for _c in _cands:
+                _yy = _ref_next(_bd, _c)
+                _bd[_yy][_c] = _turn
+                if _ref_win(_bd, _c, _yy, _turn):
+                    _bd[_yy][_c] = EMPTY
+                    continue
+                _placed = True
+                break
+            if not _placed:
+                break
+            _turn = WHITE if _turn == BLACK else BLACK
+        return _bd
+
+    def _unavoidable_win(_bd, _color, _c):
+        # _c に落とすと(即勝ちでなくても)相手のどの返しにも即勝ちで答えられるか
+        _oppc = WHITE if _color == BLACK else BLACK
+        _yy = _ref_next(_bd, _c)
+        _bd[_yy][_c] = _color
+        _all = True
+        for _w in range(WIDTH):
+            _yw = _ref_next(_bd, _w)
+            if _yw is None:
+                continue
+            _bd[_yw][_w] = _oppc
+            if _ref_win(_bd, _w, _yw, _oppc) or not _ref_wincols(_bd, _color):
+                _all = False
+            _bd[_yw][_w] = EMPTY
+            if not _all:
+                break
+        _bd[_yy][_c] = EMPTY
+        return _all
+
+    # --- バルク1: ランダムな局面で必ず「落とせる列」を返す ---
+    _ok = True
+    _msg = ""
+    for _i in range(30):
+        _bd = _rand_board()
+        _color = random.choice((BLACK, WHITE))
+        _cols = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+        if not _cols:
+            continue
+        _view = "|".join("".join(_r) for _r in _bd)
+        try:
+            _got = ai_minimax2([_r[:] for _r in _bd], _color, list(_cols))
+        except Exception as _e:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番)で例外 {_e!r}"
+            break
+        if _got not in _cols:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番) → 落とせる列 {_cols} にない {_got!r} を返した"
+            break
+    _t("ランダムな局面30個で、必ず落とせる列を返す", _ok, _msg)
+
+    # --- バルク2: 勝ちが見えている局面20個で勝ち切る ---
+    _ok = True
+    _msg = ""
+    _n = 0
+    _tries = 0
+    while _n < 20 and _tries < 400:
+        _tries += 1
+        _bd = _rand_board()
+        _color = random.choice((BLACK, WHITE))
+        _mine = _ref_wincols(_bd, _color)
+        if not _mine:
+            continue
+        _n += 1
+        _cols = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+        _view = "|".join("".join(_r) for _r in _bd)
+        try:
+            _got = ai_minimax2([_r[:] for _r in _bd], _color, list(_cols))
+        except Exception as _e:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番)で例外 {_e!r}"
+            break
+        # 即勝ちの列を選ぶのが基本。「次の手番で必ず勝てる手」も勝ち切りとして認める
+        if _got not in _cols or (_got not in _mine and not _unavoidable_win(_bd, _color, _got)):
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番) → 勝てる列 {_mine} があるのに {_got} を選んだ"
+            break
+    _t("勝ちが見えている局面20個で勝ち切る", _ok, _msg)
+
+    # --- バルク3: 相手の勝ち列がちょうど1つの局面20個で塞ぐ ---
+    _ok = True
+    _msg = ""
+    _n = 0
+    _tries = 0
+    while _n < 20 and _tries < 800:
+        _tries += 1
+        _bd = _rand_board()
+        _color = random.choice((BLACK, WHITE))
+        _oppc = WHITE if _color == BLACK else BLACK
+        if _ref_wincols(_bd, _color):
+            continue
+        _theirs = _ref_wincols(_bd, _oppc)
+        if len(_theirs) != 1:
+            continue
+        _c0 = _theirs[0]
+        _yy = _ref_next(_bd, _c0)
+        _bd[_yy][_c0] = _color
+        _saved = _ref_score(_bd, _color, _oppc, 3) > -1000
+        _bd[_yy][_c0] = EMPTY
+        if not _saved:
+            continue          # 塞いでも4手以内に必敗の局面は出題しない
+        _n += 1
+        _cols = [_c for _c in range(WIDTH) if _bd[0][_c] == EMPTY]
+        _view = "|".join("".join(_r) for _r in _bd)
+        try:
+            _got = ai_minimax2([_r[:] for _r in _bd], _color, list(_cols))
+        except Exception as _e:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番)で例外 {_e!r}"
+            break
+        if _got != _c0:
+            _ok = False
+            _msg = f"盤面 {_view}({_color}番) → 相手の勝ち列 {_c0} を防がず {_got} を選んだ"
+            break
+    _t("相手の勝ち列がちょうど1つの局面20個で、きちんと塞ぐ", _ok, _msg)
+</script>
+      <details class="solution">
+        <summary>解答例を見る</summary>
+        <div class="body">
+          <div class="codeblock"><pre>def evaluate(board, color):
+    opp = opponent(color)
+    my = len(winning_cols(board, color))
+    op = len(winning_cols(board, opp))
+    if my &gt;= 2:
+        return 500
+    if op &gt;= 2:
+        return -500
+    center = 0
+    for y in range(HEIGHT):
+        if board[y][WIDTH // 2] == color:
+            center += 1
+        elif board[y][WIDTH // 2] == opp:
+            center -= 1
+    return my * 10 - op * 10 + center
+
+def minimax_score(board, color, turn, depth):
+    cols = valid_columns(board)
+    if depth == 0 or not cols:
+        return evaluate(board, color)
+    scores = []
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = turn
+        if check_win(board, col, y, turn):
+            s = 1000 if turn == color else -1000
+        else:
+            s = minimax_score(board, color, opponent(turn), depth - 1)
+        board[y][col] = EMPTY
+        scores.append(s)
+    if turn == color:
+        return max(scores)
+    return min(scores)
+
+def ai_minimax(board, color, cols, depth=3):
+    best_col, best_score = None, None
+    for col in cols:
+        y = next_row(board, col)
+        board[y][col] = color
+        if check_win(board, col, y, color):
+            s = 1000
+        else:
+            s = minimax_score(board, color, opponent(color), depth - 1)
+        board[y][col] = EMPTY
+        if best_score is None or s &gt; best_score:
+            best_col, best_score = col, s
+    return best_col
+
+def ai_minimax2(board, color, cols):
+    return ai_minimax(board, color, cols, depth=4)   # 深さを 3 → 4 に上げるだけ!
+
+moves = [5, 5, 6, 4, 1, 3, 1, 2, 1, 4, 4, 1]
+board = make_board()
+turn = BLACK
+for col in moves:
+    drop(board, col, turn)
+    turn = opponent(turn)
+print_board(board)
+print("ai_minimax2 の選択:", ai_minimax2(board, BLACK, valid_columns(board)))</pre></div>
+          <p>再帰で書いておいたおかげで、読みを深くする改造は<strong>引数を1つ変えるだけ</strong>。これが構造のきれいなコードの威力です。ただし深さのコストは指数的に増えます——実測では depth=4 で1手 約60ms(まだ快適)、depth=5 だと約400ms とかなり待たされます。<strong>強さと速度のトレードオフ</strong>を自分で選べるのも、ミニマックスの面白いところです。</p>
+          <p>合格したら、STEP 4 の実験コードの <code>ai_minimax</code> を <code>ai_minimax2</code> に替えて <code>ai_strong</code> と20局対戦してみましょう(1手が重いので数十秒かかります)。筆者の実測では <strong>8勝10敗2分</strong>——depth=3 でははっきり負け越していた相手と、ほぼ互角まで来ました。さらに上を目指すなら evaluate の改造(リーチの重み、中央ボーナスの調整)です。AI工房で自分だけの最強AIに磨き上げてください!</p>
+        </div>
+      </details>
+    </div>
+
+    <h2><span class="step">STEP 5</span>まとめ — どのゲームでも同じ形</h2>
+    <ul>
+      <li>1手先しか見ないAIは、<strong>2手先に仕掛けられた罠</strong>にはまる</li>
+      <li><strong>評価関数</strong>で盤面を点数に。手の価値は「自分は max、相手は min」の交互の読み=<strong>ミニマックス</strong>で決まる</li>
+      <li><strong>再帰</strong>のコツは2つ——止まる条件(depth == 0)を先に書く、呼ぶたびに問題を小さくする(depth - 1)</li>
+      <li>分岐がたった7通りのコネクトフォーは<strong>深読みの見せ場</strong>。depth=3 で1手 約9ms、depth=4 でも実用速度</li>
+    </ul>
+    <p>「評価関数+ミニマックス」という骨組みは、オセロでも五目並べでも、将棋やチェスでも<strong>まったく同じ形</strong>です。ゲームごとに変わるのは評価関数と手の生成だけ——つまり今日あなたが書いたのは、どのゲームにも持っていける一生モノの武器です。おつかれさまでした! AI工房で depth や evaluate を調整して、自分だけの最強AIを育ててください。</p>
+
+    <div class="complete-row"></div>
+    <div class="lesson-nav"></div>
+  </article>
+</div>
+
+</body>
+</html>
