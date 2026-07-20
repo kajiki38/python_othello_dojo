@@ -111,6 +111,15 @@ print("最初の5個:", cells[:5])
 </script>
     </div>
 
+    <div class="note">
+      <p>ループの中にループがある<strong>二重ループ</strong>はここが初登場。動きは「<code>y = 0</code> の行で内側の <code>x</code> が 0→8 まで回りきってから、<code>y = 1</code> へ進む」——つまり<strong>1行ずつ、行の中を左から右へ</strong>と全マスをなめていきます。</p>
+    </div>
+
+    <div class="codeblock"><pre>y = 0 のとき: x = 0, 1, 2, …, 8 を調べる   ← 1周目(0行目を左から右へ)
+y = 1 のとき: x = 0, 1, 2, …, 8 を調べる   ← 2周目(1行目を左から右へ)
+  ⋮
+y = 8 のとき: x = 0, 1, 2, …, 8 を調べる   ← 9周目(最後の行)</pre></div>
+
     <p><code>cells[:5]</code> は<strong>スライス</strong>という書き方で、「リストの最初の5個だけ」を取り出します。空きマスは数十個あるので全部表示するとあふれてしまう——そんなときに先頭だけのぞき見できる便利な記法です。</p>
 
     <h2><span class="step">STEP 3</span>ゲームループを組む</h2>
@@ -158,6 +167,15 @@ print("勝者:", winner if winner else "引き分け")
 </script>
     </div>
 
+    <div class="note">
+      <p><strong>このコードには新しい書き方が5つ登場します。</strong>まとめて押さえましょう。</p>
+      <p>① Pythonには最初から使える<strong>道具箱(モジュール)</strong>がたくさん付属しています。<code>import random</code> で「乱数の道具箱」を読み込むと、<code>random.choice(リスト)</code>(=リストから1つ無作為に選ぶ)のように<strong>道具箱名.道具名</strong>の形で使えます。import はファイルの先頭に書くのが習慣です。</p>
+      <p>② <code>show_moves=False</code> は「<strong>省略したときの値</strong>(デフォルト値)つき引数」。呼ぶときは <code>play_game(show_moves=True)</code> のように名前で指定できます。</p>
+      <p>③ <code>True</code> は常に成り立つ条件なので、<code>while True:</code> は<strong>わざと終わらないループ</strong>です。きほんコースで注意した無限ループを、「決着したら <code>return</code> で抜ける」前提で<strong>制御して使う</strong>定番の型——ゲームのように終了条件が複数あってループの途中で決まる場面で活躍します。</p>
+      <p>④ <code>not</code> は True/False を<strong>ひっくり返す</strong>演算子です。Pythonでは<strong>空のリストは False 扱い</strong>になるため、<code>not cells</code> は「空きマスが1つもなければ」と読めます。</p>
+      <p>⑤ <code>None</code> は「<strong>値がない</strong>」を表すPythonの特別な値です。「勝者がいない(引き分け)」をそのまま表現できます。</p>
+    </div>
+
     <p>実行するたびに違う棋譜が流れます。9×9盤(81マス)はランダム同士でもわりとすぐ5つ並びが生まれるので、数手〜数十手で決着することが多いはずです。</p>
 
     <div class="note">
@@ -166,7 +184,7 @@ print("勝者:", winner if winner else "引き分け")
 
     <div class="challenge">
       <h3>チャレンジ:100局トーナメントの集計係</h3>
-      <p>ランダム同士だと黒と白、引き分け、どのくらいの割合になるでしょうか? それを調べる集計係として、勝者を並べたリスト(例: <code>[BLACK, WHITE, BLACK, None]</code>)を受け取り、<strong>(黒の勝ち数, 白の勝ち数, 引き分け数)</strong> を返す <code>count_results</code> 関数を下の専用エディタに書きましょう。実行すると複数のテストデータで自動チェックされます。完成したら、STEP 3 の <code>play_game</code> を100回呼んだ結果を渡せば、そのまま成績発表に使えます。</p>
+      <p>ランダム同士だと黒と白、引き分け、どのくらいの割合になるでしょうか? それを調べる集計係として、勝者を並べたリスト(例: <code>[BLACK, WHITE, BLACK, None]</code>)を受け取り、<strong>(黒の勝ち数, 白の勝ち数, 引き分け数)</strong> を返す <code>count_results</code> 関数を下の専用エディタに書きましょう。実行すると複数のテストデータで自動チェックされます。完成したら、STEP 3 の <code>play_game</code> を100回呼んだ結果を渡せば、そのまま成績発表に使えます。なお、スターターの <code>black_wins = white_wins = draws = 0</code> は<strong>3つの変数をまとめて 0 にする</strong>書き方です。</p>
       <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
 <script type="text/x-python">
 def count_results(winners):

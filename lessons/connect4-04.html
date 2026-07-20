@@ -100,6 +100,10 @@ def check_win(board, x, y, color):
     <h2><span class="step">STEP 2</span>ゲームループを組む</h2>
     <p>今回も「落とせる列からランダムに選ぶ」対局にします。<code>drop</code>が返す<code>(x, y)</code>をそのまま<code>check_win</code>に渡せるのが、これまでの設計の効いてくるところです。</p>
 
+    <div class="note">
+      <p>Pythonには最初から使える<strong>道具箱(モジュール)</strong>がたくさん付属しています。<code>import random</code> で「乱数の道具箱」を読み込むと、<code>random.choice(リスト)</code>(=リストから1つ無作為に選ぶ)のように<strong>道具箱名.道具名</strong>の形で使えます。import はファイルの先頭に書くのが習慣です。</p>
+    </div>
+
     <div class="pyrunner" data-name="game_loop.py" data-preamble="pre">
 <script type="text/x-python">
 import random
@@ -134,6 +138,12 @@ print("勝者:", winner if winner else "引き分け")
 </script>
     </div>
 
+    <div class="note">
+      <p><code>show_moves=False</code> は「<strong>省略したときの値</strong>(デフォルト値)つき引数」。呼ぶときは <code>play_game(show_moves=True)</code> のように名前で指定できます。</p>
+      <p><code>True</code> は常に成り立つ条件なので、<code>while True:</code> は<strong>わざと終わらないループ</strong>です。きほんコースで注意した無限ループを、「決着したら <code>return</code> で抜ける」前提で<strong>制御して使う</strong>定番の型——ゲームのように終了条件が複数あってループの途中で決まる場面で活躍します。</p>
+      <p><code>not</code> は True/False を<strong>ひっくり返す</strong>演算子です。Pythonでは<strong>空のリストは False 扱い</strong>になるため、<code>not cols</code> は「落とせる列が1つもなければ」と読めます(同じ理屈で <code>None</code> も False 扱いです)。</p>
+    </div>
+
     <p>コネクトフォーは全マスが埋まる(42マス)までに決着がつかないと引き分けです。4つ並べるには最低7手かかるので、ランダム同士だと、だいたい15〜30手くらいで決着することが多いはずです。</p>
 
     <div class="note">
@@ -142,7 +152,7 @@ print("勝者:", winner if winner else "引き分け")
 
     <div class="challenge">
       <h3>チャレンジ:100局トーナメント</h3>
-      <p>ランダム同士で100局対戦させて、黒・白・引き分けの割合を調べましょう。集計係の関数 <code>tally(winners)</code> — 勝者のリスト(<code>BLACK</code>・<code>WHITE</code>・引き分けは<code>None</code>)を受け取り、<strong><code>(黒の勝ち数, 白の勝ち数, 引き分け数)</code>のタプル</strong>を返す — を下の専用エディタで完成させれば、トーナメントの集計が動き出します。実行すると複数のテストデータで自動チェックされます。</p>
+      <p>ランダム同士で100局対戦させて、黒・白・引き分けの割合を調べましょう。集計係の関数 <code>tally(winners)</code> — 勝者のリスト(<code>BLACK</code>・<code>WHITE</code>・引き分けは<code>None</code>)を受け取り、<strong><code>(黒の勝ち数, 白の勝ち数, 引き分け数)</code>のタプル</strong>を返す — を下の専用エディタで完成させれば、トーナメントの集計が動き出します。スターターの <code>black_wins = white_wins = draws = 0</code> は<strong>3つの変数をまとめて 0 にする</strong>書き方です。実行すると複数のテストデータで自動チェックされます。</p>
       <div class="pyrunner" data-name="challenge.py" data-preamble="pre" data-check="challenge-check">
 <script type="text/x-python">
 import random

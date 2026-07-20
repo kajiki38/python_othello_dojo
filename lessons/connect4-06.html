@@ -183,6 +183,10 @@ print("赤の勝ち列リスト:", winning_cols(board, BLACK))
 
     <p><code>[1, 5]</code> — リストの長さが<strong>2以上ならダブルリーチ</strong>です。この数を使えば、必勝形を「作られる前に検知」できます。</p>
 
+    <div class="note">
+      <p>Lesson 5 の <code>find_winning_col</code> にあった満杯チェック(<code>continue</code>)が無いのは、ここでは <code>valid_columns(board)</code> の列だけを回すから——満杯の列はそもそも来ません。</p>
+    </div>
+
     <h2><span class="step">STEP 3</span>コネクトフォー特有の「うっかり手」</h2>
     <p>もうひとつ、このゲームならではの罠があります。<strong>自分が落とした石が「台」になって、相手がその上に乗って勝つ</strong>パターンです。2段目に赤の3連が眠っている局面で確かめましょう。</p>
 
@@ -283,6 +287,10 @@ drop(board, 3, BLACK)
 print_board(board)
 print("黄(ai_strong)の選択:", ai_strong(board, WHITE, valid_columns(board)))
 </script>
+    </div>
+
+    <div class="note">
+      <p><code>sorted(リスト, key=...)</code> は key の値が小さい順に並べ替えた<strong>新しいリスト</strong>を返します(元のリストは変わりません)。先に中央に近い順へ並べておくおかげで、この後のどのループも「同点なら中央寄り」を自動的に優先します。</p>
     </div>
 
     <p>赤がまだ<strong>2連</strong>の段階で、黄は1列か4列 — 3連が両端オープンになる場所 — に先回りしました。「ここに落とされたら勝ち列が2つになる」と読んだからです。もうSTEP 1の必勝パターンは通用しません。</p>
@@ -633,6 +641,7 @@ board = make_board()
 drop(board, 0, BLACK)
 drop(board, 0, BLACK)
 print("ai_strong2の選択:", ai_strong2(board, BLACK, valid_columns(board)))</pre></div>
+          <p>案内どおり「単リーチを探すループを最後に足す」形でも正解です。解答例は同じループを2回書かないよう <code>need</code> を (2, 1) で回す書き方にしており、優先順位(ダブルリーチ→相手の阻止→単リーチ)が崩れないよう、防御チェックを <code>need == 2</code> の直後に挟んでいます。</p>
           <p>リーチを作る=相手に防御を強制する、ということ。攻め続ければ相手は自分の形を作れません。テストに合格したら、プリアンブルに入っている <code>play_match(ai_strong2, ai_block)</code> や、STEP 4の <code>ai_strong</code> を貼り足しての <code>play_match(ai_strong2, ai_strong)</code> で、本当に強くなったか計測してみましょう(勝率で確かめる習慣、もう身についていますね)。</p>
         </div>
       </details>

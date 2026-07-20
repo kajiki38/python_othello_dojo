@@ -186,6 +186,10 @@ print("欲張りAIの選択:", ai_greedy(board, WHITE, moves))
 </script>
     </div>
 
+    <div class="note">
+      <p><code>best_count</code> の初期値が 0 でよいのは、合法手なら必ず1個以上裏返せるから。あとで作る評価関数のようにマイナスがあり得る場合は、この書き方だと失敗します(Lesson 7で解決策が出てきます)。</p>
+    </div>
+
     <div class="tip">
       <p>Python上級者はこう書きます: <code>return max(moves, key=lambda m: len(stones_to_flip(board, m[0], m[1], color)))</code>。1行で同じ意味! 今は読めなくてOKですが、「maxは選び方(key)を指定できる」と覚えておくと格好いいコードが書けます。</p>
     </div>
@@ -240,6 +244,10 @@ for i in range(50):
 print(f"欲張りAIの成績: {wins}勝 {losses}敗 {draws}分")
 print(f"勝率: {wins / 50 * 100:.0f}%")
 </script>
+    </div>
+
+    <div class="note">
+      <p><code>wins = losses = draws = 0</code> は<strong>3つの変数をまとめて 0 にする</strong>書き方です(<code>wins = 0</code> を3回書くのと同じ)。</p>
     </div>
 
     <p><code>{wins / 50 * 100:.0f}</code> の <code>:.0f</code> は書式指定で「小数点以下は表示しない(四捨五入)」という意味。<code>66.0%</code> ではなく <code>66%</code> とすっきり表示できます。</p>
@@ -402,7 +410,7 @@ board = make_board()
 moves = valid_moves(board, BLACK)
 print("打てる場所:", moves)
 print("ai_corner の選択:", ai_corner(board, BLACK, moves))</pre></div>
-          <p>すでにあるAI(<code>ai_greedy</code>)を部品として呼び出しているのがポイント。AIの改造は「部品の組み合わせ」でどんどん進化させられます。50局対戦させると、ランダム相手の勝率は欲張りAIをさらに上回るはずです。</p>
+          <p>すでにあるAI(<code>ai_greedy</code>)を部品として呼び出しているのがポイント。<code>return</code> は<strong>見つけた瞬間に関数を終わらせる</strong>ので、ループの残りは実行されません。角を1つ見つけたら即決です。AIの改造は「部品の組み合わせ」でどんどん進化させられます。50局対戦させると、ランダム相手の勝率は欲張りAIをさらに上回るはずです。</p>
         </div>
       </details>
     </div>
