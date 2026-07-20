@@ -161,6 +161,28 @@ _t("最高スコアを表示している", "55" in _output,
 _t("リスト scores はそのまま残っている",
    "scores" in globals() and scores == [34, 41, 28, 55, 33],
    "scores のリストは書き換えずに、読み取るだけにしよう")
+# 答えの直書き(best = 55)対策: scores を別のデータに差し替えて再実行しても正しいか
+import re as _re
+import random as _random
+_m = _re.search(r"scores\s*=\s*\[[^\]]*\]", _source)
+if _m and "best" in globals():
+    _ok = True
+    _why = ""
+    for _i in range(3):
+        _data = [_random.randint(1, 99) for _ in range(_random.randint(3, 7))]
+        _src2 = _source[:_m.start()] + "scores = " + str(_data) + _source[_m.end():]
+        try:
+            _ns2, _out2 = _rerun(_src2)
+            if _ns2.get("best") != max(_data):
+                _ok = False
+                _why = f"scores = {_data} に変えると best が {_ns2.get('best')} になります(正解は {max(_data)})"
+                break
+        except Exception as _e:
+            _ok = False
+            _why = f"scores = {_data} に変えるとエラー: {_e}"
+            break
+    _t("スコアのデータを変えても正しく動く(ランダム3セット)", _ok,
+       _why or "55 を直接書くのではなく、scores から計算で求めよう")
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

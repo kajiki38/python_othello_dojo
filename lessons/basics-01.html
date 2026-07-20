@@ -109,6 +109,27 @@ _t("変数 white が 30 になっている", "white" in globals() and white == 3
    "white = 30 と書けているかな?")
 _t("差の 4 を計算して表示している", "4 個リード" in _output or "4個リード" in _output,
    'print(f"黒が {black - white} 個リードしています") のように書いてみよう')
+# 答えの直書き(4 と書くだけ)対策: 石の数を差し替えて再実行しても正しいか
+import re as _re
+if _re.search(r"black\s*=\s*34", _source) and _re.search(r"white\s*=\s*30", _source):
+    _ok = True
+    _why = ""
+    for (_b, _w) in [(41, 19), (60, 58), (35, 30)]:
+        _src2 = _re.sub(r"black\s*=\s*34", f"black = {_b}", _source, count=1)
+        _src2 = _re.sub(r"white\s*=\s*30", f"white = {_w}", _src2, count=1)
+        try:
+            _ns2, _out2 = _rerun(_src2)
+            _d = _b - _w
+            if not (f"{_d} 個リード" in _out2 or f"{_d}個リード" in _out2):
+                _ok = False
+                _why = f"黒 {_b}・白 {_w} に変えると「{_d} 個リード」と表示されません"
+                break
+        except Exception as _e:
+            _ok = False
+            _why = f"黒 {_b}・白 {_w} に変えるとエラー: {_e}"
+            break
+    _t("石の数を変えても差が正しい(3パターン)", _ok,
+       _why or "4 を直接書くのではなく {black - white} で計算しよう")
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>

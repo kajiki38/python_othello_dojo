@@ -161,6 +161,29 @@ _t("数えた結果を表示している", "4" in _output and "2" in _output,
 _t("リスト row はそのまま残っている",
    "row" in globals() and row == ["●", "●", "○", ".", "○", "○", "○", "."],
    "row のリストは書き換えずに、読み取るだけにしよう")
+# 答えの直書き(white_count = 4 と書くだけ)対策: row を別の盤面に差し替えて再実行しても正しいか
+import re as _re
+import random as _random
+_m = _re.search(r"row\s*=\s*\[[^\]]*\]", _source)
+if _m and "white_count" in globals() and "empty_count" in globals():
+    _ok = True
+    _why = ""
+    for _i in range(3):
+        _row2 = [_random.choice(["●", "○", "."]) for _ in range(8)]
+        _src2 = _source[:_m.start()] + "row = " + str(_row2) + _source[_m.end():]
+        try:
+            _ns2, _out2 = _rerun(_src2)
+            if _ns2.get("white_count") != _row2.count("○") or _ns2.get("empty_count") != _row2.count("."):
+                _ok = False
+                _why = (f"row = {''.join(_row2)} に変えると white_count={_ns2.get('white_count')} "
+                        f"empty_count={_ns2.get('empty_count')} になります(正解は {_row2.count('○')} と {_row2.count('.')})")
+                break
+        except Exception as _e:
+            _ok = False
+            _why = f"row を変えるとエラー: {_e}"
+            break
+    _t("盤面のデータを変えても数えられる(ランダム3パターン)", _ok,
+       _why or "4 や 2 を直接書くのではなく、for と if で数えよう")
 </script>
       <details class="solution">
         <summary>解答例を見る</summary>
