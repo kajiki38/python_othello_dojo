@@ -10,6 +10,7 @@ const PAGES = [
   '/lessons/basics-01.html',
   '/lessons/lesson03.html',
   '/lessons/gomoku-04.html',
+  '/lessons/lesson08.html',
   '/playground.html',
   '/playground-gomoku.html',
   '/playground-connect4.html',
