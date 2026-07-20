@@ -85,6 +85,10 @@ for row in board:
 
     <p><code>[EMPTY] * WIDTH</code> で「横7マスぶんの空き行」を作り、それを <code>range(HEIGHT)</code> ぶん(6回)積み重ねる——横と縦、どちらの数を使うべきかを常に意識するのがこのレッスンの一番のポイントです。</p>
 
+    <div class="note">
+      <p><code>[[EMPTY] * WIDTH for _ in range(HEIGHT)]</code> の形は<strong>リスト内包表記</strong>という書き方です。読み方は「<code>[EMPTY] * WIDTH</code> =空きマス7個の行を、<code>for _ in range(HEIGHT)</code> =6回くり返し作って、1つのリストにまとめる」(<code>_</code> は「ループの番号は使いません」という合図の変数名)。<a href="basics-02.html">きほん Lesson 2</a> の STEP 5 で、forループ版と並べてくわしく説明しています。</p>
+    </div>
+
     <h2><span class="step">STEP 3</span>座標つきで表示する</h2>
     <p><code>print_board</code> も横がWIDTH、縦がHEIGHTに対応させます。</p>
 
