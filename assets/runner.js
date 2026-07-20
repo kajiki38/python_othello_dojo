@@ -44,6 +44,7 @@
           loadCss(`${CM_BASE}/codemirror.min.css`),
           loadCss(`${CM_BASE}/theme/material-darker.min.css`),
           loadCss(`${CM_BASE}/addon/hint/show-hint.min.css`),
+          loadCss(`${CM_BASE}/addon/lint/lint.min.css`),
         ]);
         await loadJs(`${CM_BASE}/codemirror.min.js`);
         await Promise.all([
@@ -52,6 +53,7 @@
           loadJs(`${CM_BASE}/addon/edit/closebrackets.min.js`),
           loadJs(`${CM_BASE}/addon/comment/comment.min.js`),
           loadJs(`${CM_BASE}/addon/hint/show-hint.min.js`),
+          loadJs(`${CM_BASE}/addon/lint/lint.min.js`),
         ]);
       })();
     }
@@ -153,6 +155,8 @@
     });
     cm.addKeyMap({ "Ctrl-Space": (c) => c.showHint() });
     cm.on("inputRead", (c, change) => {
+      // 最初のキー入力でPython環境の読み込みを始めておく(文法チェックと初回実行が速くなる)
+      ensureLintFn().then(() => { if (c.performLint) c.performLint(); });
       if (c.state.completionActive) return;
       const typed = change.text[change.text.length - 1];
       if (!typed || !/[A-Za-z_]$/.test(typed)) return;
@@ -161,6 +165,79 @@
       c.showHint();
     });
     cm.addOverlay(PY_ESCAPE_OVERLAY);   // ついでに \n \t などのエスケープを色分け
+    enablePythonLint(cm);               // 文法エラーの波線表示
+  }
+
+  /* ---------- 文法エラーの波線表示(lint) ----------
+   * Pythonの compile() で文法チェックし、エラー行に赤い波線+日本語ヒントを表示する。
+   * Pyodideが未ロードの間は何もしない(最初のキー入力で読み込みが始まる)。 */
+  let lintFnPromise = null;
+  function ensureLintFn() {
+    if (!lintFnPromise) {
+      lintFnPromise = ensurePyodide().then((py) => py.runPython(`
+def _pgi_lint(src):
+    import json
+    try:
+        compile(src, "<code>", "exec")
+        return json.dumps(None)
+    except SyntaxError as e:
+        return json.dumps({"line": e.lineno or 1, "col": (e.offset or 1) - 1, "msg": e.msg or "syntax error"})
+_pgi_lint`));
+    }
+    return lintFnPromise;
+  }
+
+  function friendlySyntax(msg) {
+    const hints = [
+      [/expected ':'/, "行末の「:」を忘れていませんか?"],
+      [/expected an indented block/, "この行の下に字下げ(スペース4つ)したブロックが必要です"],
+      [/unexpected indent/, "字下げ(インデント)がずれています"],
+      [/unindent does not match/, "字下げの戻し位置がそろっていません"],
+      [/never closed/, "カッコや引用符が閉じていません"],
+      [/unterminated string/, "文字列の閉じ引用符がありません"],
+      [/invalid non-printable character/, "全角スペースが混ざっていそうです。半角スペースに直しましょう"],
+      [/Maybe you meant '=='/, "条件の比較は = ではなく == です"],
+      [/cannot assign/, "ここでは代入(=)できません。比較なら == です"],
+      [/invalid syntax/, "文法エラーです。この行を見直してみましょう"],
+    ];
+    for (const [re, jp] of hints) if (re.test(msg)) return `${jp}(${msg})`;
+    return msg;
+  }
+
+  function enablePythonLint(cm) {
+    // 注意: lintアドオンは「lintオプションを設定した時点」の gutters を見て行マーカーの有無を決めるため、
+    // gutters を必ず先に設定する
+    cm.setOption("gutters", ["CodeMirror-linenumbers", "CodeMirror-lint-markers"]);
+    cm.setOption("lint", {
+      async: true,
+      delay: 600,
+      getAnnotations: (text, update, opts, editor) => {
+        if (!lintFnPromise || !text.trim()) { update(editor, []); return; }
+        lintFnPromise.then((fn) => {
+          const res = JSON.parse(fn(text));
+          if (!res) { update(editor, []); return; }
+          const line = Math.min(Math.max(0, res.line - 1), editor.lineCount() - 1);
+          const lineText = editor.getLine(line) || "";
+          // SyntaxErrorのoffsetは行末の外を指すことがある。空範囲のマークはCodeMirrorが
+          // 自動破棄して波線が出ないため、必ず「1文字ぶんの範囲」に丸める
+          let c1 = Math.min(Math.max(0, res.col), Math.max(0, lineText.length - 1));
+          let c2 = Math.min(c1 + 1, lineText.length);
+          const ann = { severity: "error", message: friendlySyntax(res.msg) };
+          if (c2 > c1) {
+            ann.from = CodeMirror.Pos(line, c1);
+            ann.to = CodeMirror.Pos(line, c2);
+          } else {
+            // 空行なら行全体(次行の頭まで)をマークする
+            ann.from = CodeMirror.Pos(line, 0);
+            ann.to = CodeMirror.Pos(Math.min(line + 1, editor.lineCount() - 1), 0);
+          }
+          update(editor, [ann]);
+        }).catch((err) => {
+          console.warn("[pgi-lint]", err);   // lint自体の失敗は波線なし扱い(実行は妨げない)
+          update(editor, []);
+        });
+      },
+    });
   }
 
   /* \n \t \\ \x41 あ などのエスケープシーケンスに "escape" トークンを重ねるオーバーレイ。
