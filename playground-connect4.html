@@ -1135,6 +1135,7 @@ def my_ai(board, color, cols):
       extraKeys: { "Ctrl-/": "toggleComment", "Cmd-/": "toggleComment" },
     });
     window.PGI.enablePythonHints(labCm, () => ENGINE);   // 補完候補にエンジンの関数名も含める
+    labCm.on("change", clearErrLine);                    // 編集したらエラー行ハイライトを消す
     labSnapshot = labCm.getValue();
     // AI工房タブが既に開いている場合(?tab=lab など)は、生成直後に再描画して確実に表示
     if (document.getElementById("pane-lab").classList.contains("active")) {
@@ -1293,7 +1294,36 @@ def my_ai(board, color, cols):
     log.textContent += text + "\n";
     log.scrollTop = log.scrollHeight;
   }
-  const fmtErr = (e) => String(e.message || e).split("\n").filter((l) => l.trim()).slice(-1)[0];
+  let labErrLine = null;
+  function clearErrLine() {
+    if (labCm && labErrLine != null) labCm.removeLineClass(labErrLine, "background", "err-line");
+    labErrLine = null;
+  }
+  function markErrLine(n) {
+    clearErrLine();
+    if (!labCm || n < 1 || n > labCm.lineCount()) return;
+    labErrLine = n - 1;
+    labCm.addLineClass(labErrLine, "background", "err-line");
+    labCm.scrollIntoView({ line: labErrLine, ch: 0 }, 80);
+  }
+  // あなたのコード由来のフレームから行番号を拾って「N行目:」を付け、エディタの該当行をハイライトする
+  const fmtErr = (e) => {
+    const raw = String(e.message || e);
+    const lines = raw.split("\n");
+    const last = lines.filter((l) => l.trim()).slice(-1)[0] || "エラー";
+    const mine = new Set(["<module>", "my_ai"]);
+    if (labCm) for (const m of labCm.getValue().matchAll(/^def\s+(\w+)/gm)) mine.add(m[1]);
+    let lineNo = null;
+    for (const l of lines) {
+      const m = l.match(/File "<exec>", line (\d+)(?:, in (\S+))?/);
+      if (m && (!m[2] || mine.has(m[2]))) lineNo = +m[1];
+    }
+    if (lineNo != null) {
+      markErrLine(lineNo);
+      return `${lineNo}行目: ${last}`;
+    }
+    return last;
+  };
   const levelNameOf = (lv) => ({ easy: "やさしい", normal: "ふつう", strong: "つよい" }[lv]);
 
   /* ---- 観戦盤(1局モード)---- */
@@ -1505,6 +1535,7 @@ def my_ai(board, color, cols):
     btn.disabled = true;
     btn.textContent = "準備中…";
     $("#lab-log").textContent = "";
+    clearErrLine();
     $("#lab-summary").textContent = "準備中…";
     try {
       const { py } = await engine();
