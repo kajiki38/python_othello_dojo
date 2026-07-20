@@ -48,5 +48,5 @@ npx serve .
 ## 技術メモ
 
 - 純粋な静的サイト(ビルド不要)。外部依存は CDN の Pyodide v0.26.4 / CodeMirror 5 / Google Fonts のみ
-- サイト内の全Pythonサンプル(全23レッスンのウィジェット+チャレンジ解答+エンジン)は Node + Pyodide の自動テストで実行検証済み
+- 検証ハーネスは [tests/](tests/) に同梱(全ウィジェットのPython実行・チャレンジ判定・ブラウザ実操作。`cd tests && npm install && npm test`)
 - 盤面ビジュアライザはゲームごとにテーマが変わる(オセロ=緑盤 / 五目並べ=交点表示の碁盤 / コネクトフォー=青フレーム+赤黄ディスク)。`<body data-board-theme="...">` で切替

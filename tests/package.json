@@ -1,0 +1,15 @@
+{
+  "name": "pgi-tests",
+  "private": true,
+  "type": "module",
+  "description": "Python×ボドゲ道場の検証ハーネス(エンジン実行+ブラウザ実操作)",
+  "scripts": {
+    "test": "npm run test:python && npm run test:ui",
+    "test:python": "node test-all-lessons.mjs && node verify-challenges.mjs",
+    "test:ui": "node ui/mobile-audit.mjs && node ui/challenge-ui-test.mjs && node ui/touch-test.mjs && node ui/kb-test.mjs && node ui/kifu-test.mjs && node ui/hint-test.mjs && node ui/error-ux-test.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0",
+    "pyodide": "^314.0.2"
+  }
+}
