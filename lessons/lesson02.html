@@ -90,7 +90,7 @@ for row in board:
     <p>ループの中にループがある「二重ループ」です。内側の <code>for x</code> が8回まわるたびに、外側の <code>for y</code> が1歩進む。オセロの全マスを調べるときにも、この形を何度も使います。</p>
 
     <div class="note">
-      <p><strong>上級ワザ:</strong> 同じことを1行で書く方法もあります → <code>board = [[EMPTY] * 8 for _ in range(8)]</code>。「リスト内包表記」と呼ばれる書き方で、慣れるととても便利。このサイトの後半でも登場します。</p>
+      <p><strong>上級ワザ:</strong> 同じ盤面は <code>board = [[EMPTY] * 8 for _ in range(8)]</code> と<strong>1行でも作れます</strong>(リスト内包表記)。読み方は「<code>[EMPTY] * 8</code> =空きマス8個の行を、<code>for _ in range(8)</code> =8回くり返し作って、1つのリストにまとめる」。<code>_</code> は「ループの番号は使いません」という合図の変数名です。<a href="basics-02.html">きほん Lesson 2</a> の STEP 5 で、forループ版と並べてくわしく説明しています。この先のレッスンの <code>make_board</code> はこの1行版を使うので、読み方だけ押さえておきましょう。</p>
     </div>
 
     <h2><span class="step">STEP 3</span>初期配置の4つの石を置く</h2>
