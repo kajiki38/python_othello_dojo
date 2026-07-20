@@ -353,7 +353,7 @@ _pgi_lint`));
               out.innerHTML = `<span class="sys">(出力はありません — print() を使うとここに表示されます)</span>`;
             }
             renderBoardViz(viz, py, ns);
-            if (checkId) runChecks(py, ns, checkId, checks, text);
+            if (checkId) runChecks(py, ns, checkId, checks, text, code);
           } catch (err) {
             viz.classList.remove("show");
             viz.innerHTML = "";
@@ -383,8 +383,12 @@ _pgi_lint`));
   /* ---------- チャレンジの自動チェック ----------
    * data-check="スクリプトid" のウィジェットは、実行成功後に同じ名前空間で
    * <script type="text/x-python" id="..."> のテストコードを流す。
-   * テスト側の書き方: _t(名前, 条件, 補足="") を複数回呼ぶ。学習者の出力は _output で参照できる。 */
-  function runChecks(py, ns, checkId, host, outputText) {
+   * テスト側の書き方: _t(名前, 条件, 補足="") を複数回呼ぶ。
+   *  - _output: 学習者のprint出力(文字列)
+   *  - _source: 実行したコード全文(プリアンブル込み)
+   *  - _rerun(src): srcを新しい名前空間で実行し (名前空間dict, 出力文字列) を返す。
+   *    「データを差し替えて再実行しても正しいか」の検証(答えの直書き対策)に使う */
+  function runChecks(py, ns, checkId, host, outputText, sourceCode) {
     const checkEl = document.getElementById(checkId);
     if (!checkEl) return;
     host.innerHTML = "";
@@ -395,10 +399,18 @@ _pgi_lint`));
     let results = null, error = null;
     try {
       ns.set("_output", outputText);
+      ns.set("_source", sourceCode || "");
       const checkCode =
         "_pgi_results = []\n" +
         'def _t(name, cond, detail=""):\n' +
         "    _pgi_results.append((str(name), bool(cond), str(detail)))\n" +
+        "def _rerun(src):\n" +
+        "    import io, contextlib\n" +
+        "    _ns = {}\n" +
+        "    _buf = io.StringIO()\n" +
+        "    with contextlib.redirect_stdout(_buf):\n" +
+        "        exec(src, _ns)\n" +
+        "    return _ns, _buf.getvalue()\n" +
         dedent(checkEl.textContent);
       py.runPython(checkCode, { globals: ns });
       results = JSON.parse(py.runPython('__import__("json").dumps(_pgi_results)', { globals: ns }));

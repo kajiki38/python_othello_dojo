@@ -40,18 +40,22 @@ function parse(html, file) {
   return { pre: pre || '', starter, check, solution };
 }
 
-const HELPER = '_pgi_results = []\ndef _t(name, cond, detail=""):\n    _pgi_results.append((str(name), bool(cond), str(detail)))\n';
+const HELPER = '_pgi_results = []\ndef _t(name, cond, detail=""):\n    _pgi_results.append((str(name), bool(cond), str(detail)))\n'
+  + 'def _rerun(src):\n    import io, contextlib\n    _ns = {}\n    _buf = io.StringIO()\n'
+  + '    with contextlib.redirect_stdout(_buf):\n        exec(src, _ns)\n    return _ns, _buf.getvalue()\n';
 
 const py = await loadPyodide();
 
 async function runCase(pre, code, check) {
   const ns = py.globals.get('dict')();
+  const full = (pre ? pre + '\n\n' : '') + code;
   try {
     py.runPython('import io, sys\nsys.stdout = io.StringIO()', { globals: ns });
-    await py.runPythonAsync((pre ? pre + '\n\n' : '') + code, { globals: ns });
+    await py.runPythonAsync(full, { globals: ns });
     const output = py.runPython('sys.stdout.getvalue()', { globals: ns });
     py.runPython('sys.stdout = sys.__stdout__', { globals: ns });
     ns.set('_output', output);
+    ns.set('_source', full);
     py.runPython(HELPER + check, { globals: ns });
     return JSON.parse(py.runPython('__import__("json").dumps(_pgi_results)', { globals: ns }));
   } finally {
