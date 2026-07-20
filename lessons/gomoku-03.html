@@ -99,7 +99,7 @@ print("(4,4)から左方向:", count_line(board, 4, 4, -1, 0, BLACK))
 </script>
     </div>
 
-    <p><code>count_line</code> がやっているのは、<strong>1マスずつ「歩く」</strong>だけです。<code>nx, ny = x + dx, y + dy</code> でまず<strong>隣の1マス</strong>へ移り、<code>while</code> で「盤の中」かつ「同じ色」が続く間だけ <code>count</code> を増やしながら <code>nx += dx; ny += dy</code> で<strong>さらに先へ進みます</strong>。違う色・空きマス・盤の外にぶつかった瞬間に止まります。<code>(dx, dy)</code> は進む向き——<code>(1, 0)</code> なら右、<code>(-1, 0)</code> なら左です。</p>
+    <p><code>count_line</code> がやっているのは、<strong>1マスずつ「歩く」</strong>だけです。<code>nx, ny = x + dx, y + dy</code> でまず<strong>隣の1マス</strong>へ移り、<code>while</code> で「盤の中」かつ「同じ色」が続く間だけ <code>count</code> を増やしながら <code>nx += dx; ny += dy</code> で<strong>さらに先へ進みます</strong>。違う色・空きマス・盤の外にぶつかった瞬間に止まります。<code>(dx, dy)</code> は進む向き——<code>(1, 0)</code> なら右、<code>(-1, 0)</code> なら左です。最初の1歩をループの<strong>前</strong>で踏んでいるのは、<code>while</code> が<strong>条件チェックから</strong>始まるループだから。ループに入る時点で <code>nx, ny</code> が「最初に調べたい隣のマス」を指している必要があり、スタート地点の自分の石まで数えてしまわないための工夫でもあります。</p>
 
     <p>上のコードでは横一列に3つ並べたので、右方向は0個(その先に石がない)、左方向は2個(黒が2つ連続)という結果になったはずです。この2つを足して自分の1個を足すと「3」——実際に並んでいる数と一致します。</p>
 

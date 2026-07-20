@@ -110,7 +110,7 @@ print("左方向:", count_line(board, x, y, -1, 0, BLACK))
 </script>
     </div>
 
-    <p><code>count_line</code> がやっているのは、<strong>1マスずつ「歩く」</strong>だけです。<code>nx, ny = x + dx, y + dy</code> でまず<strong>隣の1マス</strong>へ移り、<code>while</code> で「盤の中(<code>0 &lt;= nx &lt; WIDTH</code> かつ <code>0 &lt;= ny &lt; HEIGHT</code>)」かつ「同じ色」が続く間だけ、<code>count</code> を増やしながら <code>nx += dx; ny += dy</code> で<strong>さらに先へ進み続けます</strong>。違う色・空きマス・盤の外にぶつかった瞬間に <code>while</code> が止まり、そこまでの連続数を返します。<code>(dx, dy)</code> は進む向き——<code>(1, 0)</code> なら右、<code>(0, 1)</code> なら下、<code>(1, 1)</code> なら右斜め下です。</p>
+    <p><code>count_line</code> がやっているのは、<strong>1マスずつ「歩く」</strong>だけです。<code>nx, ny = x + dx, y + dy</code> でまず<strong>隣の1マス</strong>へ移り、<code>while</code> で「盤の中(<code>0 &lt;= nx &lt; WIDTH</code> かつ <code>0 &lt;= ny &lt; HEIGHT</code>)」かつ「同じ色」が続く間だけ、<code>count</code> を増やしながら <code>nx += dx; ny += dy</code> で<strong>さらに先へ進み続けます</strong>。違う色・空きマス・盤の外にぶつかった瞬間に <code>while</code> が止まり、そこまでの連続数を返します。<code>(dx, dy)</code> は進む向き——<code>(1, 0)</code> なら右、<code>(0, 1)</code> なら下、<code>(1, 1)</code> なら右斜め下です。最初の1歩をループの<strong>前</strong>で踏んでいるのは、<code>while</code> が<strong>条件チェックから</strong>始まるループだから。ループに入る時点で <code>nx, ny</code> が「最初に調べたい隣のマス」を指している必要があり、スタート地点の自分のディスクまで数えてしまわないための工夫でもあります。</p>
 
     <h2><span class="step">STEP 3</span>4つの軸すべてをチェック — check_win</h2>
     <p>片方向を数えられたので、あとは<strong>反対向きと足し合わせる</strong>だけ。ある軸の連続数は「<strong>自分の石(1個)＋その向きに続く数＋逆向きに続く数</strong>」で求まります。だから <code>1 + count_line(…, dx, dy, …) + count_line(…, -dx, -dy, …)</code>。<code>(dx, dy)</code> の逆向きは <code>(-dx, -dy)</code> です。これを4つの軸(縦・横・斜め2方向)で調べ、どれかが<strong>4以上</strong>なら勝ち——並べる数を「5」から「4」に変えるだけで、判定の組み立てはそのまま通用します。</p>
