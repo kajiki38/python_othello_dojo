@@ -29,8 +29,9 @@ npx serve .
 | `lessons/lesson06.html` | オセロ 5 — ゲームを完成させる(ゲームループ) |
 | `lessons/lesson07.html` | オセロ 6 — 対戦AIを作る(ランダムAI・欲張りAI) |
 | `lessons/lesson08.html` | オセロ 7 — AIをもっと強く(評価関数・重みテーブル) |
-| `lessons/gomoku-01.html` 〜 `gomoku-06.html` | 五目並べ — 盤面(9×9)/ 石を置く / 5つ並び判定 / ゲームループ / 対戦AI / AI強化(先読み) |
-| `lessons/connect4-01.html` 〜 `connect4-06.html` | コネクトフォー — 盤面(7×6)/ 重力で落とす / 4つ並び判定 / ゲームループ / 対戦AI / AI強化(先読み) |
+| `lessons/lesson09.html` | オセロ 8 — 発展: 2手先を読むAI(ミニマックス) |
+| `lessons/gomoku-01.html` 〜 `gomoku-07.html` | 五目並べ — 盤面(9×9)/ 石を置く / 5つ並び判定 / ゲームループ / 対戦AI / AI強化(先読み)/ 発展: ミニマックス |
+| `lessons/connect4-01.html` 〜 `connect4-07.html` | コネクトフォー — 盤面(7×6)/ 重力で落とす / 4つ並び判定 / ゲームループ / 対戦AI / AI強化(先読み)/ 発展: ミニマックス |
 | `playground.html` | 🎮 クリック対戦 / 🔬 自作AI工房 / 📖 エンジン全ソース(オセロ) |
 | `playground-gomoku.html` | 同上の五目並べ版(本格の15路盤で対戦・AI工房。レッスンは学習用に9×9) |
 | `playground-connect4.html` | 同上のコネクトフォー版(列クリックで落下・AI工房) |

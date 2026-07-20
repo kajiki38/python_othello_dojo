@@ -20,7 +20,7 @@
       key: "othello",
       label: "オセロ",
       icon: "🟩",
-      desc: "全7レッスンでオセロを一から実装。ルール実装からAI開発まで、ボドゲ道場の看板コース。",
+      desc: "全8レッスンでオセロを一から実装。ルール実装からAI開発まで、ボドゲ道場の看板コース。",
       graduation: { href: "../playground.html?tab=lab", dir: "卒業制作 →", ttl: "AI工房で自作AIを試そう" },
       lessons: [
         { id: "lesson02", title: "盤面を作ろう", desc: "2次元リストと二重ループで8×8のオセロ盤を表現する", level: 1, time: "25分" },
@@ -30,6 +30,7 @@
         { id: "lesson06", title: "ゲームを完成させる", desc: "対戦ループ・終了判定・勝敗発表。1つのゲームが動く", level: 2, time: "30分" },
         { id: "lesson07", title: "対戦AIを作る", desc: "ランダムAIと欲張りAI。AI同士を戦わせて実験する", level: 3, time: "35分" },
         { id: "lesson08", title: "AIをもっと強く", desc: "評価関数と角の戦略。自分だけの改造に挑戦", level: 3, time: "40分+" },
+        { id: "lesson09", title: "発展: 2手先を読むAI", desc: "相手の返しまで読むミニマックス。ai_masterを超える", level: 3, time: "40分" },
       ],
     },
     {
@@ -45,6 +46,7 @@
         { id: "gomoku-04", title: "ゲームを完成させる", desc: "対戦ループと勝敗判定。1局を最後まで打ち切る", level: 2, time: "25分" },
         { id: "gomoku-05", title: "対戦AIを作る", desc: "勝てる手・防ぐべき手を読むAIを作って対戦させる", level: 3, time: "30分" },
         { id: "gomoku-06", title: "AIをもっと強く", desc: "ダブルリーチの先読み。1手読みAIの壁を越える", level: 3, time: "35分" },
+        { id: "gomoku-07", title: "発展: 2手先を読むAI", desc: "評価関数+ミニマックス。汎用アイデアでai_strongに挑む", level: 3, time: "40分" },
       ],
     },
     {
@@ -60,6 +62,7 @@
         { id: "connect4-04", title: "ゲームを完成させる", desc: "対戦ループと勝敗判定。1局を最後まで打ち切る", level: 2, time: "25分" },
         { id: "connect4-05", title: "対戦AIを作る", desc: "勝てる手・防ぐべき手を読むAIを作って対戦させる", level: 3, time: "30分" },
         { id: "connect4-06", title: "AIをもっと強く", desc: "うっかり手の回避とダブルリーチの先読み", level: 3, time: "35分" },
+        { id: "connect4-07", title: "発展: 3手先を読むAI", desc: "分岐が少ないから深く読める。ミニマックスの見せ場", level: 3, time: "40分" },
       ],
     },
   ];
